@@ -29,6 +29,36 @@ Use `-DryRun` to preview. `-Start` launches Blender after creation.
 
 If the script cannot run, copy `templates/project` manually and replace the same tokens.
 
+## Project structure
+
+```text
+Blender/<Project>/
+  README.md
+  <slug>.blend
+  .gitignore
+  Documents/
+    ASSETS.md
+    DECISIONS.md
+    Goals/
+    References/
+  assets/
+    external/
+    textures/
+    hdri/
+    models/
+    audio/
+  renders/
+    final/
+    wip/
+  exports/
+  scenes/
+  scripts/
+  logs/        # ignored runtime logs
+  backups/     # ignored snapshots
+```
+
+The template is authoritative. Do not add, rename, or omit top-level folders without updating it.
+
 ## After scaffold
 
 1. Fill `README.md` with `blender-project-readme`.

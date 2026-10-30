@@ -45,6 +45,14 @@ Pass `user_prompt` with the user's exact words when the tool accepts it. Do not 
 4. Verify with `get_scene_info` and `look`.
 5. Continue from verified state, not from what the script intended.
 
+## Save and visual checks
+
+Save the `.blend` every few turns. Commit project files after a major step, multi-turn milestone, or
+before risky work. Keep logs, backups, caches, and WIP renders out of commits.
+
+Visual verification is mandatory. Every scene, material, lighting, or camera change must be
+inspected with `look` before completion; code output alone is not proof.
+
 Use `look` after material, lighting, camera, or modeling changes:
 
 - `look(mode="viewport")` for the user's view.
@@ -63,7 +71,7 @@ For `generate_3d`, one call creates one object. It can cost money or a generatio
 - Read enum identifiers and RNA properties instead of hardcoding localized labels.
 - Find shader nodes by `node.type`, never by display name.
 - Check whether an object already exists before creating it; make scripts idempotent.
-- Do not save, overwrite, delete, or replace user data without explicit permission.
+- Save the authoritative `.blend` on the required cadence; ask before overwriting unrelated files or user data.
 - Do not use network, subprocess, or filesystem access in generated code unless the user asked for it.
 - Keep code short and print only the facts needed for verification.
 

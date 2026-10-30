@@ -28,8 +28,9 @@ is a pure read-only question that produces no files or scene changes.
 - Scope: in, out, and external dependencies.
 - Deliverables: scene, review render, exports, documents.
 - Acceptance checks that can be seen in a render or read from a file.
-- Workflow: launch Blender from the workspace root, verify the open file, inspect with `look`, save
-  and render, update docs. Only one Blender project from this workspace may be active at a time.
+- Workflow: launch Blender from the workspace root, verify the open file, save every few turns,
+  commit major milestones, inspect with `look`, render, update docs. Only one Blender project from
+  this workspace may be active at a time.
 - Done: no completion without the review artifact and current documentation.
 
 ## Rules
