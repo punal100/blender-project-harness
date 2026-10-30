@@ -14,9 +14,9 @@ this section short and concrete.
 
 ## Requirements
 
-- [ ] Replace with functional requirements.
-- [ ] Replace with visual and technical requirements.
-- [ ] Replace with delivery constraints.
+Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents/REQUIREMENTS.md).
+
+- [ ] Summarize the highest-priority confirmed requirements.
 
 ## Visual direction
 
@@ -43,6 +43,8 @@ this section short and concrete.
   .gitignore
   Documents/
     README.md
+    REQUIREMENTS.md
+    WORKFLOW.md
     ASSETS.md
     DECISIONS.md
     Goals/
@@ -66,6 +68,7 @@ this section short and concrete.
 ## Blender
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
+- Workflow mode: [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md), asked again on every resume.
 - Launch from the workspace root: `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`
 - Each launch opens a log terminal and writes to `logs/blender-<timestamp>.log`; `logs/` is ignored.
 - Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root.
@@ -96,6 +99,7 @@ Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are 
 
 ## Next steps
 
+- [ ] Record confirmed requirements and select the workflow mode.
 - [ ] Fill this README and the project brief.
 - [ ] Collect references and external assets.
 - [ ] Build the scene and render a first review.

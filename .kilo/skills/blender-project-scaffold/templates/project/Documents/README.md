@@ -5,15 +5,23 @@ deliverable.
 
 | Path | Purpose |
 |---|---|
+| `REQUIREMENTS.md` | Confirmed scope, acceptance criteria, and requirement change log. |
+| `WORKFLOW.md` | Current autonomy mode and workflow switch history. |
 | `Goals/` | `/goal` prompts for design work. One file per goal; multiple goals per project. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
 | `References/` | Moodboards, screenshots, links, and visual references. |
-| `../README.md` | Project purpose, requirements, scope, deliverables, and status. |
+| `../README.md` | Project purpose, requirements summary, scope, deliverables, and status. |
 
 ## Rules
 
+- Do not scaffold or launch Blender until requirements are confirmed.
+- Before Blender work, ensure a goal is active and a workflow mode is selected.
+- Requirements may be added or changed at any time only after user confirmation; append the change
+  log in `REQUIREMENTS.md`.
+- In Partially Autonomous mode, ask for approval after every meaningful change or addition.
 - A goal prompt is a design brief, not a coding plan. Do not create `PLAN/` or planning records.
 - Record every external asset in `ASSETS.md` before or when it is added.
 - Use relative paths from the `.blend` file; never commit machine-specific absolute paths.
-- Update the README and `DECISIONS.md` when scope, assets, or visual direction changes.
+- Update the README, `REQUIREMENTS.md`, `WORKFLOW.md`, and `DECISIONS.md` when scope, workflow,
+  assets, or visual direction changes.

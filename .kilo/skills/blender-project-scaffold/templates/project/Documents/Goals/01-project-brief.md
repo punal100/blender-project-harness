@@ -1,8 +1,9 @@
 # Goal: {{GOAL_TITLE}} ({{DATE}})
 
-Read `../../../../AGENTS.md` first and obey it. Load `blender-project-goal`, `blender-project-readme`,
-and `blender-assets` when relevant. This is a design goal, not a coding plan: do not create a
-`PLAN/` folder and do not use coding plan/check/verifier gates.
+Read `../../../../AGENTS.md` first and obey it. Read `blender-project-goal`,
+`blender-project-requirements`, `blender-project-workflow`, `blender-project-readme`, and
+`blender-assets` when relevant. This is a design goal, not a coding plan: do not create a `PLAN/`
+folder and do not use coding plan/check/verifier gates.
 
 ## Mission
 
@@ -13,6 +14,8 @@ and `blender-assets` when relevant. This is a design goal, not a coding plan: do
 {{PROJECT_NAME}} — {{DESCRIPTION}}
 
 - Project README: `../../README.md`
+- Confirmed requirements: `../REQUIREMENTS.md`
+- Workflow mode: `../WORKFLOW.md`
 - Asset register: `../ASSETS.md`
 - Decisions: `../DECISIONS.md`
 - References: `../References/README.md`
@@ -46,17 +49,22 @@ colour, scale, and mood. Name the review image or render that will prove it.
 ## Workflow
 
 1. Call `goal(action="start", objective=<this prompt>)`.
-2. Read the README, asset register, decisions, and references.
-3. From the workspace root, launch this project with
+2. Read the README, `REQUIREMENTS.md`, `WORKFLOW.md`, asset register, decisions, and references.
+3. Stop if requirements are unconfirmed or the workflow mode is `Unset`; resolve both before editing.
+4. From the workspace root, launch this project with
    `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`. Only one Blender instance from this workspace may
    be open at a time.
-4. Call `blender_get_addon_status`; verify `blender_get_scene_info(fields=["settings"])` reports
+5. Call `blender_get_addon_status`; verify `blender_get_scene_info(fields=["settings"])` reports
    this project's `.blend` before editing.
-5. Build in small steps. Verify each material, lighting, and camera change with `look`.
-6. Save, render a review image, and inspect it before calling the goal complete.
-7. Update README, `DECISIONS.md`, and `ASSETS.md`; then call `goal_report complete`.
+6. Build in small steps. Verify each material, lighting, and camera change with `look`.
+7. In Partially Autonomous mode, save, inspect, and ask for approval via `question` after every
+   meaningful change. If the user modifies the scene manually, wait, inspect, and confirm afterward.
+8. Save, render a review image, and inspect it before calling the goal complete.
+9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`; then call
+   `goal_report complete`.
 
 ## Done
 
-The goal is complete only when the acceptance checks pass, the scene and review render are saved,
-the documents are current, and no external asset is missing or unregistered.
+The goal is complete only when acceptance checks pass, requirements and workflow are current, the
+scene and review render are saved, no external asset is missing or unregistered, and the documents
+are current.
