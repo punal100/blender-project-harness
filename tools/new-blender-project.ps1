@@ -75,11 +75,22 @@ if ($leftover) {
 Write-Host "Created Blender project: $destination"
 Write-Host ""
 Write-Host "Next:"
-Write-Host "1. Fill README.md and Documents\Goals\01-project-brief.md."
-Write-Host "2. From the workspace root: .\tools\start-blender.cmd `"Blender\$Name`""
-Write-Host "3. Save the main scene as $slug.blend in the project root."
-Write-Host "4. Only one Blender project spawned by this workspace may be open at a time."
+Write-Host "1. Write confirmed requirements to Documents\REQUIREMENTS.md."
+Write-Host "2. Ask the workflow mode and write Documents\WORKFLOW.md."
+Write-Host "3. Fill README.md and Documents\Goals\01-project-brief.md."
+Write-Host "4. From the workspace root: .\tools\start-blender.cmd `"Blender\$Name`""
+Write-Host "5. Save the main scene as $slug.blend in the project root."
+Write-Host "6. Only one Blender project spawned by this workspace may be open at a time."
 
 if ($Start) {
+    $requirementsPath = Join-Path $destination "Documents\REQUIREMENTS.md"
+    $workflowPath = Join-Path $destination "Documents\WORKFLOW.md"
+    $requirementsReady = (Test-Path -LiteralPath $requirementsPath -PathType Leaf) -and
+        ((Get-Content -LiteralPath $requirementsPath -Raw) -match '(?m)^Status:\s*Confirmed\s*$')
+    $workflowReady = (Test-Path -LiteralPath $workflowPath -PathType Leaf) -and
+        ((Get-Content -LiteralPath $workflowPath -Raw) -match '(?m)^Mode:\s*(Fully Autonomous|Partially Autonomous)\s*$')
+    if (-not $requirementsReady -or -not $workflowReady) {
+        throw "Requirements and workflow are not confirmed. Complete Documents\REQUIREMENTS.md and Documents\WORKFLOW.md before using -Start."
+    }
     & (Join-Path $PSScriptRoot "start-blender.ps1") -Project $destination
 }
