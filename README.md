@@ -1,7 +1,10 @@
-# Blender Project Collection
+# Blender Project Harness
 
-Workspace for managing multiple Blender projects through Kilo. Projects live under
-`Blender/<ProjectName>/`; shared launcher and scaffolding tools live under `tools/`.
+Workspace template for building Blender projects with Kilo AI agents and
+[MCP for Blender](https://github.com/ahujasid/mcp-for-blender). Projects live under
+`Blender/<ProjectName>/`; shared launcher, scaffolding, and regression tests live under `tools/`.
+
+Not affiliated with the Blender Foundation or the mcp-for-blender project.
 
 ## Requirements
 
@@ -102,3 +105,9 @@ Launcher and scaffold checks use isolated temporary workspaces and PowerShell. B
 `bpy`; no test launches Blender. Frontmatter and worker-config checks require PyYAML and report a skip
 when it is unavailable. Live addon behavior, Kilo registration, and actual Blender startup need a
 separate runtime check.
+
+## Licence
+
+MIT. See [`LICENSE`](LICENSE). The Blender MCP workflow guides under
+`.kilo/skills/blender-mcp/references/` are adapted from `ahujasid/mcp-for-blender`; attribution and
+the upstream MIT notice are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

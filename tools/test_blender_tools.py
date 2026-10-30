@@ -434,6 +434,22 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertIn(config["max_failed_attempts"], (1, 2))
                 self.assertEqual(config["max_parallel"], 1)
 
+    def test_reference_guides_are_attributed(self):
+        references = ROOT / ".kilo/skills/blender-mcp/references"
+        index = (references / "README.md").read_text(encoding="utf-8")
+        guides = sorted(path.name for path in references.glob("*.md") if path.name != "README.md")
+        self.assertTrue(guides)
+        for guide in guides:
+            with self.subTest(guide=guide):
+                self.assertIn(f"`{guide}`", index)
+        notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+        self.assertIn("Copyright (c) 2025 Siddharth Ahuja", notices)
+        self.assertIn("MIT License", notices)
+        for guide in guides:
+            self.assertIn(guide, notices)
+        self.assertIn("Copyright (c) 2026 Punal Manalan",
+                      (ROOT / "LICENSE").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
