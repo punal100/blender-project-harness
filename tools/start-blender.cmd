@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-pushd "%~dp0"
+set "TOOLS=%~dp0"
+pushd "%TOOLS%.."
 
 if /i "%~1"=="--batch" (
     shift
@@ -10,23 +11,23 @@ if defined KILO_BLENDER_FORCE_CMD goto batch_fallback
 
 where pwsh.exe >nul 2>nul
 if not errorlevel 1 (
-    pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-blender.ps1" %*
+    pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TOOLS%start-blender.ps1" %*
     exit /b %errorlevel%
 )
 
 where powershell.exe >nul 2>nul
 if not errorlevel 1 (
-    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-blender.ps1" %*
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TOOLS%start-blender.ps1" %*
     exit /b %errorlevel%
 )
 
 echo PowerShell is unavailable. Using the basic batch launcher.
 
 :batch_fallback
-set "ROOT=%~dp0"
+set "ROOT=%CD%\"
 set "PROJECT=%~1"
 if "%PROJECT%"=="" (
-    echo Usage: start-blender.cmd Blender\ProjectName
+    echo Usage: .\tools\start-blender.cmd Blender\ProjectName
     exit /b 1
 )
 
@@ -122,7 +123,7 @@ set "STAMP=%STAMP:,=-%"
 set "LOG=%LOGDIR%\blender-%STAMP%.log"
 
 set "BLENDER_PORT=%PORT%"
-set "ARGS=-con --log "*" --log-file "%LOG%" --python "%ROOT%start_blender_mcp.py""
+set "ARGS=-con --log "*" --log-file "%LOG%" --python "%TOOLS%start_blender_mcp.py""
 if defined BLENDFILE set "ARGS="%BLENDFILE%" !ARGS!"
 
 if defined KILO_BLENDER_CMD_DRYRUN (

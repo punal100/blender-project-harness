@@ -15,7 +15,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$workspaceRoot = $PSScriptRoot
+$workspaceRoot = Split-Path -Parent $PSScriptRoot
 $projectsRoot = Join-Path $workspaceRoot "Blender"
 $template = Join-Path $workspaceRoot ".kilo\skills\blender-project-scaffold\templates\project"
 
@@ -76,10 +76,10 @@ Write-Host "Created Blender project: $destination"
 Write-Host ""
 Write-Host "Next:"
 Write-Host "1. Fill README.md and Documents\Goals\01-project-brief.md."
-Write-Host "2. From the workspace root: .\start-blender.cmd `"Blender\$Name`""
+Write-Host "2. From the workspace root: .\tools\start-blender.cmd `"Blender\$Name`""
 Write-Host "3. Save the main scene as $slug.blend in the project root."
 Write-Host "4. Only one Blender project spawned by this workspace may be open at a time."
 
 if ($Start) {
-    & (Join-Path $workspaceRoot "start-blender.ps1") -Project $destination
+    & (Join-Path $PSScriptRoot "start-blender.ps1") -Project $destination
 }

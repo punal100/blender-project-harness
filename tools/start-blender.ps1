@@ -15,6 +15,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$workspaceRoot = Split-Path -Parent $PSScriptRoot
 
 function Find-BlenderExecutables {
     $found = New-Object System.Collections.Generic.List[string]
@@ -115,8 +116,8 @@ function Get-WorkspacePort {
     if ($ExplicitPort -gt 0) { return $ExplicitPort }
 
     $configs = @(
-        (Join-Path $PSScriptRoot ".kilo\kilo.jsonc"),
-        (Join-Path $PSScriptRoot ".kilo\kilo.json")
+        (Join-Path $workspaceRoot ".kilo\kilo.jsonc"),
+        (Join-Path $workspaceRoot ".kilo\kilo.json")
     )
     foreach ($config in $configs) {
         if (-not (Test-Path -LiteralPath $config -PathType Leaf)) { continue }
@@ -125,7 +126,7 @@ function Get-WorkspacePort {
         if ($match.Success) { return [int]$match.Groups[1].Value }
     }
 
-    $portFile = Join-Path $PSScriptRoot ".kilo\blender-port"
+    $portFile = Join-Path $workspaceRoot ".kilo\blender-port"
     if (Test-Path -LiteralPath $portFile -PathType Leaf) {
         $text = (Get-Content -LiteralPath $portFile -Raw).Trim()
         if ($text -match '^\d{2,5}$') { return [int]$text }
@@ -147,10 +148,10 @@ if ($ListBlender) {
 }
 
 if (-not $Project) {
-    throw "Usage: .\start-blender.ps1 -Project Blender\<ProjectName>"
+    throw "Usage: .\tools\start-blender.ps1 -Project Blender\<ProjectName>"
 }
 if (-not [System.IO.Path]::IsPathRooted($Project)) {
-    $Project = Join-Path $PSScriptRoot $Project
+    $Project = Join-Path $workspaceRoot $Project
 }
 
 if ($BlenderExe) {
@@ -178,10 +179,10 @@ if ($projectItem.PSIsContainer) {
     $BlendFile = $projectItem.FullName
 }
 
-$projectsRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "Blender")).TrimEnd('\')
+$projectsRoot = [System.IO.Path]::GetFullPath((Join-Path $workspaceRoot "Blender")).TrimEnd('\')
 $projectRootFull = [System.IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
 if (-not $projectRootFull.StartsWith($projectsRoot + "\", [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Blender projects must live under $projectsRoot. Create one with .\new-blender-project.cmd."
+    throw "Blender projects must live under $projectsRoot. Create one with .\tools\new-blender-project.cmd."
 }
 
 if ($BlendFile -and -not [System.IO.Path]::IsPathRooted($BlendFile) -and -not (Test-Path -LiteralPath $BlendFile)) {
@@ -222,7 +223,7 @@ if ($effectivePort -lt 1024 -or $effectivePort -gt 65535) {
 $logsRoot = Join-Path $projectRoot "logs"
 $logPath = Join-Path $logsRoot ("blender-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"))
 
-$lockDir = Join-Path $PSScriptRoot ".kilo"
+$lockDir = Join-Path $workspaceRoot ".kilo"
 if (-not (Test-Path -LiteralPath $lockDir)) {
     New-Item -ItemType Directory -Path $lockDir | Out-Null
 }
