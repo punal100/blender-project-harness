@@ -12,16 +12,21 @@ This skill is required before any Blender scene operation. Do not rely on genera
 
 ## Preflight
 
-1. Call `get_addon_status`. Confirm `up_to_date`, the Blender version, and which libraries or generators are enabled.
-2. Call `get_scene_info` before changing anything. Use `query`, `root`, `fields`, and `limit` to keep the result small.
-3. If the call fails, launch Blender from the workspace root with:
+1. Verify confirmed project requirements, selected workflow, and an active goal before launching or editing.
+   Call `get_addon_status` once at the start. Check addon compatibility, Blender version, and enabled
+   libraries/generators from the actual response; do not assume a particular response field exists.
+2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative
+   file path. Use `query`, `root`, `fields`, and `limit` for later targeted checks.
+3. On a connection failure, stop scene work. The controller may launch the declared project through:
    ```powershell
-   .\tools\start-blender.cmd Blender\<project-folder>
+   .\tools\start-blender.cmd "Blender\<project-folder>"
    ```
    Do not launch `blender.exe` directly. The launcher discovers Blender, reads the workspace port,
    sets the addon port, opens a live log terminal, writes the log to the project's ignored `logs/`
    folder, and allows only one Blender instance from this workspace at a time.
-4. Verify the open file with `get_scene_info(fields=["settings"])` before editing.
+4. Retry preflight after launch. Stop on addon or file mismatch; never edit the wrong scene. For a
+   new unsaved startup scene, save it to the declared project `.blend` first, then verify that path
+   before production edits. Workers must return `BLOCKED` instead of launching or switching files.
 
 ## Tools
 
@@ -37,7 +42,8 @@ This skill is required before any Blender scene operation. Do not rely on genera
 | `disable_telemetry` | Disable telemetry |
 | `record_trajectory_feedback` | Record workflow feedback |
 
-Pass `user_prompt` with the user's exact words when the tool accepts it. Do not paraphrase.
+Tool names here are server-local names; use the exposed `blender_` prefix when required by the
+client. Pass `user_prompt` with the user's exact words when the tool accepts it. Do not paraphrase.
 
 ## Workflow
 
@@ -49,8 +55,10 @@ Pass `user_prompt` with the user's exact words when the tool accepts it. Do not 
 
 ## Save and visual checks
 
-Save the `.blend` every few turns. Commit project files after a major step, multi-turn milestone, or
-before risky work. Keep logs, backups, caches, and WIP renders out of commits.
+Save the authoritative `.blend` after every meaningful change and before risky work or handoff.
+Review git changes at major milestones; commit only with explicit user authorization. Keep logs,
+backups, caches, and WIP renders out of commits. Apply the Partially Autonomous approval gate before
+the next meaningful change, including delegated work.
 
 Visual verification is mandatory. Every scene, material, lighting, or camera change must be
 inspected with `look` before completion; code output alone is not proof.
@@ -81,10 +89,9 @@ For `generate_3d`, one call creates one object. It can cost money or a generatio
 
 When a Blender API, operator, property, or version behavior is missing or unclear:
 
-1. Inspect the live API first: `dir()`, `__doc__`, `bl_rna`, `help()`, `poll()`, and the current
-   context.
-2. Query Context7: `/websites/blender_api` for `bpy` and `/websites/blender_manual_en` for the
-   manual.
+1. Resolve the matching library with Context7 and query Blender API/manual documentation for the
+   actual version. Read the official documentation before relying on API behavior.
+2. Inspect the live API: `dir()`, `__doc__`, `bl_rna`, `help()`, `poll()`, and the current context.
 3. If Context7 is incomplete or lags the live version, web-search official docs and release notes,
    Blender source, Blender Stack Exchange, and devtalk. Prefer official sources, and note the
    Blender version.
@@ -102,11 +109,14 @@ Official starting points:
 
 ## Safety
 
-`execute_blender_code` runs arbitrary Python inside the user's Blender. Only run code you wrote or reviewed. Telemetry is off by default; do not enable it without consent. Do not disable safe mode or add credentials, tokens, or private data to scripts or payloads.
+`execute_blender_code` runs arbitrary Python inside the user's Blender. Only run code you wrote or
+reviewed. Check `telemetry_consent` in addon status; do not assume its current value or enable
+collection without consent. When the user requests an opt-out, call `disable_telemetry` immediately.
+Do not disable safe mode or add credentials, tokens, or private data to scripts or payloads.
 
 ## Troubleshooting
 
-- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. Run `.\tools\start-blender.cmd Blender\<project-folder>` and confirm the workspace `BLENDER_PORT`. Reload the Kilo window if the MCP server was already running against the wrong port.
+- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. The controller must use `.\tools\start-blender.cmd "Blender\<project-folder>"` and confirm the workspace `BLENDER_PORT`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
 - **Addon outdated**: run `uvx mcp-for-blender install-addon`, restart Blender through the launcher.
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.
@@ -116,6 +126,11 @@ Official starting points:
 ## References
 
 Read only the relevant upstream guide:
+
+Workspace gates and the preflight above remain mandatory. Reference dimensions, materials, camera
+values, topology budgets, styles, and snippets are examples, not confirmed project requirements.
+Before execution, adapt examples to the actual version and task scope; do not run destructive sample
+operations or change preferences without authorization.
 
 - `references/bpy.md` — Blender Python API patterns
 - `references/scene.md` — scene assembly

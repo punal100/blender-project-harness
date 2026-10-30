@@ -1,9 +1,9 @@
 ---
-title: Writing bpy that works on any Blender
-summary: Version-proof scripting, API introspection, operator context, and the mistakes that break scripts on other people's machines.
+title: Version-aware bpy scripting
+summary: Version-aware scripting, API introspection, operator context, and the mistakes that break scripts on other people's machines.
 ---
 
-# Writing bpy that works on any Blender
+# Version-aware bpy scripting
 
 Scripts run in the user's live Blender, whose version, language and add-ons you don't know.
 `get_addon_status` reports `blender_version`; check it before using anything version-specific.
@@ -35,13 +35,14 @@ bpy.data.node_groups.remove(tree)
 - Never hardcode enum identifiers; read them (above). `scene.render.engine` is a dynamic enum that
   RNA under-reports; read the current value, and if you must switch, assign inside
   `try/except TypeError` — the error lists every accepted value. EEVEE is `BLENDER_EEVEE_NEXT` in
-  4.2–4.x and `BLENDER_EEVEE` before and after.
+  4.2–4.5 and `BLENDER_EEVEE` in 5.0; older releases also use `BLENDER_EEVEE`. Query later versions.
 - Material colors live on shader node inputs. `material.diffuse_color` only drives the solid
-  viewport. In 5.0+ `material.use_nodes` is always on; don't rely on toggling it.
+  viewport when material colour is selected. In 5.0 `material.use_nodes` is deprecated and always on;
+  it is scheduled for removal in 6.0. Do not rely on toggling it.
 - Animation data changed in 4.4 (slotted actions) and 5.0 removed `Action.fcurves`. Insert keys with
-  `obj.keyframe_insert("location", frame=f)` (works everywhere) and reach fcurves through
-  `bpy_extras.anim_utils.action_get_channelbag_for_slot(action, obj.animation_data.action_slot)`
-  on 4.4+, falling back to `action.fcurves` on older versions.
+  `obj.keyframe_insert("location", frame=f)` for supported animatable properties. For layered actions,
+  use `bpy_extras.anim_utils.action_get_channelbag_for_slot(action, obj.animation_data.action_slot)`;
+  use `action.fcurves` for legacy actions. See `animation.md` for the compatibility branch.
 
 ## Data API over operators
 
@@ -68,8 +69,14 @@ When you need an operator:
 - Name everything you create; later steps and the user refer to it by name.
 - Keep the scene organized: one collection per logical group (`bpy.data.collections.new`, link
   to `scene.collection`).
-- Apply scale (`obj.data.transform(Matrix.Diagonal(...))` or `transform_apply`) before rigging,
-  modifiers that depend on it, or export.
+- Assess scale before rigging, scale-sensitive modifiers, or export. Applying transforms can alter
+  rigs, animation, constraints, and shared mesh data; follow the confirmed pipeline.
 - Duplicate with `obj.copy()` (shares mesh data, cheap) for repeated props; `obj.data.copy()` only
   when the copy must differ.
-- Units are metres. A door is ~2.1 m tall, a table 0.75 m, a person 1.7 m.
+- Read `scene.unit_settings` and `scale_length`; do not assume one Blender unit equals one metre.
+  A door around 2.1 m, table around 0.75 m, and person around 1.7 m are scale references only.
+
+## Sources
+
+- https://docs.blender.org/api/current/info_gotchas_operators.html
+- https://developer.blender.org/docs/release_notes/5.0/python_api/

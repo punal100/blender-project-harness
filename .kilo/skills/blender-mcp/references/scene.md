@@ -17,18 +17,19 @@ summary: Building a believable scene - scale, grounding, composition, choosing b
 
 ## Getting assets
 
-- **Generate** (`generate_3d`) hero objects and anything specific or unusual: "a rusted
+- **Generate** (`generate_3d`) is one option for approved hero objects or specific assets: "a rusted
   steampunk diving helmet". One object per generation — never a whole scene, the ground, or parts
-  to assemble. Generate once and duplicate (`obj.copy()`) for repeats.
+  to assemble. Obtain spending authorization first; workers must not generate. Generate once and
+  duplicate (`obj.copy()`) for repeats.
 - **Poly Haven** (`search_assets(source="polyhaven")`): HDRIs, PBR textures for large surfaces
   (floors, walls, terrain), and generic realistic props. CC0.
 - **Sketchfab**: specific real-world things (a named car model, a landmark), and realistic props.
   Check the licence and face count in results.
 - **Poly Pizza**: stylised low-poly props, fast and light. Credit CC-BY creators.
-- **Script it** only for simple or procedural geometry: walls, floors, shelves, stairs, fences,
-  arrays, scattering.
+- **Script it** when procedural or authored geometry fits the confirmed design, scope, and budget.
 
-Match the style. Don't mix low-poly Poly Pizza props with photoreal Sketchfab scans in one frame.
+Match the confirmed style. Mixed low-poly and photoreal assets can be intentional; do not impose a
+style restriction that the user has not confirmed.
 
 ## After every import
 
@@ -36,7 +37,8 @@ Imported and generated models arrive at arbitrary scale, rotation and origin. Th
 gives `world_bounding_box`; use it:
 
 - Scale to real size from the bounding box, not by eye.
-- Put it on the ground: `obj.location.z -= min_z` (with the bounding box min z).
+- Place it on its intended support surface. For an unparented object on world Z=0,
+  `obj.location.z -= min_z` uses the world bounding box minimum. Account for parent transforms.
 - Rotate it to face the right way; generators usually face -Y or +Y. Check with
   `look(mode="angles", target=[name])`.
 - Check it doesn't intersect its neighbours.
@@ -55,10 +57,11 @@ gives `world_bounding_box`; use it:
   (0.5–1.5), then add a key light (sun or area) for shape and shadows.
 - Three-point for products: key, fill at lower power, rim behind.
 - Interiors: area lights in windows (portals in Cycles) plus practicals (lamps with emission).
-- Check with `look(mode="camera", shading="rendered")`. Blown-out white or pure black areas mean
-  exposure or light power is off; fix light power before touching exposure.
+- Check with `look(mode="camera", shading="rendered")` for EEVEE or Workbench. For Cycles, render
+  and inspect `look(image="Render Result")`. Investigate exposure, lighting, materials, and intended
+  contrast instead of treating every black or white area as a lighting error.
 
 ## Render settings
 
-Read the current engine rather than setting one blindly (see `get_guide("bpy")`). For quick
+Read the current engine rather than setting one blindly (see `bpy.md`). For quick
 previews keep samples low; raise them only for the final render.

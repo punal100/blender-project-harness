@@ -7,8 +7,8 @@ summary: Game levels in Blender - player metrics, blockout, modular kits, instan
 
 ## Metrics first
 
-Agree on the player's size and movement, then build everything to them. Defaults for a
-human-scale third/first-person game (adjust to the user's engine and genre):
+Agree on the player's size and movement, then build everything to them. Examples for a
+human-scale third/first-person game; confirm values for the user's engine and genre:
 
 | Thing | Size |
 |---|---|
@@ -20,7 +20,7 @@ human-scale third/first-person game (adjust to the user's engine and genre):
 | Cover (crouch / full) | 1.0 m / 2.0 m |
 | Grid unit | 1 m, modules on 2 m or 4 m |
 
-Place a scale reference (a 1.8 m capsule named `PlayerScale`) and keep it in the scene.
+When approved, place a scale reference using the confirmed player metrics and naming convention.
 
 ## Blockout
 
@@ -42,7 +42,8 @@ Place a scale reference (a 1.8 m capsule named `PlayerScale`) and keep it in the
 
 ## Engine-ready output
 
-- Apply transforms (scale 1, rotation 0) on every exported mesh.
+- Apply transforms only as required by the target exporter and confirmed pipeline. Check existing
+  animation, rigs, constraints, and instancing before applying them.
 - Name for the engine's conventions. Unreal: `SM_` meshes and `UCX_<mesh>` convex collision.
   Godot: `-col` / `-colonly` suffixes. Unity: separate low-poly collision meshes.
 - Keep collision simple: boxes and convex hulls, not the render mesh.

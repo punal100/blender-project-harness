@@ -38,19 +38,20 @@ bm.to_mesh(obj.data); bm.free()
 
 ## Reduce
 
-- **Decimate** keeps the shape and UVs, gives triangles. Fast, fine for static props:
+- **Decimate** reduces faces with shape changes. Inspect the silhouette, UVs, seams, and triangulation:
   `m = obj.modifiers.new("Decimate", "DECIMATE"); m.ratio = 0.1`. Planar mode (`decimate_type="DISSOLVE"`)
   is good for hard-surface.
 - **Voxel remesh** makes a watertight, even mesh but loses UVs and sharp edges:
   `obj.data.remesh_voxel_size = 0.01; bpy.ops.object.voxel_remesh()` (active object needed).
   Size relative to the object: ~1/200 of its largest dimension is a sane start.
-- **QuadriFlow** gives quads for deformation:
+- **QuadriFlow** produces quads but does not guarantee animation-ready loops:
   `bpy.ops.object.quadriflow_remesh(target_faces=4000)`. It is slow on dense input and can fail on
   non-manifold meshes — voxel remesh first, then QuadriFlow the result.
 - **Shrinkwrap** a low mesh onto the high one (`modifiers.new("Shrinkwrap", "SHRINKWRAP")`,
   `target = high`) to recover the silhouette after remeshing.
 
-Face budgets: hero game character 15–50k tris, prop 500–5k, background 50–500.
+Example face budgets: hero game character 15–50k tris, prop 500–5k, background 50–500. Confirm actual
+platform, camera distance, deformation, and performance targets; these are not acceptance limits.
 
 ## UVs
 
@@ -74,4 +75,9 @@ Bake normals (and colour) from the original high mesh to the low one's UVs, in C
 4. Save the image, wire it into a Normal Map node, and compare with `look(mode="angles")`.
 
 Switching the engine to Cycles for the bake: read the current engine first and restore it after
-(see `get_guide("bpy")`).
+(see `bpy.md`).
+
+## Sources
+
+- https://docs.blender.org/manual/en/5.0/modeling/modifiers/generate/decimate.html
+- https://docs.blender.org/manual/en/5.0/modeling/meshes/retopology.html

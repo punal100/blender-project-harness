@@ -7,7 +7,8 @@ summary: Keyframing from Python across Blender versions, easing, cycles, NLA, ca
 
 ## Keyframes
 
-Keyframe properties directly; it works in every version and needs no context:
+Keyframe supported animatable properties directly rather than relying on UI operators. Verify the
+property and keyframe result in the active version:
 
 ```python
 scene = bpy.context.scene
@@ -24,22 +25,24 @@ Pose bones: `pb = arm.pose.bones["hand.L"]; pb.rotation_mode = "XYZ"`, then
 
 ## Reaching fcurves
 
-Blender 4.4 added slotted actions and 5.0 removed `Action.fcurves`. Use:
+Blender 4.4 added slotted actions and 5.0 removed `Action.fcurves`. This helper returns the first
+channelbag for the assigned slot; inspect every layer/strip explicitly when handling complex actions:
 
 ```python
 def fcurves(obj):
     ad = obj.animation_data
     if not ad or not ad.action:
         return []
-    if hasattr(ad, "action_slot"):
+    if getattr(ad.action, "is_action_layered", False):
         from bpy_extras import anim_utils
         cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
         return list(cb.fcurves) if cb else []
     return list(ad.action.fcurves)
 ```
 
-Then set easing per key: `kp.interpolation = "BEZIER"` with `kp.easing`, or `"LINEAR"` for
-mechanical motion, `"CONSTANT"` for stepped/blocking.
+Read supported interpolation enums before assigning. `BEZIER` uses handle shapes; `LINEAR` suits
+constant motion and `CONSTANT` suits stepped blocking. `kp.easing` applies to easing-equation
+interpolation modes, not ordinary Bezier handles.
 
 ## Making it feel alive
 
@@ -51,7 +54,8 @@ mechanical motion, `"CONSTANT"` for stepped/blocking.
 - Loops: make the first and last key identical and add a Cycles modifier
   (`fc.modifiers.new("CYCLES")`), or set the frame range to exclude the duplicate last frame.
 - Procedural motion: drivers (`obj.driver_add("rotation_euler", 2).driver.expression = "frame * 0.1"`)
-  or noise modifiers on fcurves. Safe mode may block drivers; keyframes always work.
+  or noise modifiers on fcurves. Auto-run restrictions may block scripted drivers; never disable
+  safety settings to work around that restriction.
 
 ## Organizing
 
@@ -66,3 +70,9 @@ mechanical motion, `"CONSTANT"` for stepped/blocking.
 A single screenshot can't show motion. Use `look(mode="frames")` to see a strip of evenly spaced
 frames (or pass `frames=[...]` for specific ones, `view="camera"` to see them through the camera).
 Check for popping, interpenetration, feet sliding on the ground, and the loop seam.
+
+## Sources
+
+- https://developer.blender.org/docs/release_notes/4.4/upgrading/slotted_actions/
+- https://developer.blender.org/docs/release_notes/5.0/python_api/#animation-rigging
+- https://docs.blender.org/api/current/bpy_extras.anim_utils.html
