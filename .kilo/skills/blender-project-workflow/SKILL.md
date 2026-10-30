@@ -21,8 +21,8 @@ recording the production goal. Workspace maintenance is exempt from this project
 
 - Work through the confirmed requirements without approval pauses.
 - Save the authoritative `.blend` after each meaningful change and before risky work or handoff;
-  inspect every visual change with `look`. Review git changes at major milestones. Commit only with
-  explicit user authorization.
+  inspect every visual change with `look`. Review git changes at major milestones and commit
+  atomically after each verified change: one logical change per commit, never one end-of-task dump.
 - Stop only for a requirements conflict, a destructive or irreversible choice, a missing asset or
   licence, or a technical blocker. Report the blocker and ask.
 

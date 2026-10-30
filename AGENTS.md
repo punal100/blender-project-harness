@@ -37,7 +37,7 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 
 ## Working
 
-- Save the authoritative `.blend` after every meaningful scene change and before risky work or handoff. Review git changes at each major milestone. Commit only when the user explicitly requests or authorizes commits; stage only intended files after inspecting status, diff, and recent history.
+- Save the authoritative `.blend` after every meaningful scene change and before risky work or handoff. Review git changes at each major milestone. Commit atomically and continuously: one logical, verified change per commit, staging only intended files after inspecting status, diff, and recent history. Commits are mandatory; never defer completed work into an end-of-task mega-commit.
 - Visual verification is mandatory. After every scene, material, lighting, or camera change, inspect the result with `look`; code output alone is not proof. Do not report done until you have seen it.
 - Keep `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current.
 - For Blender or library APIs, check Context7 and official docs first. If docs are missing, version-mismatched, or unclear, web-search official docs, source, and community reports; verify against the live Blender version with a minimal test. Never invent API behavior.

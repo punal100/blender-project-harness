@@ -51,7 +51,7 @@ unless the user separately requested it.
 - Acceptance checks that can be seen in a render or read from a file.
 - Workflow: launch from the workspace root, verify the open file, save after every meaningful
   change and before risky work, inspect with `look`, render, and update docs. Review git changes at
-  major milestones; commit only with explicit user authorization. Include the selected autonomy mode.
+  major milestones and commit atomically after each verified change. Include the selected autonomy mode.
 - Done: no completion without the review artifact and current documentation.
 
 ## Rules

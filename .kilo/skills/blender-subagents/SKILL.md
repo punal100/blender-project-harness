@@ -148,7 +148,7 @@ Remaining work:
 The controller independently inspects `blender_get_scene_info`, runs `look`, and checks the working
 tree. In Partially Autonomous mode, the controller asks the user for approval after each meaningful
 worker task; the worker never asks. The controller must update the documents after acceptance and
-commit only when the user explicitly authorizes commits.
+commit atomically after each accepted change; workers never commit.
 
 ## Format references
 

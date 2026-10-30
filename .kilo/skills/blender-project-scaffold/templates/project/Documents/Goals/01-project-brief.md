@@ -63,8 +63,9 @@ colour, scale, and mood. Name the review image or render that will prove it.
    meaningful change. If the user modifies the scene manually, wait, inspect, and confirm afterward.
 8. Save, render a review image, and inspect it before calling the goal complete.
 9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`. Review git changes
-   at milestones and commit only if the user explicitly authorized it. Once acceptance passes, call
-   `goal_report(status="complete", reason=<evidence>)`, then give the final response without further actions.
+   at milestones and commit atomically after each verified change: one logical change per commit. Once
+   acceptance passes, call `goal_report(status="complete", reason=<evidence>)`, then give the final
+   response without further actions.
 
 ## Done
 

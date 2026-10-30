@@ -56,7 +56,8 @@ client. Pass `user_prompt` with the user's exact words when the tool accepts it.
 ## Save and visual checks
 
 Save the authoritative `.blend` after every meaningful change and before risky work or handoff.
-Review git changes at major milestones; commit only with explicit user authorization. Keep logs,
+Review git changes at major milestones and commit atomically after each verified change: one logical
+change per commit. Commits are mandatory; never defer them to the end of the task. Keep logs,
 backups, caches, and WIP renders out of commits. Apply the Partially Autonomous approval gate before
 the next meaningful change, including delegated work.
 

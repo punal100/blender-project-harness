@@ -74,8 +74,9 @@ logs belong inside their project folder.
 
 Read `AGENTS.md` and the matching skill before work. Production work requires an active goal; workspace
 maintenance and read-only questions are exempt. Save the authoritative `.blend` after every meaningful
-scene change and before risky work or handoff. Review git changes at milestones, but commit only after
-explicit user authorization. Inspect every visual change with `look` before reporting done.
+scene change and before risky work or handoff. Review git changes at milestones and commit atomically:
+one logical, verified change per commit. Commits are mandatory; never batch a session into one
+end-of-task commit. Inspect every visual change with `look` before reporting done.
 
 New projects start with a requirements discussion and explicit confirmation. Then choose Fully
 Autonomous or Partially Autonomous mode. On a return to a paused project, confirm whether to continue

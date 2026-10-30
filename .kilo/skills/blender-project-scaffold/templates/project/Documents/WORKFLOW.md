@@ -13,6 +13,7 @@ Last changed: {{DATE}}
 
 - Fully Autonomous: proceed within confirmed requirements. Stop for blockers, destructive choices, or scope changes.
 - Partially Autonomous: after every meaningful change or addition, save, inspect with `look`, and ask for approval before continuing.
+- Commit atomically after each verified change: one logical change per commit, never one end-of-task dump.
 - Ask the mode on every new project and every return to a paused project. Automatic goal turns and
   compaction within the same active task continue the selected mode without repeating the question.
   The user may switch at any time.
