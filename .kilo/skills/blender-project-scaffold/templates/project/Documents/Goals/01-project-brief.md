@@ -48,20 +48,23 @@ colour, scale, and mood. Name the review image or render that will prove it.
 
 ## Workflow
 
-1. Call `goal(action="start", objective=<this prompt>)`.
+1. Call `goal(action="start", objective=<this prompt>)`. A successful goal call ends the turn; continue
+   when the goal resumes. Do not repeat start/resume on automatic goal turns or after compaction.
 2. Read the README, `REQUIREMENTS.md`, `WORKFLOW.md`, asset register, decisions, and references.
 3. Stop if requirements are unconfirmed or the workflow mode is `Unset`; resolve both before editing.
 4. From the workspace root, launch this project with
-   `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`. Only one Blender instance from this workspace may
-   be open at a time.
+   `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`. The launcher validates project records,
+   path containment, the workspace port, and one-instance rules.
 5. Call `blender_get_addon_status`; verify `blender_get_scene_info(fields=["settings"])` reports
    this project's `.blend` before editing.
-6. Build in small steps. Verify each material, lighting, and camera change with `look`.
+6. Build in small steps. Save the authoritative `.blend` after every meaningful scene change and
+   before risky work or handoff. Inspect every scene, material, lighting, and camera change with `look`.
 7. In Partially Autonomous mode, save, inspect, and ask for approval via `question` after every
    meaningful change. If the user modifies the scene manually, wait, inspect, and confirm afterward.
 8. Save, render a review image, and inspect it before calling the goal complete.
-9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`; then call
-   `goal_report complete`.
+9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`. Review git changes
+   at milestones and commit only if the user explicitly authorized it. Once acceptance passes, call
+   `goal_report(status="complete", reason=<evidence>)`, then give the final response without further actions.
 
 ## Done
 

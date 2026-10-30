@@ -10,17 +10,18 @@ production work until the user explicitly confirms them.
 
 ## Session gate
 
-At session start or reset, resume or start a goal before this discussion. For a new project, start
-a discovery goal before questioning; after the project is scaffolded, write the project goal file
-and continue. Do not let an unconfirmed requirement become scene work.
+Follow `blender-project-goal` for discovery and bootstrap order. Read the relevant context before
+starting or resuming. A successful goal call ends the turn; continue the discussion on the next
+goal turn. Do not repeat start/resume after compaction within the same active task. Do not let an
+unconfirmed requirement become scene work. Workspace maintenance is exempt from this project gate.
 
 ## Discussion
 
 1. Read `AGENTS.md` and the existing project docs.
 2. If the project exists, read `Documents/REQUIREMENTS.md`, `WORKFLOW.md`, `README.md`,
    `DECISIONS.md`, and the goals.
-3. Ask an open question in plain text: "What do you want to build?" for a new project, or "What
-   should change?" for a revision.
+3. Use the user's existing request as the starting brief. Ask "What do you want to build?" or
+   "What should change?" only when that information is missing; never make the user repeat it.
 4. Follow the thread. Use `question` for concrete choices, ambiguities, visual direction, scope,
    and acceptance. Keep options to 2-4. If the user asks to explain freely, stop using `question`
    and wait for their text.
@@ -32,10 +33,14 @@ and continue. Do not let an unconfirmed requirement become scene work.
    - "Confirm requirements" (recommended)
    - "Keep discussing"
    - "Change something"
-8. Loop until the user explicitly confirms. Silence, a new topic, or "ok" is not confirmation.
+8. Loop until the user explicitly confirms the presented requirements. Silence or a new topic is
+   not confirmation. An affirmative answer to an explicit confirmation question is confirmation;
+   record its exact wording and context rather than inferring approval from an unrelated "ok".
 9. On confirmation:
    - New project: scaffold, write `Documents/REQUIREMENTS.md` with `Status: Confirmed`, and add a
-     change-log row. Then load `blender-project-workflow` and ask the mode.
+       change-log row. Use `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`
+       to record the date, exact response, and brief or revision it covers.
+      Then load `blender-project-workflow` and ask the mode.
    - Existing project: update `Documents/REQUIREMENTS.md` and its change log, then update the
      README, `DECISIONS.md`, and the goal before continuing.
 10. Requirements may be added or changed at any time, but only after explicit user confirmation

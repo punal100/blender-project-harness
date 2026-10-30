@@ -8,5 +8,5 @@ project are expected.
 - Each goal is a `/goal` prompt: mission, visual outcome, scope, deliverables, acceptance, and done.
 - Link `../REQUIREMENTS.md` and `../WORKFLOW.md`; do not duplicate their contents.
 - These are design goals, not coding plans. Do not add `PLAN/` records.
-- After a goal completes, update the README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and
+- Before reporting a goal complete, update the README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and
   `ASSETS.md`.

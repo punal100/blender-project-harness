@@ -3,6 +3,8 @@
 Status: Draft
 Defined: {{DATE}}
 Last updated: {{DATE}}
+Confirmed: —
+Confirmation: —
 
 Confirmed requirements are the source of truth. Add or change them only after explicit user confirmation.
 

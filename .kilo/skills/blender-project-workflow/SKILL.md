@@ -1,24 +1,28 @@
 ---
 name: blender-project-workflow
-description: Select and enforce Fully Autonomous or Partially Autonomous work. Asks the mode on every new project and every resume, supports mid-work switches, and gates partial-mode changes on user approval.
+description: Select and enforce Fully Autonomous or Partially Autonomous work on new projects and returns to paused projects. Supports mid-work switches and gates partial-mode changes on user approval.
 ---
 
 # Blender Project Workflow
 
-Ask the workflow mode; never infer it from a previous session. Requirements must be confirmed and
-a goal active before this skill is used.
+Ask the workflow mode on new projects and returns to paused projects; never infer it from a previous
+session. Requirements must be confirmed first. Mode selection is bootstrap work and must precede
+recording the production goal. Workspace maintenance is exempt from this project gate.
 
 ## Gate
 
-- On resume, call `goal(action="resume")` before this skill.
-- If requirements are unconfirmed or no goal is active, stop and resolve that first.
+- Follow `blender-project-goal` for start/resume and its turn boundary. Do not repeat goal calls or
+  workflow selection on automatic goal turns or compaction within the same active task.
+- If requirements are unconfirmed, stop and resolve that first. Select workflow before starting
+  the production goal; an active discovery goal covers new-project bootstrap.
 - Ask the mode with `question` and wait for the answer. Do not start scene work before it.
 
 ## Fully Autonomous
 
 - Work through the confirmed requirements without approval pauses.
-- Still save the `.blend` every few turns, commit major milestones, and inspect every visual change
-  with `look`.
+- Save the authoritative `.blend` after each meaningful change and before risky work or handoff;
+  inspect every visual change with `look`. Review git changes at major milestones. Commit only with
+  explicit user authorization.
 - Stop only for a requirements conflict, a destructive or irreversible choice, a missing asset or
   licence, or a technical blocker. Report the blocker and ask.
 
@@ -29,8 +33,8 @@ a goal active before this skill is used.
   result or composition.
 - After each meaningful change or new addition: save the `.blend`, inspect with `look`, summarize
   what changed, give a recommendation or insight, and ask for approval before continuing.
-- When the controller delegates to a `blender-worker`, apply the approval gate after each worker
-  task. The worker never asks the user.
+- Each delegated `blender-worker` task must contain one meaningful change. Apply the approval gate
+  after each task, before dispatching the next change. The worker never asks the user.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
   changes or a direction shift.
 - Never make the next meaningful change until the user approves.
@@ -60,9 +64,9 @@ options:
 - "Still working"
 ```
 
-Wait until the user says done. Then ask what they changed, inspect with
-`blender_get_scene_info` and `look`, update `DECISIONS.md` and requirements if needed, and confirm
-the result before continuing.
+Wait until the user says done. Inspect with `get_scene_info` and `look`; ask what changed only if
+inspection leaves a material ambiguity. Update `DECISIONS.md`, obtain explicit confirmation for
+any requirements revision, and confirm the inspected result before continuing.
 
 ## Select on a new project
 
@@ -80,7 +84,8 @@ Write the answer to `Documents/WORKFLOW.md` and add a change-log row.
 
 ## Resume
 
-On every resume, read `Documents/WORKFLOW.md`, then ask:
+On every return to a paused project, read `Documents/WORKFLOW.md`, then ask. Automatic goal turns
+and compaction within the same active task are continuations, not returns to a paused project:
 
 ```text
 header: "Workflow"
