@@ -4,6 +4,9 @@
     "blender": {
       "enabled": true,
       "environment": { "BLENDER_PORT": "9877" }
+    },
+    "mediamcp": {
+      "enabled": true
     }
   }
 }
