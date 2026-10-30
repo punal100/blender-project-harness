@@ -77,6 +77,29 @@ For `generate_3d`, one call creates one object. It can cost money or a generatio
 - Do not use network, subprocess, or filesystem access in generated code unless the user asked for it.
 - Keep code short and print only the facts needed for verification.
 
+## API and documentation gaps
+
+When a Blender API, operator, property, or version behavior is missing or unclear:
+
+1. Inspect the live API first: `dir()`, `__doc__`, `bl_rna`, `help()`, `poll()`, and the current
+   context.
+2. Query Context7: `/websites/blender_api` for `bpy` and `/websites/blender_manual_en` for the
+   manual.
+3. If Context7 is incomplete or lags the live version, web-search official docs and release notes,
+   Blender source, Blender Stack Exchange, and devtalk. Prefer official sources, and note the
+   Blender version.
+4. Reproduce with a minimal `execute_blender_code` test. Do not guess or invent properties,
+   operators, or signatures.
+5. Report the source and the test result; if still unresolved, report the gap instead of pretending
+   it works.
+
+Official starting points:
+
+- https://docs.blender.org/api/current/
+- https://docs.blender.org/manual/en/latest/
+- https://blender.stackexchange.com/
+- https://devtalk.blender.org/
+
 ## Safety
 
 `execute_blender_code` runs arbitrary Python inside the user's Blender. Only run code you wrote or reviewed. Telemetry is off by default; do not enable it without consent. Do not disable safe mode or add credentials, tokens, or private data to scripts or payloads.
@@ -88,6 +111,7 @@ For `generate_3d`, one call creates one object. It can cost money or a generatio
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.
 - **`look` fails**: try `mode="camera"` or render with `execute_blender_code`, then call `look(image="Render Result")`.
+- **API or docs missing**: follow "API and documentation gaps"; do not invent a property, operator, or signature.
 
 ## References
 
