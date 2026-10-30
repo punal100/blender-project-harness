@@ -1,0 +1,48 @@
+# Blender autosaves and backups
+*.blend1
+*.blend2
+*.blend@
+*.blend~
+*.blend[0-9]
+*.blend[0-9][0-9]*
+blender.crash.txt
+*.crash.txt
+
+# Local caches and temporary files
+.cache/
+cache/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+tmp/
+temp/
+logs/
+*.tx
+*.log
+
+# Work-in-progress renders are disposable; final renders stay tracked
+renders/wip/**
+!renders/wip/.gitkeep
+!renders/wip/README.md
+
+# Manual snapshots are local; use git commits for tracked history
+backups/**
+!backups/.gitkeep
+!backups/README.md
+
+# External assets: keep metadata, not binaries by default
+assets/external/**
+!assets/external/**/
+!assets/external/README.md
+!assets/external/SOURCE_TEMPLATE.md
+!assets/external/**/README.md
+!assets/external/**/SOURCE.md
+!assets/external/**/LICENSE*
+!assets/external/**/.gitkeep
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
