@@ -1,0 +1,9 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "blender": {
+      "enabled": true,
+      "environment": { "BLENDER_PORT": "9877" }
+    }
+  }
+}
