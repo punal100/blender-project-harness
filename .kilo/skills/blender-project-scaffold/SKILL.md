@@ -9,8 +9,9 @@ Create new projects from `templates/project` inside this skill. Do not invent a 
 layout.
 
 Requirements must be confirmed before you run this. If they are not, read
-`blender-project-requirements` and stop. Do not use `-Start` until `Documents/REQUIREMENTS.md` and
-`Documents/WORKFLOW.md` are filled.
+`blender-project-requirements` and complete confirmation first. Scaffolding leaves draft documents;
+record confirmation and workflow before launching. Maintenance tests may scaffold isolated fixtures
+without project confirmation, but must never launch Blender.
 
 ## Create
 
@@ -29,8 +30,8 @@ The script:
   and `{{GOAL_TITLE}}`;
 - leaves the main `.blend` for the first Blender session.
 
-Use `-DryRun` to preview. `-Start` launches Blender only after `REQUIREMENTS.md` and `WORKFLOW.md`
-are confirmed.
+Use `-DryRun` to preview without writing. `-Start` must be rejected before creating files: a fresh
+scaffold cannot contain completed confirmation records. Launch separately after completing them.
 
 If the script cannot run, copy `templates/project` manually and replace the same tokens.
 
@@ -68,11 +69,12 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
 
 ## After scaffold
 
-1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed`.
+1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed` and
+   record `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`.
 2. Ask the workflow mode with `blender-project-workflow`; write `Documents/WORKFLOW.md`.
 3. Fill `README.md` with `blender-project-readme`.
-4. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal`; add more goals as
-   needed.
+4. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal` and start it. A successful
+   goal call ends the turn; continue the remaining steps on the next goal turn.
 5. Register external assets with `blender-assets`.
 6. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
 7. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).

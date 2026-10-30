@@ -44,8 +44,17 @@ try {
     "Log: $LogPath" | Tee-Object -FilePath $LogPath -Append
     "------------------------------------------------------------" | Tee-Object -FilePath $LogPath -Append
 
-    & $BlenderExe @arguments 2>&1 | Tee-Object -FilePath $LogPath -Append
-    if ($null -ne $LASTEXITCODE) { $exitCode = [int]$LASTEXITCODE }
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell treats redirected native stderr as a PowerShell error.
+        $ErrorActionPreference = "Continue"
+        $LASTEXITCODE = $null
+        & $BlenderExe @arguments 2>&1 | Tee-Object -FilePath $LogPath -Append -ErrorAction Stop
+        if ($null -eq $LASTEXITCODE) { throw "Blender process did not return a native exit code." }
+        $exitCode = [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 
     "Blender exited with code $exitCode." | Tee-Object -FilePath $LogPath -Append
 } catch {

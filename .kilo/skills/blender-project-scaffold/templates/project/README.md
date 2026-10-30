@@ -68,8 +68,12 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 ## Blender
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
-- Workflow mode: [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md), asked again on every resume.
-- Launch from the workspace root: `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`
+- Workflow mode: [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md), selected before launch and
+  re-confirmed only when returning to a paused project.
+- Launch from the workspace root with the validated launcher:
+  `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`
+- The launcher requires confirmed requirements and selected workflow records, keeps the `.blend`
+  inside this project, reads the workspace MCP port, and rejects conflicting workspace instances.
 - Each launch opens a log terminal and writes to `logs/blender-<timestamp>.log`; `logs/` is ignored.
 - Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.
@@ -99,7 +103,7 @@ Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are 
 
 ## Next steps
 
-- [ ] Record confirmed requirements and select the workflow mode.
+- [ ] Record confirmed requirements and select the workflow mode before launch.
 - [ ] Fill this README and the project brief.
 - [ ] Collect references and external assets.
 - [ ] Build the scene and render a first review.

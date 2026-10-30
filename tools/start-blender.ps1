@@ -109,34 +109,91 @@ function Get-BlenderCandidates {
 }
 
 function Get-WorkspacePort {
-    param(
-        [int]$ExplicitPort
-    )
-
-    if ($ExplicitPort -gt 0) { return $ExplicitPort }
-
-    $configs = @(
-        (Join-Path $workspaceRoot ".kilo\kilo.jsonc"),
-        (Join-Path $workspaceRoot ".kilo\kilo.json")
-    )
-    foreach ($config in $configs) {
-        if (-not (Test-Path -LiteralPath $config -PathType Leaf)) { continue }
-        $text = Get-Content -LiteralPath $config -Raw
-        $match = [regex]::Match($text, '"BLENDER_PORT"\s*:\s*"?(\d{2,5})"?')
-        if ($match.Success) { return [int]$match.Groups[1].Value }
+    $config = Join-Path $workspaceRoot ".kilo\kilo.jsonc"
+    if (-not (Test-Path -LiteralPath $config -PathType Leaf)) {
+        throw "Workspace MCP config not found: $config"
     }
-
-    $portFile = Join-Path $workspaceRoot ".kilo\blender-port"
-    if (Test-Path -LiteralPath $portFile -PathType Leaf) {
-        $text = (Get-Content -LiteralPath $portFile -Raw).Trim()
-        if ($text -match '^\d{2,5}$') { return [int]$text }
+    $text = [System.IO.File]::ReadAllText($config)
+    $text = [regex]::Replace($text, '"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*[\s\S]*?\*/', {
+        param($token)
+        if ($token.Value.StartsWith('"')) { return $token.Value }
+        return " "
+    })
+    $text = [regex]::Replace($text, '"(?:\\.|[^"\\])*"|,\s*(?=[}\]])', {
+        param($token)
+        if ($token.Value.StartsWith('"')) { return $token.Value }
+        return ""
+    })
+    $configData = $text | ConvertFrom-Json
+    $value = [string]$configData.mcp.blender.environment.BLENDER_PORT
+    if ($value -notmatch '^\d{4,5}$' -or [int]$value -lt 1024 -or [int]$value -gt 65535) {
+        throw "Invalid BLENDER_PORT in $config. Set mcp.blender.environment.BLENDER_PORT to 1024-65535."
     }
-
-    return 0
+    return [int]$value
 }
 
-$candidates = @(Get-BlenderCandidates)
+function Assert-NoProjectReparsePoint {
+    param([string]$Path, [string]$Boundary)
+
+    $current = Get-Item -LiteralPath $Path -Force
+    while ($current) {
+        if (($current.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Project paths must not use symbolic links or junctions: $($current.FullName)"
+        }
+        if ($current.FullName.TrimEnd('\') -ieq $Boundary.TrimEnd('\')) { break }
+        if ($current.PSIsContainer) { $current = $current.Parent } else { $current = $current.Directory }
+    }
+}
+
+function Get-RecordField {
+    param([string]$Text, [string]$Name)
+
+    $recordMatches = [regex]::Matches($Text, ('(?m)^{0}:[ \t]*([^\r\n]*)\r?$' -f [regex]::Escape($Name)))
+    if ($recordMatches.Count -ne 1) { return "" }
+    return $recordMatches[0].Groups[1].Value.Trim()
+}
+
+function Test-RecordDate {
+    param([string]$Value)
+
+    $parsedDate = [datetime]::MinValue
+    return [datetime]::TryParseExact($Value, "yyyy-MM-dd", [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::None, [ref]$parsedDate)
+}
+
+function Assert-ProjectReady {
+    param([string]$Root)
+
+    $requirementsPath = Join-Path $Root "Documents\REQUIREMENTS.md"
+    $workflowPath = Join-Path $Root "Documents\WORKFLOW.md"
+    if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
+        throw "Project requirements and workflow records are missing. Complete Documents\REQUIREMENTS.md and Documents\WORKFLOW.md before launch."
+    }
+    Assert-NoProjectReparsePoint -Path $requirementsPath -Boundary $Root
+    Assert-NoProjectReparsePoint -Path $workflowPath -Boundary $Root
+    $requirements = [System.IO.File]::ReadAllText($requirementsPath)
+    $workflow = [System.IO.File]::ReadAllText($workflowPath)
+    $confirmation = Get-RecordField -Text $requirements -Name "Confirmation"
+    if ((Get-RecordField -Text $requirements -Name "Status") -cne "Confirmed" -or
+        -not (Test-RecordDate (Get-RecordField -Text $requirements -Name "Confirmed")) -or
+        $confirmation -notmatch '[\p{L}\p{N}]' -or $confirmation -match '^(TBD|Pending|Unset|<.*>)$') {
+        throw "Requirements are not confirmed. Record Status: Confirmed, Confirmed: YYYY-MM-DD, and Confirmation: <exact response and scope> in Documents\REQUIREMENTS.md."
+    }
+    if ((Get-RecordField -Text $workflow -Name "Mode") -cnotin @("Fully Autonomous", "Partially Autonomous") -or
+        -not (Test-RecordDate (Get-RecordField -Text $workflow -Name "Selected"))) {
+        throw "Workflow is not selected. Record Mode: Fully Autonomous or Mode: Partially Autonomous and Selected: YYYY-MM-DD in Documents\WORKFLOW.md."
+    }
+}
+
+function Test-PortListening {
+    param([int]$LocalPort)
+    $endpoints = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+    return @($endpoints | Where-Object { $_.Port -eq $LocalPort }).Count -gt 0
+}
+
 if ($ListBlender) {
+    $candidates = @(Get-BlenderCandidates)
     if ($candidates.Count -eq 0) {
         Write-Host "No Blender installation found."
         exit 1
@@ -154,20 +211,6 @@ if (-not [System.IO.Path]::IsPathRooted($Project)) {
     $Project = Join-Path $workspaceRoot $Project
 }
 
-if ($BlenderExe) {
-    $resolved = Get-Command $BlenderExe -ErrorAction SilentlyContinue
-    if ($resolved -and $resolved.Source) { $BlenderExe = $resolved.Source }
-    if (-not (Test-Path -LiteralPath $BlenderExe -PathType Leaf)) {
-        throw "Blender executable not found: $BlenderExe"
-    }
-    $selectedBlender = Get-Item -LiteralPath $BlenderExe
-} else {
-    if ($candidates.Count -eq 0) {
-        throw "Blender not found. Install Blender, add it to PATH, or set BLENDER_EXE to the full blender.exe path."
-    }
-    $selectedBlender = Get-Item -LiteralPath $candidates[0].Path
-}
-
 if (-not (Test-Path -LiteralPath $Project)) {
     throw "Project path not found: $Project"
 }
@@ -181,11 +224,14 @@ if ($projectItem.PSIsContainer) {
 
 $projectsRoot = [System.IO.Path]::GetFullPath((Join-Path $workspaceRoot "Blender")).TrimEnd('\')
 $projectRootFull = [System.IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
-if (-not $projectRootFull.StartsWith($projectsRoot + "\", [System.StringComparison]::OrdinalIgnoreCase)) {
+if ((Split-Path -Parent $projectRootFull) -ine $projectsRoot) {
     throw "Blender projects must live under $projectsRoot. Create one with .\tools\new-blender-project.cmd."
 }
 
-if ($BlendFile -and -not [System.IO.Path]::IsPathRooted($BlendFile) -and -not (Test-Path -LiteralPath $BlendFile)) {
+Assert-NoProjectReparsePoint -Path $projectRootFull -Boundary $projectsRoot
+Assert-ProjectReady -Root $projectRootFull
+
+if ($BlendFile -and -not [System.IO.Path]::IsPathRooted($BlendFile)) {
     $BlendFile = Join-Path $projectRoot $BlendFile
 }
 
@@ -197,10 +243,15 @@ if ($BlendFile) {
         throw "Not a .blend file: $BlendFile"
     }
     $blendPath = [System.IO.Path]::GetFullPath($BlendFile)
+    if (-not $blendPath.StartsWith($projectRootFull + "\", [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Blend file must stay inside the selected project: $projectRootFull"
+    }
+    Assert-NoProjectReparsePoint -Path $blendPath -Boundary $projectRootFull
 } else {
     $blends = @(Get-ChildItem -LiteralPath $projectRoot -Filter "*.blend" -File -ErrorAction SilentlyContinue)
     if ($blends.Count -eq 1) {
         $blendPath = $blends[0].FullName
+        Assert-NoProjectReparsePoint -Path $blendPath -Boundary $projectRootFull
     } elseif ($blends.Count -gt 1) {
         throw "Multiple .blend files in $projectRoot. Pass -BlendFile explicitly."
     } else {
@@ -208,26 +259,38 @@ if ($BlendFile) {
     }
 }
 
-$configPort = Get-WorkspacePort -ExplicitPort 0
-$effectivePort = Get-WorkspacePort -ExplicitPort $Port
-if ($Port -gt 0 -and $configPort -gt 0 -and $configPort -ne $Port) {
-    Write-Warning "Explicit port $Port differs from the workspace port $configPort in .kilo\kilo.jsonc. The Kilo MCP must use the same port."
+$effectivePort = Get-WorkspacePort
+if ($Port -ne 0 -and $Port -ne $effectivePort) {
+    throw "Port override $Port differs from workspace BLENDER_PORT $effectivePort. Change .kilo\kilo.jsonc so the launcher and MCP use the same port."
 }
-if ($effectivePort -eq 0) {
-    throw "No BLENDER_PORT found in the workspace root .kilo\kilo.jsonc. Add mcp.blender.environment.BLENDER_PORT, or pass -Port."
-}
-if ($effectivePort -lt 1024 -or $effectivePort -gt 65535) {
-    throw "Invalid port: $effectivePort. Use 1024-65535."
+
+if ($BlenderExe) {
+    $resolved = Get-Command $BlenderExe -ErrorAction SilentlyContinue
+    if ($resolved -and $resolved.Source) { $BlenderExe = $resolved.Source }
+    if (-not (Test-Path -LiteralPath $BlenderExe -PathType Leaf)) {
+        throw "Blender executable not found: $BlenderExe"
+    }
+    $selectedBlender = Get-Item -LiteralPath $BlenderExe
+} else {
+    $candidates = @(Get-BlenderCandidates)
+    if ($candidates.Count -eq 0) {
+        throw "Blender not found. Install Blender, add it to PATH, or set BLENDER_EXE to the full blender.exe path."
+    }
+    $selectedBlender = Get-Item -LiteralPath $candidates[0].Path
 }
 
 $logsRoot = Join-Path $projectRoot "logs"
+if (Test-Path -LiteralPath $logsRoot) {
+    if (-not (Test-Path -LiteralPath $logsRoot -PathType Container)) {
+        throw "Project logs path must be a directory: $logsRoot"
+    }
+    Assert-NoProjectReparsePoint -Path $logsRoot -Boundary $projectRootFull
+}
 $logPath = Join-Path $logsRoot ("blender-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"))
 
-$lockDir = Join-Path $workspaceRoot ".kilo"
-if (-not (Test-Path -LiteralPath $lockDir)) {
-    New-Item -ItemType Directory -Path $lockDir | Out-Null
-}
-$lockPath = Join-Path $lockDir "blender.lock.json"
+$lockPath = Join-Path $workspaceRoot ".kilo\blender.lock.json"
+
+function Invoke-WorkspaceBlenderLaunch {
 
 if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
     $lock = $null
@@ -239,22 +302,31 @@ if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
     if ($lock -and $lock.pid) {
         $existing = Get-Process -Id ([int]$lock.pid) -ErrorAction SilentlyContinue
         $expectedName = if ($lock.processName) { [string]$lock.processName } else { "blender" }
-        if ($existing -and $existing.ProcessName -ieq $expectedName) {
+        $sameStart = $existing -and (-not $lock.processStartedAt -or
+            $existing.StartTime.ToUniversalTime().ToString("o") -eq $lock.processStartedAt)
+        if ($sameStart -and $existing.ProcessName -ieq $expectedName) {
             if ($lock.project -ieq $projectRoot) {
+                if ($lock.blend -ine $blendPath -or [int]$lock.port -ne $effectivePort) {
+                    throw "This project is already running with a different scene or port. Close it before changing either."
+                }
                 Write-Host "Already running: PID $($lock.pid), port $($lock.port), project $($lock.project)."
                 if ($lock.log) { Write-Host "Log: $($lock.log)" }
-                exit 0
+                return
             }
             throw "Only one Blender instance may run from this workspace. PID $($lock.pid) is already using project '$($lock.project)' on port $($lock.port). Close it first."
         }
     }
-    Remove-Item -LiteralPath $lockPath -Force
+    if (-not $DryRun) { Remove-Item -LiteralPath $lockPath -Force }
 }
 
-$listener = Get-NetTCPConnection -State Listen -LocalPort $effectivePort -ErrorAction SilentlyContinue |
-    Select-Object -First 1
-if ($listener) {
-    throw "Port $effectivePort is already in use by PID $($listener.OwningProcess). Only one Blender instance may run from this workspace."
+$bootstrap = Join-Path $PSScriptRoot "start_blender_mcp.py"
+$workspaceBlenders = @(Get-CimInstance Win32_Process -Filter "Name = 'blender.exe'" -ErrorAction Stop |
+    Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($bootstrap, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 })
+if ($workspaceBlenders.Count -gt 0) {
+    throw "A Blender process from this workspace is still running. Close it before launching another project."
+}
+if (Test-PortListening -LocalPort $effectivePort) {
+    throw "Port $effectivePort is already in use. Only one Blender instance may run from this workspace."
 }
 
 if ($DryRun) {
@@ -263,10 +335,9 @@ if ($DryRun) {
     Write-Host "Port: $effectivePort"
     Write-Host "Blend: $(if ($blendPath) { $blendPath } else { '(startup scene)' })"
     Write-Host "Log: $logPath"
-    exit 0
+    return
 }
 
-$bootstrap = Join-Path $PSScriptRoot "start_blender_mcp.py"
 if (-not (Test-Path -LiteralPath $bootstrap -PathType Leaf)) {
     throw "Missing bootstrap script: $bootstrap"
 }
@@ -314,6 +385,7 @@ if ($process.HasExited) {
 $lock = [pscustomobject]@{
     pid = $process.Id
     processName = $process.ProcessName
+    processStartedAt = $process.StartTime.ToUniversalTime().ToString("o")
     port = $effectivePort
     project = $projectRoot
     blend = $blendPath
@@ -326,10 +398,12 @@ $lock | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $lockPath -Encoding U
 $listening = $false
 $deadline = (Get-Date).AddSeconds(25)
 while (-not $listening -and (Get-Date) -lt $deadline) {
-    if ($process.HasExited) { break }
-    $listener = Get-NetTCPConnection -State Listen -LocalPort $effectivePort -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($listener) {
+    $process.Refresh()
+    if ($process.HasExited) {
+        Remove-Item -LiteralPath $lockPath -Force
+        throw "Blender log host exited during startup with code $($process.ExitCode). See $logPath."
+    }
+    if (Test-PortListening -LocalPort $effectivePort) {
         $listening = $true
         break
     }
@@ -342,4 +416,27 @@ if ($listening) {
     Write-Host "Log: $logPath"
 } else {
     Write-Warning "Blender is running (log host PID $($process.Id)), but the MCP addon is not listening on port $effectivePort. Check the log terminal and that the addon is enabled. Log: $logPath"
+}
+}
+
+$hash = [System.Security.Cryptography.SHA256]::Create()
+try {
+    $workspaceKey = [System.BitConverter]::ToString($hash.ComputeHash(
+        [System.Text.Encoding]::UTF8.GetBytes($workspaceRoot.ToLowerInvariant()))).Replace("-", "")
+} finally {
+    $hash.Dispose()
+}
+$launchMutex = New-Object System.Threading.Mutex($false, "Local\KiloBlender-$workspaceKey")
+$ownsMutex = $false
+try {
+    try {
+        $ownsMutex = $launchMutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        $ownsMutex = $true
+    }
+    if (-not $ownsMutex) { throw "Another Blender launch from this workspace is in progress. Wait for it to finish." }
+    Invoke-WorkspaceBlenderLaunch
+} finally {
+    if ($ownsMutex) { $launchMutex.ReleaseMutex() }
+    $launchMutex.Dispose()
 }

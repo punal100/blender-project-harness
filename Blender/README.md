@@ -7,7 +7,8 @@ Do not put a Blender project directly at the workspace root. Use this folder as 
 
 ## Create a project
 
-Confirm requirements and select the workflow mode before starting Blender. From the workspace root:
+Confirm requirements and select the workflow mode before starting Blender. Record confirmation evidence
+and the selected mode in `Documents/REQUIREMENTS.md` and `Documents/WORKFLOW.md`. From the workspace root:
 
 ```powershell
 .\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
@@ -22,7 +23,9 @@ Only one Blender project spawned by this workspace may be open at a time.
 ```
 
 The launcher opens a live log terminal and writes the session output to the project's ignored
-`logs/blender-<timestamp>.log`.
+`logs/blender-<timestamp>.log`. It rejects missing confirmation records, unselected workflow mode,
+outside-project `.blend` paths, reparse points, port conflicts, and concurrent workspace Blender
+instances.
 
 The MCP port comes from the workspace root `.kilo/kilo.jsonc`; project folders do not have their own
 Kilo config. Close the current Blender before opening another project.

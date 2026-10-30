@@ -6,13 +6,15 @@ Workspace for managing multiple Blender projects through Kilo. Projects live und
 ## Requirements
 
 - Windows with Blender installed. The launcher auto-discovers it; set `BLENDER_EXE` only to override.
-- PowerShell 7 or Windows PowerShell. `.\tools\start-blender.cmd --batch` provides a pure batch fallback.
+- PowerShell 7 or Windows PowerShell. The validated PowerShell launcher is required; unsupported
+  `--batch` and `KILO_BLENDER_FORCE_CMD` paths fail instead of bypassing project checks.
 - Kilo with the workspace Blender MCP configured in `.kilo/kilo.jsonc`.
 
 ## Quick start
 
-Confirm project requirements with the agent first. Do not scaffold or open Blender until the user
-has approved them.
+Confirm project requirements with the agent first. Record `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
+and the exact `Confirmation:` response in the project requirements file. Select and record the
+workflow mode before opening Blender.
 
 Create a project:
 
@@ -26,9 +28,10 @@ Open it:
 .\tools\start-blender.cmd "Blender\ProjectName"
 ```
 
-The launcher opens a live log terminal and writes the session log to the project's ignored
-`logs/blender-<timestamp>.log`. It uses the workspace MCP port and allows only one Blender instance
-spawned by this workspace at a time.
+The launcher validates project containment, confirmation records, workflow selection, `.blend` paths,
+the workspace MCP port, reparse points, active ports, and existing workspace Blender processes before
+opening a live log terminal. It writes the session log to the project's ignored
+`logs/blender-<timestamp>.log` and allows only one Blender instance spawned by this workspace at a time.
 
 ## Layout
 
@@ -66,13 +69,15 @@ logs belong inside their project folder.
 
 ## Workflow
 
-Read `AGENTS.md` and the matching skill before work. Start or resume a goal for every session, save
-the `.blend` every few turns, git-commit major milestones, and inspect every visual change with
-`look` before reporting done.
+Read `AGENTS.md` and the matching skill before work. Production work requires an active goal; workspace
+maintenance and read-only questions are exempt. Save the authoritative `.blend` after every meaningful
+scene change and before risky work or handoff. Review git changes at milestones, but commit only after
+explicit user authorization. Inspect every visual change with `look` before reporting done.
 
 New projects start with a requirements discussion and explicit confirmation. Then choose Fully
-Autonomous or Partially Autonomous mode. The mode is asked again on every resume and can be changed
-at any time. Partially Autonomous asks for approval after every meaningful change.
+Autonomous or Partially Autonomous mode. On a return to a paused project, confirm whether to continue
+or switch mode; automatic goal turns and compaction within the same active task do not repeat the gate.
+Partially Autonomous asks for approval after every meaningful change.
 
 Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
 findings with the user before they become requirements. If a Blender or library API is undocumented
@@ -84,3 +89,16 @@ The main session is the controller and owns all design decisions. Copy `config.e
 gitignored `config.json`, set the `blender_subagents` model, provider, variant, and limits, then load
 `blender-subagents`. Spawn one `blender-worker` at a time with `task`; workers execute one specific
 task, stop at their budget, and return `BLOCKED` instead of deciding scope or design.
+
+## Tooling checks
+
+Run the maintenance regression suite from the workspace root:
+
+```powershell
+python -B -m unittest discover -s tools -p "test_*.py" -v
+```
+
+Launcher and scaffold checks use isolated temporary workspaces and PowerShell. Bootstrap checks mock
+`bpy`; no test launches Blender. Frontmatter and worker-config checks require PyYAML and report a skip
+when it is unavailable. Live addon behavior, Kilo registration, and actual Blender startup need a
+separate runtime check.
