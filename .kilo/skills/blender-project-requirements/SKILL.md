@@ -1,6 +1,6 @@
 ---
 name: blender-project-requirements
-description: Use before creating a Blender project and whenever requirements are added or changed. Runs a user discussion and confirmation gate; stores confirmed requirements in Documents/REQUIREMENTS.md.
+description: Use before creating a Blender project and whenever requirements are added or changed. Runs a user discussion with targeted web research and a confirmation gate; stores confirmed requirements in Documents/REQUIREMENTS.md.
 ---
 
 # Blender Project Requirements
@@ -40,6 +40,31 @@ and continue. Do not let an unconfirmed requirement become scene work.
      README, `DECISIONS.md`, and the goal before continuing.
 10. Requirements may be added or changed at any time, but only after explicit user confirmation
     and a change-log row.
+
+## Research
+
+Research is part of the back-and-forth, not a one-time phase.
+
+- Use `websearch` when the user asks an open-ended question, uses an ambiguous term, or when the
+  domain, current standard, reference, feasibility, cost, or best practice is unclear.
+- Use `context7` for library, framework, and Blender API docs. If Context7 lacks the answer, say so
+  and use web search. For Blender API gaps, load `blender-mcp`.
+- Search before the next question when the gap is factual; ask the user when the gap is preference,
+  intent, priority, or scope.
+- When user feedback introduces an unfamiliar term or claim, research it and reflect the finding
+  back instead of silently accepting or rejecting it.
+- Prefer official or primary sources. Check date and version, and state conflicting or uncertain
+  findings.
+- Report research as a short "found / means / options" summary with titles and URLs. Separate
+  sourced facts from assumptions.
+- User feedback and confirmed intent outrank web findings. Present researched options and ask the
+  user to choose or confirm.
+- Never turn a web finding into a requirement without explicit user confirmation.
+- Record research that supports or changes a requirement in `REQUIREMENTS.md` under
+  `Research notes`; put long material in `Documents/References/`.
+- If research is unavailable or inconclusive, mark it as an open question; do not guess.
+- Search public information only. Never send private project data, credentials, or user identity to
+  a search.
 
 ## Requirement format
 

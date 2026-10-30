@@ -43,6 +43,14 @@ Confirmed requirements are the source of truth. Add or change them only after ex
 
 - Replace with unresolved decisions.
 
+## Research notes
+
+Sources that informed a requirement or a pending decision. Keep long material in `References/`.
+
+| Date | Question | Finding | Source | Effect |
+|---|---|---|---|---|
+| {{DATE}} | Initial scope | Replace with a sourced finding, or delete this row. | — | None yet. |
+
 ## Change log
 
 | Date | Change | Source | Confirmed by |
