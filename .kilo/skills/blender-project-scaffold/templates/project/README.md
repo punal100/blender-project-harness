@@ -66,7 +66,7 @@ this section short and concrete.
 ## Blender
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
-- Launch from the workspace root: `.\start-blender.cmd Blender\{{PROJECT_NAME}}`
+- Launch from the workspace root: `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`
 - Each launch opens a log terminal and writes to `logs/blender-<timestamp>.log`; `logs/` is ignored.
 - Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.

@@ -48,7 +48,7 @@ colour, scale, and mood. Name the review image or render that will prove it.
 1. Call `goal(action="start", objective=<this prompt>)`.
 2. Read the README, asset register, decisions, and references.
 3. From the workspace root, launch this project with
-   `.\start-blender.cmd Blender\{{PROJECT_NAME}}`. Only one Blender instance from this workspace may
+   `.\tools\start-blender.cmd Blender\{{PROJECT_NAME}}`. Only one Blender instance from this workspace may
    be open at a time.
 4. Call `blender_get_addon_status`; verify `blender_get_scene_info(fields=["settings"])` reports
    this project's `.blend` before editing.

@@ -10,7 +10,7 @@ Do not put a Blender project directly at the workspace root. Use this folder as 
 From the workspace root:
 
 ```powershell
-.\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
+.\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
 ```
 
 ## Open a project
@@ -18,7 +18,7 @@ From the workspace root:
 Only one Blender project spawned by this workspace may be open at a time.
 
 ```powershell
-.\start-blender.cmd "Blender\ProjectName"
+.\tools\start-blender.cmd "Blender\ProjectName"
 ```
 
 The launcher opens a live log terminal and writes the session output to the project's ignored

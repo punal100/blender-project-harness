@@ -4,10 +4,11 @@ These rules are mandatory, not advisory. Every line is binding; treat `must`, `r
 
 ## Workspace
 
-- Projects live under `Blender/<ProjectName>/`. Scaffold with `.\new-blender-project.cmd`; do not invent another layout.
+- Projects live under `Blender/<ProjectName>/`. Scaffold with `.\tools\new-blender-project.cmd`; do not invent another layout.
+- Keep shared tooling in `tools/`; do not add scripts or project files at the workspace root.
 - `.kilo/kilo.jsonc` owns the single MCP port. Do not create per-project Kilo configs.
 - Only one Blender instance spawned by this workspace may run at a time. One writer per instance; parallel read-only inspection is allowed.
-- Never launch `blender.exe` directly. Use `.\start-blender.cmd "Blender\<Project>"`; it opens a log terminal and writes to the project's ignored `logs/` folder.
+- Never launch `blender.exe` directly. Use `.\tools\start-blender.cmd "Blender\<Project>"`; it opens a log terminal and writes to the project's ignored `logs/` folder.
 
 ## Goal
 

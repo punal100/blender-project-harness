@@ -16,7 +16,7 @@ This skill is required before any Blender scene operation. Do not rely on genera
 2. Call `get_scene_info` before changing anything. Use `query`, `root`, `fields`, and `limit` to keep the result small.
 3. If the call fails, launch Blender from the workspace root with:
    ```powershell
-   .\start-blender.cmd Blender\<project-folder>
+   .\tools\start-blender.cmd Blender\<project-folder>
    ```
    Do not launch `blender.exe` directly. The launcher discovers Blender, reads the workspace port,
    sets the addon port, opens a live log terminal, writes the log to the project's ignored `logs/`
@@ -83,7 +83,7 @@ For `generate_3d`, one call creates one object. It can cost money or a generatio
 
 ## Troubleshooting
 
-- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. Run `.\start-blender.cmd Blender\<project-folder>` and confirm the workspace `BLENDER_PORT`. Reload the Kilo window if the MCP server was already running against the wrong port.
+- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. Run `.\tools\start-blender.cmd Blender\<project-folder>` and confirm the workspace `BLENDER_PORT`. Reload the Kilo window if the MCP server was already running against the wrong port.
 - **Addon outdated**: run `uvx mcp-for-blender install-addon`, restart Blender through the launcher.
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.
