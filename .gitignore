@@ -5,6 +5,13 @@
 **/.kilo/blender.lock.json
 **/.kilo/*.log
 **/logs/**
+**/__pycache__/
+**/.pytest_cache/
+**/.cache/
+**/cache/
+**/.env
+**/.env.*
+!**/.env.example
 .temp/
 .tmp/
 
@@ -14,6 +21,7 @@
 **/*.blend@
 **/*.blend~
 **/*.blend[0-9]
+**/*.blend[0-9][0-9]*
 **/blender.crash.txt
 **/*.crash.txt
 **/*.tx
@@ -28,6 +36,7 @@
 
 # External assets: keep metadata, not binaries by default
 **/assets/external/**
+!**/assets/external/**/
 !**/assets/external/README.md
 !**/assets/external/SOURCE_TEMPLATE.md
 !**/assets/external/**/README.md

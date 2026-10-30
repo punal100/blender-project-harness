@@ -4,11 +4,18 @@
 *.blend@
 *.blend~
 *.blend[0-9]
+*.blend[0-9][0-9]*
 blender.crash.txt
 *.crash.txt
 
 # Local caches and temporary files
 .cache/
+cache/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
 tmp/
 temp/
 logs/
@@ -27,6 +34,7 @@ backups/**
 
 # External assets: keep metadata, not binaries by default
 assets/external/**
+!assets/external/**/
 !assets/external/README.md
 !assets/external/SOURCE_TEMPLATE.md
 !assets/external/**/README.md

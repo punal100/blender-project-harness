@@ -22,5 +22,8 @@ assets/external/
   rule for that path or use `git add -f` deliberately, and keep the licence beside it.
 - For large redistributable assets, use Git LFS rather than committing raw binaries.
 - Link or import with relative paths. Check for missing files before delivery.
-- Pack external data only for delivery copies; keep an unpacked working copy when the assets need
-  editing.
+- Packing or embedding external data into a tracked or delivered `.blend` redistributes those bytes.
+  Verify the licence, attribution, and redistribution terms first, and record the packaging mode in
+  `Documents/ASSETS.md` and `SOURCE.md`.
+- Pack external data only for delivery copies when permitted; keep an unpacked working copy when the
+  assets need editing.

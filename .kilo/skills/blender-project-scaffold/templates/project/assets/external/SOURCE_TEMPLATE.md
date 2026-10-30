@@ -6,6 +6,7 @@
 - Licence:
 - Attribution required:
 - Redistribution allowed:
+- Packaging in .blend: linked / packed / embedded / none
 - Local path:
 - Imported into:
 - Modifications:

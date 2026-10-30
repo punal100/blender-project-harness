@@ -16,7 +16,7 @@ All paths below are relative to `Blender/<Project>/`.
 ## Workflow
 
 1. Search with the Blender MCP `search_assets` tool or import manually.
-2. Record source, author, licence, attribution, redistribution, and local path in
+2. Record source, author, licence, attribution, redistribution, local path, and packaging mode in
    `Documents/ASSETS.md`.
 3. Add `SOURCE.md` from
    `blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
@@ -24,7 +24,8 @@ All paths below are relative to `Blender/<Project>/`.
 5. Link or import with relative paths from the `.blend` (`//assets/...`). Never leave
    machine-specific absolute paths.
 6. Check missing files before delivery.
-7. Decide whether the `.blend` links or packs the asset, and record that decision.
+7. Decide whether the `.blend` links, packs, or embeds the asset, and record that decision. Treat
+   packed or embedded bytes as part of the deliverable even when the source binary is ignored by git.
 
 ## Git policy
 
@@ -33,6 +34,8 @@ All paths below are relative to `Blender/<Project>/`.
   use `git add -f` deliberately.
 - Use Git LFS for large redistributable binaries.
 - Never commit non-redistributable assets, credentials, or paid asset packs.
+- A tracked `.blend` containing packed or embedded third-party data is a redistribution of that data.
+  Verify its licence, attribution, and delivery rights before committing or delivering the file.
 
 ## Validation
 
@@ -41,6 +44,9 @@ All paths below are relative to `Blender/<Project>/`.
 - Moving or copying the project folder does not break the scene.
 - `Documents/ASSETS.md` has a row for every third-party asset.
 - Every external asset folder contains `SOURCE.md` and the licence terms.
+- Every linked, packed, or embedded third-party datablock in a deliverable `.blend` has a registered
+  source, licence, and packaging decision.
 
-For delivery copies, pack external data into the `.blend` or ship the documented asset folders
-together. Keep an unpacked working copy when the assets still need editing.
+For delivery copies, pack external data into the `.blend` only when its licence permits redistribution,
+or ship the documented asset folders together. Keep an unpacked working copy when the assets still need
+editing. Re-run missing-file checks and inspect packed/embedded third-party data before delivery.
