@@ -12,12 +12,14 @@ at `Blender/<Project>/README.md`.
 
 - Purpose: one concrete paragraph.
 - What this project is: subject, audience, visual result.
-- Requirements: functional, visual, technical, and delivery checklists.
+- Requirements: link to confirmed `Documents/REQUIREMENTS.md` and summarize only the highest-priority
+  points; do not duplicate the requirement register.
 - Visual direction: style, references, colour, lighting, camera, scale.
 - Deliverables: main `.blend`, final renders, exports, documents.
 - Project structure: the actual folders and the authoritative `.blend`.
 - Blender: workspace MCP port from the root config, launch command, live log terminal and ignored
   `logs/` folder, main file, relative-path rule, and the one-active-instance rule.
+- Workflow: link to `Documents/WORKFLOW.md` and state the selected autonomy mode.
 - External assets: summary plus links to `Documents/ASSETS.md` and
   `assets/external/README.md`. If there are none, say so explicitly.
 - Goals: index of `Documents/Goals/*.md`.
@@ -29,7 +31,8 @@ Keep the section order. Remove instructional placeholders; replace them with pro
 ## Quality bar
 
 - Write for a new collaborator who has not seen the project.
-- Do not invent requirements, asset licences, or visual decisions. Mark unknowns as `TBD`.
+- Derive requirements from the confirmed `Documents/REQUIREMENTS.md`; do not invent or silently
+  extend them. Mark unknowns as `TBD`.
 - Keep asset details in `Documents/ASSETS.md`; the README links to it instead of duplicating the
   register.
 - Use relative links and paths.
@@ -38,6 +41,8 @@ Keep the section order. Remove instructional placeholders; replace them with pro
 ## Validate
 
 - Every deliverable path exists or is explicitly planned.
+- `Documents/REQUIREMENTS.md` is confirmed and the README links to it.
+- `Documents/WORKFLOW.md` has a selected mode and the README links to it.
 - The stated `.blend` path is the one the MCP `get_scene_info(fields=["settings"])` reports.
 - External assets are registered and the README links to the register.
 - The goal index matches the files in `Documents/Goals/`.
