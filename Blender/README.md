@@ -7,7 +7,7 @@ Do not put a Blender project directly at the workspace root. Use this folder as 
 
 ## Create a project
 
-From the workspace root:
+Confirm requirements and select the workflow mode before starting Blender. From the workspace root:
 
 ```powershell
 .\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"

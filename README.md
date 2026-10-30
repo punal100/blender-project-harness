@@ -11,6 +11,9 @@ Workspace for managing multiple Blender projects through Kilo. Projects live und
 
 ## Quick start
 
+Confirm project requirements with the agent first. Do not scaffold or open Blender until the user
+has approved them.
+
 Create a project:
 
 ```powershell
@@ -55,12 +58,16 @@ logs belong inside their project folder.
 ## Documentation
 
 - [`AGENTS.md`](AGENTS.md): binding agent rules and skill routing.
-- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, scaffolding, READMEs, assets, and MCP.
+- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, requirements, workflow, scaffolding, READMEs, assets, and MCP.
 - [`Blender/README.md`](Blender/README.md): project collection and quick start.
 - Each project has its own `README.md`, `Documents/`, and asset register.
 
 ## Workflow
 
-Read `AGENTS.md` and the matching skill before work. Start a goal for non-trivial Blender requests,
-save the `.blend` every few turns, git-commit major milestones, and inspect every visual change with
+Read `AGENTS.md` and the matching skill before work. Start or resume a goal for every session, save
+the `.blend` every few turns, git-commit major milestones, and inspect every visual change with
 `look` before reporting done.
+
+New projects start with a requirements discussion and explicit confirmation. Then choose Fully
+Autonomous or Partially Autonomous mode. The mode is asked again on every resume and can be changed
+at any time. Partially Autonomous asks for approval after every meaningful change.
