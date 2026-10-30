@@ -71,3 +71,7 @@ the `.blend` every few turns, git-commit major milestones, and inspect every vis
 New projects start with a requirements discussion and explicit confirmation. Then choose Fully
 Autonomous or Partially Autonomous mode. The mode is asked again on every resume and can be changed
 at any time. Partially Autonomous asks for approval after every meaningful change.
+
+Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
+findings with the user before they become requirements. If a Blender or library API is undocumented
+or unclear, use Context7, official docs, and web search, then test against the live version.

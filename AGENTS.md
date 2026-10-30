@@ -20,6 +20,7 @@ These rules are mandatory, not advisory. Every line is binding; treat `must`, `r
 ## Requirements and workflow
 
 - Before scaffolding or any Blender work on a new project, read `.kilo/skills/blender-project-requirements/SKILL.md`; discuss and confirm requirements with the user, then write `Documents/REQUIREMENTS.md`. Do not start until confirmed.
+- During requirements, use web search when the domain, a term, a standard, a reference, or the user's request is ambiguous or open-ended. Combine research with user feedback, cite sources, and get explicit confirmation before turning findings into requirements.
 - Requirements may be added or changed at any time only after explicit user confirmation; update `Documents/REQUIREMENTS.md` and its change log, then update the goal and docs.
 - On every new project and every resume, read `.kilo/skills/blender-project-workflow/SKILL.md` and ask the mode via `question`: Fully Autonomous or Partially Autonomous. Store it in `Documents/WORKFLOW.md`; the user may switch at any time.
 - In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
@@ -29,6 +30,7 @@ These rules are mandatory, not advisory. Every line is binding; treat `must`, `r
 - Save the `.blend` at least every few turns. Commit project files with git after a major step, multi-turn milestone, or before risky work.
 - Visual verification is mandatory. After every scene, material, lighting, or camera change, inspect the result with `look`; code output alone is not proof. Do not report done until you have seen it.
 - Keep `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current.
+- For Blender or library APIs, check Context7 and official docs first. If docs are missing, version-mismatched, or unclear, web-search official docs, source, and community reports; verify against the live Blender version with a minimal test. Never invent API behavior.
 - Use relative paths from the `.blend` (`//assets/...`).
 - Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
 
