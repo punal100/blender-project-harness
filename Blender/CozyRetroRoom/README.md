@@ -1,18 +1,18 @@
 # CozyRetroRoom
 
-Status: Blockout review
+Status: Delivered
 Last updated: 2026-10-31
 
 ## Purpose
 
-A cozy late-90s bedroom computer corner, rendered as a photoreal 16:9 hero still. The image should
-feel nostalgic, warm, and lived-in, with a beige CRT setup as the focal point.
+A cozy late-90s bedroom computer corner, rendered as a photoreal 16:9 hero still. The image is
+nostalgic, warm, and lived-in, with a beige CRT setup as the focal point.
 
 ## What this project is
 
-A single-scene Blender visualization for the project owner: a small bedroom corner with a period
-desktop computer, woodgrain paneling, media clutter, posters, a plant, and warm practical lighting.
-The result is one polished still, not a game-ready environment or animation.
+A single-scene Blender visualization: a small bedroom corner with a period desktop computer,
+woodgrain paneling, media clutter, posters, a plant, textiles, and warm practical lighting. The
+delivered result is one polished still, not a game-ready environment or animation.
 
 ## Requirements
 
@@ -20,28 +20,28 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 - Late-90s beige CRT monitor, desktop tower, and chunky keyboard as the focal point.
 - Cozy evening lighting from a tungsten desk lamp, CRT glow, and soft window ambience.
-- Lived-in dressing: posters, wall notes, media shelves, plant, textiles, cables, and knick-knacks.
+- Lived-in dressing: posters, wall notes, media shelf, plant, textiles, cables, and knick-knacks.
 - Photoreal PBR materials, real-world scale, three-quarter 16:9 hero camera at 1920x1080.
 
 ## Visual direction
 
 - Style: photoreal PBR interior still, physically plausible wear and age.
 - Mood / references: nostalgic 1990s bedroom PC corner; warm, safe, slightly cluttered; evening.
-- Colour and lighting: amber/brown wood and fabric palette, warm tungsten pools, cool CRT screen
-  highlight, soft window fill, gentle shadows.
-- Camera / framing: three-quarter view into the corner at seated/standing eye height, desk and CRT
-  clearly readable, enough room context to sell the space.
-- Scale and units: metres; desk about 1.2-1.5 m wide, CRT about 0.35-0.45 m wide, walls about
-  2.4-2.8 m high.
+- Colour and lighting: amber/brown wood and fabric palette, warm tungsten pools, cool CRT and window
+  accents, gentle shadows.
+- Camera / framing: 38 mm three-quarter view into the corner at eye height, computer and desk clearly
+  readable, enough room context to sell the space.
+- Scale and units: metres; desk about 1.5 m wide, CRT about 0.44 m wide, room 3.6 x 4.4 x 2.6 m.
 
 ## Deliverables
 
 - Main Blender file: `cozyretroroom.blend` (project root)
-- Final render: `renders/final/cozyretroroom-hero.png` (planned, 1920x1080)
-- Review renders: `renders/wip/`
-- Exports: none planned
+- Final render: [`renders/final/cozyretroroom-hero.png`](renders/final/cozyretroroom-hero.png)
+  (delivered, 1920x1080)
+- Review renders: `renders/wip/` (working previews, not deliverables)
+- Exports: none planned for this still-only brief
 - Documentation: `Documents/`
-- External assets: `assets/external/`
+- External assets: `assets/external/` (none used)
 
 ## Project structure
 
@@ -92,7 +92,9 @@ CozyRetroRoom/
 
 See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md`](assets/external/README.md).
 
-- No external assets. All scene content is built procedurally or modeled in the file.
+- No external assets. All textures, posters, notes, screen imagery, rug pattern, window view, and
+  props are generated procedurally or modeled in the file. Generated images are packed in the
+  `.blend`.
 
 ## Goals
 
@@ -110,14 +112,17 @@ Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are 
 
 ## Open questions
 
-- None blocking. Blender 5.2.2 LTS is live; Cycles device and sample count still to be recorded.
-- Blockout awaits the user's review and approval under Partially Autonomous mode.
+- None. The scene is complete for the confirmed still-only brief.
+- Delivery record: Blender 5.2.2 LTS, Cycles GPU (OptiX, RTX 3060 Ti), 256 samples with denoise,
+  AgX view transform, exposure +0.52.
 
 ## Next steps
 
 - [x] Launch Blender, verify the add-on and scene settings, save `cozyretroroom.blend`.
 - [x] Block out the corner, desk, CRT, tower, keyboard, lamp, window, and camera.
-- [ ] Review and approve the blockout.
-- [ ] Add wall paneling, posters, media clutter, plant, textiles, and other period props.
-- [ ] Build final PBR materials and cozy lighting.
-- [ ] Render, inspect, and deliver the 1920x1080 hero still.
+- [x] Add wall paneling, posters, media clutter, plant, textiles, cables, and period props.
+- [x] Build final PBR materials and cozy lighting.
+- [x] Render, inspect, and deliver the 1920x1080 hero still.
+- [x] Verify packed images, saved camera, and documentation.
+
+Deferred: animation, alternate angles, and other rooms.

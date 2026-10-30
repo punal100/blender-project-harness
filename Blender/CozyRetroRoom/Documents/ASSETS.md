@@ -5,7 +5,7 @@ source or licence, it is not ready to ship.
 
 | Asset | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | Notes |
 |---|---|---|---|---|---|---|---|
-| None | — | — | — | — | — | — | All scene content is procedural or modeled in-file. |
+| None | — | — | — | — | — | — | All scene content is procedural or modeled in-file. Generated images are packed; no third-party binaries. |
 
 ## Rules
 
