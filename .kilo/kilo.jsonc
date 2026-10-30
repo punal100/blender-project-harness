@@ -9,6 +9,9 @@
     },
     "mediamcp": {
       "enabled": true
+    },
+    "playwright": {
+      "enabled": false
     }
   }
 }
