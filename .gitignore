@@ -1,0 +1,37 @@
+# Workspace runtime and local state
+**/.kilo/blender.lock.json
+**/.kilo/*.log
+.temp/
+.tmp/
+
+# Blender autosaves and backups
+**/*.blend1
+**/*.blend2
+**/*.blend@
+**/*.blend~
+**/*.blend[0-9]
+**/blender.crash.txt
+**/*.crash.txt
+**/*.tx
+
+# Work-in-progress renders and manual snapshots
+**/renders/wip/**
+!**/renders/wip/.gitkeep
+!**/renders/wip/README.md
+**/backups/**
+!**/backups/.gitkeep
+!**/backups/README.md
+
+# External assets: keep metadata, not binaries by default
+**/assets/external/**
+!**/assets/external/README.md
+!**/assets/external/SOURCE_TEMPLATE.md
+!**/assets/external/**/README.md
+!**/assets/external/**/SOURCE.md
+!**/assets/external/**/LICENSE*
+!**/assets/external/**/.gitkeep
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
