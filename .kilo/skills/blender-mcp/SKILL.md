@@ -8,6 +8,8 @@ license: MIT
 
 Use the `blender` MCP server to operate the user's open Blender. The server is `mcp-for-blender` (upstream `ahujasid/mcp-for-blender`); the Blender addon exposes a socket on the workspace's `BLENDER_PORT` from the root `.kilo/kilo.jsonc`.
 
+This skill is required before any Blender scene operation. Do not rely on general Blender knowledge instead.
+
 ## Preflight
 
 1. Call `get_addon_status`. Confirm `up_to_date`, the Blender version, and which libraries or generators are enabled.

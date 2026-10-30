@@ -1,10 +1,9 @@
 # AGENTS.md — Blender Project Collection
 
-Binding rules for every session and subagent. Load the matching skill before doing the work it covers.
+These rules are mandatory, not advisory. Every line is binding; treat `must`, `required`, and `stop` literally. Do not proceed, improvise, or substitute general knowledge when a gate is unmet.
 
 ## Workspace
 
-- Run every Kilo session from this workspace root. Do not open project folders as separate workspaces.
 - Projects live under `Blender/<ProjectName>/`. Scaffold with `.\new-blender-project.cmd`; do not invent another layout.
 - `.kilo/kilo.jsonc` owns the single MCP port. Do not create per-project Kilo configs.
 - Only one Blender instance spawned by this workspace may run at a time. One writer per instance; parallel read-only inspection is allowed.
@@ -12,7 +11,7 @@ Binding rules for every session and subagent. Load the matching skill before doi
 
 ## Goal
 
-- Before planning, reading beyond this file and the matching skill, or changing any file/scene: load `blender-project-goal`, write `Blender/<Project>/Documents/Goals/NN-<slug>.md`, then call `goal(action="start", objective=<the full prompt text>)`.
+- You must read `.kilo/skills/blender-project-goal/SKILL.md` before planning or changing any file/scene. Then write `Blender/<Project>/Documents/Goals/NN-<slug>.md` and call `goal(action="start", objective=<the full prompt text>)`.
 - Resume existing work with `goal(action="resume")`.
 - Pure read-only questions are exempt. This is a design workspace: no `PLAN/`, plan-check, or verifier records.
 
@@ -31,7 +30,7 @@ Binding rules for every session and subagent. Load the matching skill before doi
 
 ## Skills
 
-Detailed process lives in `.kilo/skills/`. Load only the skill needed for the task.
+Read the matching `.kilo/skills/<skill>/SKILL.md` before planning or touching any Blender file or scene. Do not skip this because the task looks simple. The `skill` tool may not list workspace-local skills; if it does not, read the file directly.
 
 | Skill | Load it for |
 |---|---|
@@ -43,5 +42,5 @@ Detailed process lives in `.kilo/skills/`. Load only the skill needed for the ta
 
 ## Done
 
-A goal is complete only when its acceptance checks pass, the scene is saved, a review render exists
+A goal is not complete until its acceptance checks pass, the scene is saved, a review render exists
 and was inspected with `look`, docs are current, and the goal prompt is recorded.
