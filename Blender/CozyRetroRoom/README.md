@@ -1,6 +1,6 @@
 # CozyRetroRoom
 
-Status: In production
+Status: Blockout review
 Last updated: 2026-10-31
 
 ## Purpose
@@ -110,12 +110,14 @@ Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are 
 
 ## Open questions
 
-- None blocking. Exact Blender version, render device, and sample count to be recorded during
-  production.
+- None blocking. Blender 5.2.2 LTS is live; Cycles device and sample count still to be recorded.
+- Blockout awaits the user's review and approval under Partially Autonomous mode.
 
 ## Next steps
 
-- [ ] Launch Blender, verify the add-on and scene settings, save `cozyretroroom.blend`.
-- [ ] Block out the corner, desk, CRT, and camera.
-- [ ] Add period props, materials, and lighting in reviewed increments.
+- [x] Launch Blender, verify the add-on and scene settings, save `cozyretroroom.blend`.
+- [x] Block out the corner, desk, CRT, tower, keyboard, lamp, window, and camera.
+- [ ] Review and approve the blockout.
+- [ ] Add wall paneling, posters, media clutter, plant, textiles, and other period props.
+- [ ] Build final PBR materials and cozy lighting.
 - [ ] Render, inspect, and deliver the 1920x1080 hero still.
