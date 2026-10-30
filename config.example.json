@@ -1,0 +1,12 @@
+{
+  "blender_subagents": {
+    "agent": "blender-worker",
+    "provider": "kilo",
+    "model": "anthropic/claude-sonnet-4.6",
+    "variant": "max",
+    "max_minutes": 10,
+    "max_steps": 18,
+    "max_failed_attempts": 2,
+    "max_parallel": 1
+  }
+}

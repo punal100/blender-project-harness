@@ -1,3 +1,6 @@
+# Local subagent model and budget configuration
+/config.json
+
 # Workspace runtime and local state
 **/.kilo/blender.lock.json
 **/.kilo/*.log
