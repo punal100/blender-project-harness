@@ -25,6 +25,14 @@ These rules are mandatory, not advisory. Every line is binding; treat `must`, `r
 - On every new project and every resume, read `.kilo/skills/blender-project-workflow/SKILL.md` and ask the mode via `question`: Fully Autonomous or Partially Autonomous. Store it in `Documents/WORKFLOW.md`; the user may switch at any time.
 - In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
 
+## Subagents
+
+- The current session is the controller. It owns requirements, design, scope, acceptance, user communication, and commits. Read `.kilo/skills/blender-subagents/SKILL.md` before delegating.
+- Read the gitignored `config.json` for the worker provider, model, variant, and budgets. If it is missing, copy `config.example.json` and stop; never guess a model.
+- Spawn `blender-worker` with `task`; do not create Agent Manager sessions. Allow one Blender writer at a time.
+- Each task is one specific outcome with allowed objects/paths, acceptance checks, budget, stop conditions, and output contract. The worker never makes design decisions; it returns `BLOCKED` with options when one is needed.
+- A worker stops at the configured time/step limit, two failed attempts, a repeated API error, or scope/design/asset ambiguity. The controller inspects with `look`, decides, asks the user when required, and commits.
+
 ## Working
 
 - Save the `.blend` at least every few turns. Commit project files with git after a major step, multi-turn milestone, or before risky work.
@@ -46,6 +54,7 @@ Read the matching `.kilo/skills/<skill>/SKILL.md` before planning or touching an
 | Skill | Load it for |
 |---|---|
 | `blender-project-goal` | Mandatory first step for every session and work request; goal prompt and `/goal` start. |
+| `blender-subagents` | Controller delegation to bounded Blender workers, model config, time limits, and stop conditions. |
 | `blender-project-requirements` | New-project requirements discussion, confirmation, and requirement changes. |
 | `blender-project-workflow` | Autonomy mode selection, resume checks, and partial-mode approval gates. |
 | `blender-project-scaffold` | Project structure and creating a new project under `Blender/`. |

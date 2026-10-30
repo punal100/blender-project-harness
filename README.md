@@ -58,7 +58,9 @@ logs belong inside their project folder.
 ## Documentation
 
 - [`AGENTS.md`](AGENTS.md): binding agent rules and skill routing.
-- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, requirements, workflow, scaffolding, READMEs, assets, and MCP.
+- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, subagents, requirements, workflow, scaffolding, READMEs, assets, and MCP.
+- [`.kilo/agent/blender-worker.md`](.kilo/agent/blender-worker.md): bounded worker definition.
+- [`config.example.json`](config.example.json): subagent model and budget template; copy to gitignored `config.json`.
 - [`Blender/README.md`](Blender/README.md): project collection and quick start.
 - Each project has its own `README.md`, `Documents/`, and asset register.
 
@@ -75,3 +77,10 @@ at any time. Partially Autonomous asks for approval after every meaningful chang
 Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
 findings with the user before they become requirements. If a Blender or library API is undocumented
 or unclear, use Context7, official docs, and web search, then test against the live version.
+
+## Subagents
+
+The main session is the controller and owns all design decisions. Copy `config.example.json` to the
+gitignored `config.json`, set the `blender_subagents` model, provider, variant, and limits, then load
+`blender-subagents`. Spawn one `blender-worker` at a time with `task`; workers execute one specific
+task, stop at their budget, and return `BLOCKED` instead of deciding scope or design.

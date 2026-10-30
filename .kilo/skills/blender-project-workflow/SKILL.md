@@ -29,6 +29,8 @@ a goal active before this skill is used.
   result or composition.
 - After each meaningful change or new addition: save the `.blend`, inspect with `look`, summarize
   what changed, give a recommendation or insight, and ask for approval before continuing.
+- When the controller delegates to a `blender-worker`, apply the approval gate after each worker
+  task. The worker never asks the user.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
   changes or a direction shift.
 - Never make the next meaningful change until the user approves.
