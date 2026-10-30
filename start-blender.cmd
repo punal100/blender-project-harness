@@ -113,8 +113,16 @@ if not defined FOUND (
     exit /b 1
 )
 
+set "LOGDIR=%PROJECT%\logs"
+set "STAMP=%DATE%_%TIME%"
+set "STAMP=%STAMP:/=-%"
+set "STAMP=%STAMP::=-%"
+set "STAMP=%STAMP: =0%"
+set "STAMP=%STAMP:,=-%"
+set "LOG=%LOGDIR%\blender-%STAMP%.log"
+
 set "BLENDER_PORT=%PORT%"
-set "ARGS=--python "%ROOT%start_blender_mcp.py""
+set "ARGS=-con --log "*" --log-file "%LOG%" --python "%ROOT%start_blender_mcp.py""
 if defined BLENDFILE set "ARGS="%BLENDFILE%" !ARGS!"
 
 if defined KILO_BLENDER_CMD_DRYRUN (
@@ -122,9 +130,12 @@ if defined KILO_BLENDER_CMD_DRYRUN (
     echo Project: %PROJECT%
     echo Port: %PORT%
     if defined BLENDFILE (echo Blend: %BLENDFILE%) else (echo Blend: startup scene)
+    echo Log: %LOG%
     echo Args: !ARGS!
     exit /b 0
 )
+
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
 
 start "" "%FOUND%" !ARGS!
 if errorlevel 1 (
@@ -132,6 +143,7 @@ if errorlevel 1 (
     exit /b 1
 )
 echo Started Blender for %PROJECT% on port %PORT%.
+echo Log: %LOG%
 exit /b 0
 
 :find_blender_root

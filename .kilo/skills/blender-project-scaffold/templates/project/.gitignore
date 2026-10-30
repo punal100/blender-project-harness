@@ -11,6 +11,7 @@ blender.crash.txt
 .cache/
 tmp/
 temp/
+logs/
 *.tx
 *.log
 

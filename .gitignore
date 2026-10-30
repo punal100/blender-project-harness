@@ -1,6 +1,7 @@
 # Workspace runtime and local state
 **/.kilo/blender.lock.json
 **/.kilo/*.log
+**/logs/**
 .temp/
 .tmp/
 

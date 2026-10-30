@@ -37,7 +37,8 @@ If the script cannot run, copy `templates/project` manually and replace the same
 3. Register external assets with `blender-assets`.
 4. Stay in the workspace-root Kilo session; project configs are not used.
 5. From the workspace root run `.\start-blender.cmd "Blender\<ProjectName>"`.
-6. Save the main scene as `<slug>.blend` at the project root.
+6. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
+7. Save the main scene as `<slug>.blend` at the project root.
 
 ## Rules
 

@@ -17,7 +17,8 @@ Use the `blender` MCP server to operate the user's open Blender. The server is `
    .\start-blender.cmd Blender\<project-folder>
    ```
    Do not launch `blender.exe` directly. The launcher discovers Blender, reads the workspace port,
-   sets the addon port, and allows only one Blender instance from this workspace at a time.
+   sets the addon port, opens a live log terminal, writes the log to the project's ignored `logs/`
+   folder, and allows only one Blender instance from this workspace at a time.
 4. Verify the open file with `get_scene_info(fields=["settings"])` before editing.
 
 ## Tools

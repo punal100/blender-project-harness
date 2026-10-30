@@ -29,7 +29,7 @@ def apply_port(*_args):
 
         scene.blendermcp_port = PORT
         bpy.ops.blendermcp.start_server()
-        print(f"BlenderMCP: listening on port {PORT}")
+        print(f"BlenderMCP: listening on port {PORT}", flush=True)
     except Exception:
         traceback.print_exc()
     return None

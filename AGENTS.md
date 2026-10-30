@@ -59,6 +59,7 @@ Blender/
     exports/                 # final interchange files
     scenes/                  # extra scenes/variants
     scripts/                 # project-specific Blender scripts
+    logs/                    # runtime logs, ignored
     backups/                 # local snapshots, ignored
 ```
 
@@ -78,6 +79,8 @@ Blender/
   directly.
 - `start-blender.cmd --batch Blender\<Project>` forces the pure batch launcher when PowerShell is
   unavailable.
+- Each launch opens a live log terminal and writes the same output to
+  `Blender/<Project>/logs/blender-<timestamp>.log`. The `logs/` folder is ignored; never commit it.
 - The launcher discovers Blender without a hardcoded path, reads the workspace port, sets
   `Scene.blendermcp_port`, starts the addon server, and refuses a second instance or a busy port.
 - It writes `.kilo/blender.lock.json` at the workspace root. This file is runtime state; never edit

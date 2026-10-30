@@ -219,6 +219,9 @@ if ($effectivePort -lt 1024 -or $effectivePort -gt 65535) {
     throw "Invalid port: $effectivePort. Use 1024-65535."
 }
 
+$logsRoot = Join-Path $projectRoot "logs"
+$logPath = Join-Path $logsRoot ("blender-{0}.log" -f (Get-Date -Format "yyyyMMdd-HHmmss-fff"))
+
 $lockDir = Join-Path $PSScriptRoot ".kilo"
 if (-not (Test-Path -LiteralPath $lockDir)) {
     New-Item -ItemType Directory -Path $lockDir | Out-Null
@@ -234,9 +237,11 @@ if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
     }
     if ($lock -and $lock.pid) {
         $existing = Get-Process -Id ([int]$lock.pid) -ErrorAction SilentlyContinue
-        if ($existing -and $existing.ProcessName -eq "blender") {
+        $expectedName = if ($lock.processName) { [string]$lock.processName } else { "blender" }
+        if ($existing -and $existing.ProcessName -ieq $expectedName) {
             if ($lock.project -ieq $projectRoot) {
                 Write-Host "Already running: PID $($lock.pid), port $($lock.port), project $($lock.project)."
+                if ($lock.log) { Write-Host "Log: $($lock.log)" }
                 exit 0
             }
             throw "Only one Blender instance may run from this workspace. PID $($lock.pid) is already using project '$($lock.project)' on port $($lock.port). Close it first."
@@ -256,6 +261,7 @@ if ($DryRun) {
     Write-Host "Project: $projectRoot"
     Write-Host "Port: $effectivePort"
     Write-Host "Blend: $(if ($blendPath) { $blendPath } else { '(startup scene)' })"
+    Write-Host "Log: $logPath"
     exit 0
 }
 
@@ -264,30 +270,54 @@ if (-not (Test-Path -LiteralPath $bootstrap -PathType Leaf)) {
     throw "Missing bootstrap script: $bootstrap"
 }
 
-$arguments = @()
-if ($blendPath) { $arguments += "`"$blendPath`"" }
-$arguments += "--python"
-$arguments += "`"$bootstrap`""
-$argumentString = $arguments -join " "
+$logHost = Join-Path $PSScriptRoot "start-blender-log.ps1"
+if (-not (Test-Path -LiteralPath $logHost -PathType Leaf)) {
+    throw "Missing log host script: $logHost"
+}
+
+if (-not (Test-Path -LiteralPath $logsRoot)) {
+    New-Item -ItemType Directory -Force -Path $logsRoot | Out-Null
+}
+
+$powershellExe = (Get-Process -Id $PID).Path
+if (-not $powershellExe) {
+    throw "Unable to resolve the PowerShell executable for the log terminal."
+}
+
+$hostArguments = @(
+    "-NoLogo",
+    "-NoProfile",
+    "-ExecutionPolicy Bypass",
+    "-File `"$logHost`"",
+    "-BlenderExe `"$($selectedBlender.FullName)`"",
+    "-ProjectRoot `"$projectRoot`"",
+    "-LogPath `"$logPath`"",
+    "-Bootstrap `"$bootstrap`""
+)
+if ($blendPath) { $hostArguments += "-BlendPath `"$blendPath`"" }
+$hostArgumentString = $hostArguments -join " "
 
 $env:BLENDER_PORT = [string]$effectivePort
-$process = Start-Process -FilePath $selectedBlender.FullName `
-    -ArgumentList $argumentString `
+$process = Start-Process -FilePath $powershellExe `
+    -ArgumentList $hostArgumentString `
     -WorkingDirectory $projectRoot `
+    -WindowStyle Normal `
     -PassThru
 
 Start-Sleep -Milliseconds 1200
 $process.Refresh()
 if ($process.HasExited) {
-    throw "Blender exited during startup with code $($process.ExitCode)."
+    throw "Blender log host exited during startup with code $($process.ExitCode). See $logPath."
 }
 
 $lock = [pscustomobject]@{
     pid = $process.Id
+    processName = $process.ProcessName
     port = $effectivePort
     project = $projectRoot
     blend = $blendPath
     blender = $selectedBlender.FullName
+    log = $logPath
     startedAt = (Get-Date).ToString("o")
 }
 $lock | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $lockPath -Encoding UTF8
@@ -306,8 +336,9 @@ while (-not $listening -and (Get-Date) -lt $deadline) {
 }
 
 if ($listening) {
-    Write-Host "Started Blender PID $($process.Id) for $projectRoot on port $effectivePort."
+    Write-Host "Started Blender for $projectRoot on port $effectivePort (log host PID $($process.Id))."
     Write-Host "MCP addon socket is listening."
+    Write-Host "Log: $logPath"
 } else {
-    Write-Warning "Blender PID $($process.Id) started, but the MCP addon is not listening on port $effectivePort. Check that the addon is enabled."
+    Write-Warning "Blender is running (log host PID $($process.Id)), but the MCP addon is not listening on port $effectivePort. Check the log terminal and that the addon is enabled. Log: $logPath"
 }

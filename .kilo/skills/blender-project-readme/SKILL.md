@@ -16,8 +16,8 @@ at `Blender/<Project>/README.md`.
 - Visual direction: style, references, colour, lighting, camera, scale.
 - Deliverables: main `.blend`, final renders, exports, documents.
 - Project structure: the actual folders and the authoritative `.blend`.
-- Blender: workspace MCP port from the root config, launch command, main file, relative-path rule,
-  and the one-active-instance rule.
+- Blender: workspace MCP port from the root config, launch command, live log terminal and ignored
+  `logs/` folder, main file, relative-path rule, and the one-active-instance rule.
 - External assets: summary plus links to `Documents/ASSETS.md` and
   `assets/external/README.md`. If there are none, say so explicitly.
 - Goals: index of `Documents/Goals/*.md`.
