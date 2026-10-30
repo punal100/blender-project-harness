@@ -48,8 +48,10 @@ colour, scale, and mood. Name the review image or render that will prove it.
 
 ## Workflow
 
-1. Call `goal(action="start", objective=<this prompt>)`. A successful goal call ends the turn; continue
-   when the goal resumes. Do not repeat start/resume on automatic goal turns or after compaction.
+1. Start this goal only after requirements are confirmed, the workflow mode is recorded, and every
+   open question is answered. Call `goal(action="start", objective=<this entire filled prompt>)`; a
+   one-line summary is not an objective. A successful goal call ends the turn; continue when the goal
+   resumes. Do not repeat start/resume on automatic goal turns or after compaction.
 2. Read the README, `REQUIREMENTS.md`, `WORKFLOW.md`, asset register, decisions, and references.
 3. Stop if requirements are unconfirmed or the workflow mode is `Unset`; resolve both before editing.
 4. From the workspace root, launch this project with
@@ -60,7 +62,9 @@ colour, scale, and mood. Name the review image or render that will prove it.
 6. Build in small steps. Save the authoritative `.blend` after every meaningful scene change and
    before risky work or handoff. Inspect every scene, material, lighting, and camera change with `look`.
 7. In Partially Autonomous mode, save, inspect, and ask for approval via `question` after every
-   meaningful change. If the user modifies the scene manually, wait, inspect, and confirm afterward.
+   meaningful change. Kilo removes `question` during an active goal: ask the user to run `/goal pause`,
+   ask, wait for the answer, then resume with `goal(action="resume")`. If the user modifies the scene
+   manually, wait, inspect, and confirm afterward.
 8. Save, render a review image, and inspect it before calling the goal complete.
 9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`. Review git changes
    at milestones and commit atomically after each verified change: one logical change per commit. Once

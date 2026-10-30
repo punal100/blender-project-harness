@@ -6,16 +6,20 @@ description: Select and enforce Fully Autonomous or Partially Autonomous work on
 # Blender Project Workflow
 
 Ask the workflow mode on new projects and returns to paused projects; never infer it from a previous
-session. Requirements must be confirmed first. Mode selection is bootstrap work and must precede
-recording the production goal. Workspace maintenance is exempt from this project gate.
+session. Requirements must be confirmed first. Mode selection happens in ordinary chat before the
+production goal starts, because Kilo removes `question` during an active goal. Workspace maintenance is
+exempt from this project gate.
 
 ## Gate
 
-- Follow `blender-project-goal` for start/resume and its turn boundary. Do not repeat goal calls or
-  workflow selection on automatic goal turns or compaction within the same active task.
-- If requirements are unconfirmed, stop and resolve that first. Select workflow before starting
-  the production goal; an active discovery goal covers new-project bootstrap.
-- Ask the mode with `question` and wait for the answer. Do not start scene work before it.
+- Follow `blender-project-goal` for goal recording and its turn boundary. Do not start the goal
+  before requirements are confirmed and the mode is recorded.
+- If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
+- Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
+- During an active goal, `question` is unavailable. In Partially Autonomous mode, ask the user to run
+  `/goal pause` before an approval or clarification, wait for the answer, then resume with
+  `goal(action="resume")`. If the answer changes scope, update the records and have the user replace
+  the objective with `/goal <objective>`.
 
 ## Fully Autonomous
 
@@ -34,7 +38,8 @@ recording the production goal. Workspace maintenance is exempt from this project
 - After each meaningful change or new addition: save the `.blend`, inspect with `look`, summarize
   what changed, give a recommendation or insight, and ask for approval before continuing.
 - Each delegated `blender-worker` task must contain one meaningful change. Apply the approval gate
-  after each task, before dispatching the next change. The worker never asks the user.
+  after each task, before dispatching the next change. The worker never asks the user; pause the goal
+  first, then ask.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
   changes or a direction shift.
 - Never make the next meaningful change until the user approves.
@@ -52,9 +57,11 @@ options:
 - "Pause"
 ```
 
-If the user requests changes, revise, save, inspect with `look`, and ask again. If the user chooses
-manual modification, prepare the scene for them: select the relevant object, frame the camera,
-hide temporary helpers if useful, save the `.blend`, then ask with `question`:
+If the user requests changes, revise, save, inspect with `look`, and ask again. Approval questions
+require an unblocked `question` tool: ask the user to run `/goal pause` first, then ask, then resume
+the goal after the answer. If the user chooses manual modification, prepare the scene for them: select
+the relevant object, frame the camera, hide temporary helpers if useful, save the `.blend`, then ask
+with `question`:
 
 ```text
 header: "Your turn"

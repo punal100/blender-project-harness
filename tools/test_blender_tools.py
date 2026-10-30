@@ -434,6 +434,29 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertIn(config["max_failed_attempts"], (1, 2))
                 self.assertEqual(config["max_parallel"], 1)
 
+    def test_atomic_commit_policy_is_mandatory(self):
+        policy_files = [ROOT / "AGENTS.md", ROOT / "README.md",
+                        *sorted((ROOT / ".kilo/skills").rglob("SKILL.md"))]
+        forbidden = re.compile(
+            r"commit only (?:when|if|after)|explicit user authorization|authorizes commits",
+            re.IGNORECASE,
+        )
+        for path in policy_files:
+            with self.subTest(path=str(path.relative_to(ROOT))):
+                self.assertNotRegex(path.read_text(encoding="utf-8"), forbidden)
+        self.assertIn("commit atomically", (ROOT / "AGENTS.md").read_text(encoding="utf-8").lower())
+
+    def test_questions_precede_goals_and_partial_mode_pauses(self):
+        goal = (ROOT / ".kilo/skills/blender-project-goal/SKILL.md").read_text(encoding="utf-8")
+        workflow = (ROOT / ".kilo/skills/blender-project-workflow/SKILL.md").read_text(encoding="utf-8")
+        brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")
+        for text in (goal, workflow, brief):
+            self.assertIn("/goal pause", text)
+        self.assertIn("`question` is unavailable", workflow)
+        self.assertIn("ordinary chat", goal)
+        self.assertIn("entire filled prompt", goal)
+        self.assertIn("this entire filled prompt", brief)
+
     def test_reference_guides_are_attributed(self):
         references = ROOT / ".kilo/skills/blender-mcp/references"
         index = (references / "README.md").read_text(encoding="utf-8")

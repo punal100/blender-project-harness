@@ -13,33 +13,46 @@ unless the user separately requested it.
 
 1. Read this skill and enough project context to identify the saved goal and pending work. These
    bootstrap reads are permitted before a goal exists.
-2. Resume saved work with `goal(action="resume")`. Do not duplicate an existing active goal or
-   call resume again on automatic goal turns or after compaction within the same active task.
-3. If no goal exists for a new project, start a requirements discovery goal using the user's exact
-   request and the confirmation gate. No project folder or goal file is required for discovery.
-4. Successful goal start/resume ends the current turn. Give a short response and continue when the
+2. A new project starts in ordinary chat, not in a goal. Confirm requirements with
+   `blender-project-requirements`, select the mode with `blender-project-workflow`, and scaffold the
+   project first. Kilo removes `question` while a goal is active, so every clarification must happen
+   before the goal starts.
+3. Resume saved work with `goal(action="resume")` when a recorded goal exists and its requirements and
+   workflow records are current. Do not duplicate an active goal or call resume again on automatic
+   goal turns or after compaction within the same active task.
+4. Write the goal prompt and start the production goal only after requirements are confirmed, the
+   workflow mode is selected, and the project is scaffolded. Never start a discovery goal to ask
+   questions.
+5. Successful goal start/resume ends the current turn. Give a short response and continue when the
    goal resumes; do not call more tools or perform more work in that turn.
-5. During discovery, confirm requirements, scaffold, record requirements, and select workflow in
-   that order. These bootstrap steps must precede production and do not require a project goal file.
 6. On a return to a paused project, read `Documents/WORKFLOW.md` and ask the workflow question from
-   `blender-project-workflow` before production. Do not repeat that question on automatic goal turns
-   or compaction within the same active task.
-7. When discovery is finished, report its concrete outcome, then record and start the production
-   goal on the next continuation. If a goal tool is unavailable or fails, report the exact error
-   and stop production; a written prompt alone is not an active goal.
+   `blender-project-workflow` in ordinary chat before resuming.
+7. If a goal tool is unavailable or fails, report the exact error and stop production; a written
+   prompt alone is not an active goal.
 
 ## Project goal steps
 
-1. Confirm that requirements are confirmed and a workflow mode is selected.
+1. Confirm that requirements are confirmed, a workflow mode is selected, and the project is scaffolded.
 2. Read `AGENTS.md`, `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`,
    `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and the existing goals.
 3. Choose the next goal file: `Blender/<Project>/Documents/Goals/NN-<slug>.md`. Fill the scaffold's
    unfinished initial brief for the first goal. Never overwrite an earlier recorded goal.
 4. Start from `blender-project-scaffold/templates/project/Documents/Goals/01-project-brief.md` and
-   fill every section. Link `REQUIREMENTS.md` and `WORKFLOW.md`; do not duplicate them.
+   fill every section. Link `REQUIREMENTS.md` and `WORKFLOW.md`; do not duplicate them. The `goal`
+   objective must be the entire filled prompt text, not the raw request or a one-line summary; Kilo
+   accepts at most 10,000 characters.
 5. Call `goal(action="start", objective=<the full prompt text>)` immediately. Writing the file
    without starting the goal is incomplete. After success, end the turn and wait for continuation.
 6. If resuming existing work, call `goal(action="resume")` instead of creating a duplicate goal.
+
+## Questions during a goal
+
+Kilo removes `question` while a goal is active
+(https://kilo.ai/docs/code-with-ai/agents/goals#clarification-questions). In Partially Autonomous mode,
+when an approval or clarification is needed, ask the user to run `/goal pause`, ask with `question`,
+wait for every answer, then call `goal(action="resume")`. If an answer changes scope or requirements,
+update the documents and goal file first; the user replaces the objective with `/goal <objective>`.
+Never self-confirm requirements or record a directive the user did not give.
 
 ## Required goal content
 
@@ -58,8 +71,11 @@ unless the user separately requested it.
 
 - Do not perform Blender production without an active goal. Bootstrap and maintenance exceptions
   are defined above; they do not authorize scene edits.
-- Do not create a project goal before requirements are confirmed.
-- Do not create a production goal without a selected workflow mode. Discovery precedes selection.
+- Requirements, workflow selection, and scaffolding happen before the goal. Do not create a project
+  goal before requirements are confirmed or a workflow mode is selected.
+- Do not start a goal to ask questions; Kilo disables `question` during goal execution.
+- In Partially Autonomous mode, pause the goal before asking and resume it after the answers.
+- Never invent user confirmation or a session directive to bypass these gates.
 - This is a design goal, not a coding plan. Do not create `PLAN/` or plan-check/verifier records.
 - Multiple goals per project are allowed; one file per goal.
 - Never claim production completion without a saved review render inspected with `look`. Viewport

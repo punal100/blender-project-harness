@@ -12,10 +12,10 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 
 ## Session and goal
 
-- For Blender project work, read `.kilo/skills/blender-project-goal/SKILL.md` and resume the existing goal before production work. If none exists, start the requirements discovery or project goal as appropriate. Goal tools end the current turn: after a successful start or resume, give a short response and continue when the goal resumes.
-- Reading the goal skill and project context, confirming requirements, selecting workflow, scaffolding after confirmation, and recording the goal are bootstrap steps. They must precede scene work; do not require an already-recorded project goal for these steps.
-- Before production changes, write `Blender/<Project>/Documents/Goals/NN-<slug>.md` and call `goal(action="start", objective=<the full prompt text>)`. Resume an existing goal instead of duplicating it.
-- For a new project, start a requirements discovery goal first; write the project goal after requirements are confirmed and the project is scaffolded.
+- For Blender project work, read `.kilo/skills/blender-project-goal/SKILL.md`. Resume an existing goal before production work. If none exists, finish requirements, workflow, and scaffolding in ordinary chat first, then start the production goal. Goal tools end the current turn: after a successful start or resume, give a short response and continue when the goal resumes.
+- Requirements confirmation, workflow selection, and scaffolding are ordinary-chat steps that must precede the goal. Kilo removes `question` while a goal is active, so never start a goal to ask questions or run discovery.
+- Before production changes, write `Blender/<Project>/Documents/Goals/NN-<slug>.md` and call `goal(action="start", objective=<the full filled prompt text>)`. The objective is the whole prompt, not the raw request. Resume an existing goal instead of duplicating it.
+- During an active goal, `question` is unavailable. In Partially Autonomous mode, ask the user to run `/goal pause`, ask the pending questions, wait for the answers, then resume with `goal(action="resume")`. If the answers change scope, update the records and have the user replace the objective with `/goal <objective>`.
 - Pure read-only questions and workspace maintenance (rules, skills, agents, config, templates, tooling, and their tests) do not require a Blender goal, project requirements, workflow selection, or a review render. Do not launch or modify Blender during maintenance unless separately requested.
 - This is a design workspace: do not create `PLAN/`, plan-check, or verifier records. Tooling tests are allowed under `tools/`.
 
@@ -24,8 +24,9 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 - Before scaffolding or any Blender work on a new project, read `.kilo/skills/blender-project-requirements/SKILL.md` and obtain explicit requirements confirmation. Then scaffold and write `Documents/REQUIREMENTS.md` with confirmation evidence. Do not launch Blender before this record and the workflow mode are complete.
 - During requirements, use web search when the domain, a term, a standard, a reference, or the user's request is ambiguous or open-ended. Combine research with user feedback, cite sources, and get explicit confirmation before turning findings into requirements.
 - Requirements may be added or changed at any time only after explicit user confirmation; update `Documents/REQUIREMENTS.md` and its change log, then update the goal and docs.
-- On every new project and every return to a paused Blender project, read `.kilo/skills/blender-project-workflow/SKILL.md` and confirm the mode via `question`: Fully Autonomous or Partially Autonomous. Store it in `Documents/WORKFLOW.md`; the user may switch at any time. Do not repeat this gate on automatic goal turns or after compaction within the same active task.
-- In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
+- On every new project and every return to a paused Blender project, read `.kilo/skills/blender-project-workflow/SKILL.md` and confirm the mode via `question`: Fully Autonomous or Partially Autonomous. Store it in `Documents/WORKFLOW.md`; the user may switch at any time. Ask before the goal starts or while it is paused, never from inside an active goal.
+- In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. Pause the goal first, then ask, then resume. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
+- Never record a confirmation, directive, or approval that the user did not give. If a question cannot be asked, pause or stop instead of self-authorizing.
 
 ## Subagents
 

@@ -10,10 +10,12 @@ production work until the user explicitly confirms them.
 
 ## Session gate
 
-Follow `blender-project-goal` for discovery and bootstrap order. Read the relevant context before
-starting or resuming. A successful goal call ends the turn; continue the discussion on the next
-goal turn. Do not repeat start/resume after compaction within the same active task. Do not let an
-unconfirmed requirement become scene work. Workspace maintenance is exempt from this project gate.
+Requirements are settled in ordinary chat before any goal starts. Kilo removes `question` during an
+active goal, so do not use a discovery goal for this discussion. Read the relevant context, confirm
+requirements, scaffold, record `Documents/REQUIREMENTS.md`, then select the workflow mode, and only
+then record and start the production goal. Do not repeat the confirmation after compaction within the
+same active task. Do not let an unconfirmed requirement become scene work. Workspace maintenance is
+exempt from this project gate.
 
 ## Discussion
 
@@ -39,8 +41,9 @@ unconfirmed requirement become scene work. Workspace maintenance is exempt from 
 9. On confirmation:
    - New project: scaffold, write `Documents/REQUIREMENTS.md` with `Status: Confirmed`, and add a
        change-log row. Use `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`
-       to record the date, exact response, and brief or revision it covers.
-      Then load `blender-project-workflow` and ask the mode.
+       to record the date, exact response, and brief or revision it covers. Record only words the
+       user actually wrote; never cite a session directive or self-generated approval.
+      Then load `blender-project-workflow` and ask the mode. Both steps happen before the goal starts.
    - Existing project: update `Documents/REQUIREMENTS.md` and its change log, then update the
      README, `DECISIONS.md`, and the goal before continuing.
 10. Requirements may be added or changed at any time, but only after explicit user confirmation

@@ -78,10 +78,11 @@ scene change and before risky work or handoff. Review git changes at milestones 
 one logical, verified change per commit. Commits are mandatory; never batch a session into one
 end-of-task commit. Inspect every visual change with `look` before reporting done.
 
-New projects start with a requirements discussion and explicit confirmation. Then choose Fully
-Autonomous or Partially Autonomous mode. On a return to a paused project, confirm whether to continue
-or switch mode; automatic goal turns and compaction within the same active task do not repeat the gate.
-Partially Autonomous asks for approval after every meaningful change.
+New projects start with a requirements discussion and explicit confirmation in ordinary chat. Then
+choose Fully Autonomous or Partially Autonomous mode and scaffold. Kilo disables `question` during an
+active goal, so all clarification must happen before the goal starts. On a return to a paused project,
+confirm whether to continue or switch mode. Partially Autonomous asks for approval after every
+meaningful change: pause the goal, ask, then resume.
 
 Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
 findings with the user before they become requirements. If a Blender or library API is undocumented
