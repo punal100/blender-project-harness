@@ -25,14 +25,25 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 - During requirements, use web search when the domain, a term, a standard, a reference, or the user's request is ambiguous or open-ended. Combine research with user feedback, cite sources, and get explicit confirmation before turning findings into requirements.
 - Requirements may be added or changed at any time only after explicit user confirmation; update `Documents/REQUIREMENTS.md` and its change log, then update the goal and docs.
 - On every new project and every return to a paused Blender project, read `.kilo/skills/blender-project-workflow/SKILL.md` and confirm the mode via `question`: Fully Autonomous or Partially Autonomous. Store it in `Documents/WORKFLOW.md`; the user may switch at any time. Ask before the goal starts or while it is paused, never from inside an active goal.
+- On every new project and every return to a paused Blender project, read `.kilo/skills/blender-project-grading/SKILL.md` and ask the review mode via `question`: `Off`, `All`, or `Single`. Record it in `Documents/REVIEW.md`; `Unset` is invalid once production starts. Ask before the goal starts or while it is paused.
 - In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. Pause the goal first, then ask, then resume. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
 - Never record a confirmation, directive, or approval that the user did not give. If a question cannot be asked, pause or stop instead of self-authorizing.
+
+## Reviews
+
+- The controller's `look` inspection is mandatory. Independent graders supplement it; they never replace it and never make acceptance or design decisions.
+- Run graders only when review mode is `All` or `Single` and `blender_graders.enabled` is true. `Off` means controller self-review only.
+- Grade saved work after a meaningful change and before a Partially Autonomous approval question. Read graders' reports, fix blockers first, and record every finding's disposition in `Documents/Reviews/<round>/REVIEW.md`.
+- Graders are read-only. They may write only their own `Documents/Reviews/<round>/<grader>/REPORT.md`. Only `_evidence/` and `tmp/` inside review rounds are gitignored.
+- Dispatch graders in parallel with multiple `task` calls when the config allows, using the configured model, provider, variant, and budget per grader. Resume the same grader session with its `task_id` for a re-review.
+- Bounds are mandatory: one pass per grader per round, `max_rounds` 1-3, and per-grader time/step limits. Two rounds without improvement on the same finding escalate to the user.
+- Commit each review round's `REVIEW.md`, `manifest.json`, reports, and index entry atomically. Never leave a completed round uncommitted.
 
 ## Subagents
 
 - The current session is the controller. It owns requirements, design, scope, acceptance, user communication, and commits. Read `.kilo/skills/blender-subagents/SKILL.md` before delegating.
-- Read and validate the gitignored `config.json` for the worker provider, model, variant, and budgets. If missing, copy `config.example.json` without overwriting local settings and stop delegation until the user confirms it. Never guess or substitute a model; runtime tool restrictions still apply.
-- Spawn `blender-worker` with `task`; do not create Agent Manager sessions. Allow one Blender writer at a time.
+- Read and validate the gitignored `config.json` for the worker and grader providers, models, variants, and budgets. If missing, copy `config.example.json` without overwriting local settings and stop delegation until the user confirms it. Never guess or substitute a model; runtime tool restrictions still apply.
+- Spawn `blender-worker` with `task`; do not create Agent Manager sessions. Allow one Blender writer at a time. Graders are read-only and may run in parallel when configured.
 - Each task is one specific outcome with allowed objects/paths, acceptance checks, budget, stop conditions, and output contract. The worker never makes design decisions; it returns `BLOCKED` with options when one is needed.
 - A worker must stop before starting more work at the configured time/step budget, configured failure limit (at most two), repeated API error, or scope/design/asset ambiguity. `steps` caps tool-call rounds; it does not interrupt running calls or enforce a wall-clock timeout. The controller independently inspects with `look`, decides, and obtains workflow approval when required.
 
@@ -57,7 +68,8 @@ Read the matching `.kilo/skills/<skill>/SKILL.md` before planning or touching an
 | Skill | Load it for |
 |---|---|
 | `blender-project-goal` | Blender project goals, bootstrap order, start/resume lifecycle; excludes maintenance and read-only questions. |
-| `blender-subagents` | Controller delegation to bounded Blender workers, model config, time limits, and stop conditions. |
+| `blender-subagents` | Controller delegation to bounded Blender workers and graders, model config, time limits, and stop conditions. |
+| `blender-project-grading` | Review modes, grader config, evidence capture, round folders, aggregation, and re-review. |
 | `blender-project-requirements` | New-project requirements discussion, confirmation, and requirement changes. |
 | `blender-project-workflow` | Autonomy mode selection, resume checks, and partial-mode approval gates. |
 | `blender-project-scaffold` | Project structure and creating a new project under `Blender/`. |
@@ -68,7 +80,8 @@ Read the matching `.kilo/skills/<skill>/SKILL.md` before planning or touching an
 ## Done
 
 For Blender production work, a goal is not complete until its acceptance checks pass, the scene is saved, a review render exists
-and was inspected with `look`, requirements and workflow are current, docs are current, and the goal
+and was inspected with `look`, requirements, workflow, and review mode are current, configured grader
+rounds have a recorded verdict with no open blocker or major finding, docs are current, and the goal
 prompt is recorded.
 
 For workspace maintenance, run the relevant format, tooling, and diff checks. Report runtime checks

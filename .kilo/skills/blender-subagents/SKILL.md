@@ -1,6 +1,6 @@
 ---
 name: blender-subagents
-description: Use when the controller session delegates Blender work to bounded subagents. Defines the worker model config, one-task scope, time and step limits, design authority, and stop conditions.
+description: Use when the controller session delegates Blender work to bounded subagents. Defines the worker and grader model configs, one-task scope, time and step limits, design authority, and stop conditions.
 ---
 
 # Blender Subagents
@@ -53,6 +53,48 @@ Read `config.json` at the workspace root before spawning. It is gitignored;
   validation does not prove runtime registration.
 - File permissions are not a sandbox for `execute_blender_code`. Task scope must also prohibit
   out-of-scope filesystem, network, and process access through Blender Python or another MCP.
+
+## Graders
+
+Independent review uses `blender-grader`, configured separately from the worker:
+
+```json
+{
+  "blender_graders": {
+    "agent": "blender-grader",
+    "enabled": true,
+    "max_parallel": 3,
+    "max_rounds": 2,
+    "graders": [
+      {
+        "name": "visual",
+        "focus": "composition, camera, lighting",
+        "provider": "provider-id",
+        "model": "model-name",
+        "variant": "reasoning-variant",
+        "max_minutes": 5,
+        "max_steps": 10
+      }
+    ]
+  }
+}
+```
+
+- Load `blender-project-grading` for modes, evidence, round folders, aggregation, and re-review.
+- `blender_graders.enabled` is the machine kill switch; project `Documents/REVIEW.md` selects `Off`,
+  `All`, or `Single`. Grade only when both allow it.
+- Validate the array: unique slugs, non-empty focus, non-empty provider/model/variant, positive
+  integer limits, `max_steps` at or below the grader agent's `steps`, `max_parallel` at most the
+  grader count, `max_rounds` 1-3. Never drop a grader or substitute a model silently.
+- Resolve each grader's model, provider, and variant with `agent_manager_models` before dispatch.
+- Graders are read-only and may run in parallel. Dispatch all selected graders in one message with
+  multiple `task` calls, each writing only its own `Documents/Reviews/<round>/<grader>/REPORT.md`.
+- Store each returned `task_id` in the round manifest and resume the same session for a re-review
+  when model and focus are unchanged.
+- One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
+  missing spec/evidence. Graders never loop or ask the user.
+- A single blocker fails the round regardless of other PASS verdicts. The controller, not a vote
+  count, records the final verdict and every finding's disposition.
 
 ## Design authority
 

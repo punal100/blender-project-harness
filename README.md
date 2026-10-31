@@ -45,6 +45,9 @@ opening a live log terminal. It writes the session log to the project's ignored
   .gitignore
   .kilo/
     kilo.jsonc
+    agent/
+      blender-worker.md
+      blender-grader.md
     skills/
   Blender/
     README.md
@@ -64,9 +67,10 @@ logs belong inside their project folder.
 ## Documentation
 
 - [`AGENTS.md`](AGENTS.md): binding agent rules and skill routing.
-- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, subagents, requirements, workflow, scaffolding, READMEs, assets, and MCP.
+- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, subagents, grading, requirements, workflow, scaffolding, READMEs, assets, and MCP.
 - [`.kilo/agent/blender-worker.md`](.kilo/agent/blender-worker.md): bounded worker definition.
-- [`config.example.json`](config.example.json): subagent model and budget template; copy to gitignored `config.json`.
+- [`.kilo/agent/blender-grader.md`](.kilo/agent/blender-grader.md): independent read-only grader rubric.
+- [`config.example.json`](config.example.json): worker and grader model and budget template; copy to gitignored `config.json`.
 - [`Blender/README.md`](Blender/README.md): project collection and quick start.
 - Each project has its own `README.md`, `Documents/`, and asset register.
 
@@ -79,10 +83,10 @@ one logical, verified change per commit. Commits are mandatory; never batch a se
 end-of-task commit. Inspect every visual change with `look` before reporting done.
 
 New projects start with a requirements discussion and explicit confirmation in ordinary chat. Then
-choose Fully Autonomous or Partially Autonomous mode and scaffold. Kilo disables `question` during an
-active goal, so all clarification must happen before the goal starts. On a return to a paused project,
-confirm whether to continue or switch mode. Partially Autonomous asks for approval after every
-meaningful change: pause the goal, ask, then resume.
+choose Fully Autonomous or Partially Autonomous mode, choose a review mode (`Off`, `All`, `Single`),
+and scaffold. Kilo disables `question` during an active goal, so all clarification must happen before
+the goal starts. On a return to a paused project, confirm whether to continue or switch modes.
+Partially Autonomous asks for approval after every meaningful change: pause the goal, ask, then resume.
 
 Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
 findings with the user before they become requirements. If a Blender or library API is undocumented
@@ -94,6 +98,15 @@ The main session is the controller and owns all design decisions. Copy `config.e
 gitignored `config.json`, set the `blender_subagents` model, provider, variant, and limits, then load
 `blender-subagents`. Spawn one `blender-worker` at a time with `task`; workers execute one specific
 task, stop at their budget, and return `BLOCKED` instead of deciding scope or design.
+
+## Reviews
+
+Graders are independent, read-only subagents that check saved work against confirmed requirements.
+Configure models and reasoning variants in `blender_graders.graders[]`; each project records `Off`,
+`All`, or `Single` in `Documents/REVIEW.md`. Load `blender-project-grading` for evidence capture,
+timestamped round folders under `Documents/Reviews/`, dispositions, re-review, and bounds. Review
+reports and manifests are committed; only preview evidence and temp files are ignored. The controller
+still inspects every change with `look` and owns the final verdict.
 
 ## Tooling checks
 

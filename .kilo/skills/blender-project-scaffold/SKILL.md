@@ -1,6 +1,6 @@
 ---
 name: blender-project-scaffold
-description: Use when creating a new Blender project under the workspace Blender folder. Creates the standard README, requirements, workflow, Documents, Goals, asset folders, and .gitignore.
+description: Use when creating a new Blender project under the workspace Blender folder. Creates the standard README, requirements, workflow, review, Documents, Goals, asset folders, and .gitignore.
 ---
 
 # Blender Project Scaffold
@@ -8,11 +8,12 @@ description: Use when creating a new Blender project under the workspace Blender
 Create new projects from `templates/project` inside this skill. Do not invent a different folder
 layout.
 
-Requirements must be confirmed and the workflow mode selected before you run this. If they are not,
-read `blender-project-requirements` and `blender-project-workflow` and finish both in ordinary chat
-first; Kilo removes `question` during an active goal, so no goal may start yet. Scaffolding leaves
-draft documents; record confirmation and workflow before launching. Maintenance tests may scaffold
-isolated fixtures without project confirmation, but must never launch Blender.
+Requirements must be confirmed, the workflow mode selected, and the review mode chosen before you run
+this. If they are not, read `blender-project-requirements`, `blender-project-workflow`, and
+`blender-project-grading` and finish them in ordinary chat first; Kilo removes `question` during an
+active goal, so no goal may start yet. Scaffolding leaves draft documents; record all three before
+launching. Maintenance tests may scaffold isolated fixtures without project confirmation, but must
+never launch Blender.
 
 ## Create
 
@@ -46,9 +47,11 @@ Blender/<Project>/
   Documents/
     REQUIREMENTS.md
     WORKFLOW.md
+    REVIEW.md
     ASSETS.md
     DECISIONS.md
     Goals/
+    Reviews/
     References/
   assets/
     external/
@@ -73,15 +76,17 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
 1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed` and
    record `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`.
 2. Ask the workflow mode with `blender-project-workflow`; write `Documents/WORKFLOW.md`.
-3. Fill `README.md` with `blender-project-readme`.
-4. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal` and start it. Start the goal
-   only after requirements and workflow are recorded; the objective is the entire filled prompt. A
-   successful goal call ends the turn; continue the remaining steps on the next goal turn. If a
-   question is still open, ask it before starting the goal, never from inside it.
-5. Register external assets with `blender-assets`.
-6. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
-7. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
-8. Save the main scene as `<slug>.blend` at the project root.
+3. Ask the review mode with `blender-project-grading`; write `Documents/REVIEW.md`. `Off`, `All`, and
+   `Single` are valid; `Unset` blocks production.
+4. Fill `README.md` with `blender-project-readme`.
+5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal` and start it. Start the goal
+   only after requirements, workflow, and review mode are recorded; the objective is the entire filled
+   prompt. A successful goal call ends the turn; continue the remaining steps on the next goal turn.
+   If a question is still open, ask it before starting the goal, never from inside it.
+6. Register external assets with `blender-assets`.
+7. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
+8. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
+9. Save the main scene as `<slug>.blend` at the project root.
 
 ## Rules
 

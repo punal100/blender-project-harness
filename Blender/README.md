@@ -7,8 +7,9 @@ Do not put a Blender project directly at the workspace root. Use this folder as 
 
 ## Create a project
 
-Confirm requirements and select the workflow mode before starting Blender. Record confirmation evidence
-and the selected mode in `Documents/REQUIREMENTS.md` and `Documents/WORKFLOW.md`. From the workspace root:
+Confirm requirements, select the workflow mode, and choose a review mode before starting Blender.
+Record confirmation evidence and the selected modes in `Documents/REQUIREMENTS.md`,
+`Documents/WORKFLOW.md`, and `Documents/REVIEW.md`. From the workspace root:
 
 ```powershell
 .\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"

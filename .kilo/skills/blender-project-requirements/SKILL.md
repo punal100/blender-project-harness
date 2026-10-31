@@ -43,7 +43,8 @@ exempt from this project gate.
        change-log row. Use `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`
        to record the date, exact response, and brief or revision it covers. Record only words the
        user actually wrote; never cite a session directive or self-generated approval.
-      Then load `blender-project-workflow` and ask the mode. Both steps happen before the goal starts.
+      Then load `blender-project-workflow` and ask the mode, and load `blender-project-grading` and
+      ask the review mode. All three steps happen before the goal starts.
    - Existing project: update `Documents/REQUIREMENTS.md` and its change log, then update the
      README, `DECISIONS.md`, and the goal before continuing.
 10. Requirements may be added or changed at any time, but only after explicit user confirmation
