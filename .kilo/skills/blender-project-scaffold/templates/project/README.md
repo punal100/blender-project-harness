@@ -28,7 +28,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 ## Deliverables
 
-- Main Blender file: `{{PROJECT_SLUG}}.blend` (project root)
+- Main Blender file: `{{PROJECT_SLUG}}.blend` (planned at project root until first save)
 - Final renders: `renders/final/`
 - Exports: `exports/`
 - Documentation: `Documents/`
@@ -70,19 +70,31 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 ## Blender
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
-- Workflow mode: [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md), selected before launch and
-  re-confirmed only when returning to a paused project.
-- Review mode: [`Documents/REVIEW.md`](Documents/REVIEW.md), `Off`, `All`, or `Single`; grader
-  rounds live in [`Documents/Reviews/`](Documents/Reviews/README.md).
 - Launch from the workspace root with the validated launcher:
   `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`
-- The launcher requires confirmed requirements and selected workflow records, keeps the `.blend`
+- Before launch, require confirmed requirements, selected workflow and review records, and an active
+  filled goal. The launcher validates project records, keeps the `.blend`
   inside this project, reads the workspace MCP port, and rejects conflicting workspace instances.
 - Each launch opens a log terminal and writes to `logs/blender-<timestamp>.log`; `logs/` is ignored.
-- Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root.
+- Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root. Before production
+  edits, verify MCP scene settings report that exact path; then replace the planned status above.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.
 - Only one Blender project spawned by this workspace may be open at a time. Close the current one
   before opening another.
+
+## Workflow
+
+- Record the selected autonomy mode in [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md).
+- Record review mode `Off`, `All`, or `Single` in [`Documents/REVIEW.md`](Documents/REVIEW.md);
+  rounds live in [`Documents/Reviews/`](Documents/Reviews/README.md).
+- Collect both answers after requirements confirmation and before scaffolding; persist their exact
+  records after scaffolding and before filling and starting the goal. Launch only after that.
+- On a genuine later return, ask both mode questions before resume. Routine approval, clarification,
+  or manual-edit pauses within the same active task retain the selected modes without reasking.
+- In Partially Autonomous mode, save, inspect, complete required grading, and obtain approval or
+  revision direction before the next meaningful change. In either mode, pause before necessary questions.
+- Require the saved inspected review render, current documents, and final applicable `PASS` when
+  grading is enabled before completion; no genuine unresolved blocker or major finding permits it.
 
 ## External assets
 
@@ -93,6 +105,7 @@ See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md
 ## Goals
 
 Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are allowed.
+Identify the active goal's actual path; use it for grading rather than assuming the first brief.
 
 - [`01-project-brief.md`](Documents/Goals/01-project-brief.md)
 
@@ -107,7 +120,7 @@ Goal prompts live in [`Documents/Goals/`](Documents/Goals/). Multiple goals are 
 
 ## Next steps
 
-- [ ] Record confirmed requirements and select the workflow mode before launch.
-- [ ] Fill this README and the project brief.
+- [ ] Persist the exact confirmed requirements and workflow/review answers collected before scaffold.
+- [ ] Fill this README and the active goal, then start the goal before launch.
 - [ ] Collect references and external assets.
-- [ ] Build the scene and render a first review.
+- [ ] Build the scene, save and inspect a review render, and complete applicable grading and approvals.

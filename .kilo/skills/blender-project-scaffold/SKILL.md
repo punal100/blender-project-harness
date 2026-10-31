@@ -11,9 +11,10 @@ layout.
 Requirements must be confirmed, the workflow mode selected, and the review mode chosen before you run
 this. If they are not, read `blender-project-requirements`, `blender-project-workflow`, and
 `blender-project-grading` and finish them in ordinary chat first; Kilo removes `question` during an
-active goal, so no goal may start yet. Scaffolding leaves draft documents; record all three before
-launching. Maintenance tests may scaffold isolated fixtures without project confirmation, but must
-never launch Blender.
+active goal, so no goal may start yet. Collect exact answers before scaffolding, then persist all
+three records in the draft documents before filling and starting the goal or launching. Do not reask
+the modes after scaffolding. Maintenance tests may scaffold isolated fixtures without confirmation,
+but must never launch Blender.
 
 ## Create
 
@@ -35,7 +36,8 @@ The script:
 Use `-DryRun` to preview without writing. `-Start` must be rejected before creating files: a fresh
 scaffold cannot contain completed confirmation records. Launch separately after completing them.
 
-If the script cannot run, copy `templates/project` manually and replace the same tokens.
+If the script cannot run, stop scaffolding and report the exact error. Fix the tooling before retrying;
+do not bypass its validation by copying the template manually.
 
 ## Project structure
 
@@ -75,22 +77,25 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
 
 1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed` and
    record `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`.
-2. Ask the workflow mode with `blender-project-workflow`; write `Documents/WORKFLOW.md`.
-3. Ask the review mode with `blender-project-grading`; write `Documents/REVIEW.md`. `Off`, `All`, and
-   `Single` are valid; `Unset` blocks production.
-4. Fill `README.md` with `blender-project-readme`.
+2. Persist the already collected exact workflow answer in `Documents/WORKFLOW.md` and its change log.
+3. Persist the already collected exact review answer in `Documents/REVIEW.md` and its change log.
+   `Off`, `All`, and `Single` are valid; `Unset` blocks production. Do not invent confirmation text.
+4. Fill `README.md` with `blender-project-readme`; mark the main `.blend` path explicitly planned
+   until the first save. Do not require a live Blender connection during bootstrap.
 5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal` and start it. Start the goal
    only after requirements, workflow, and review mode are recorded; the objective is the entire filled
    prompt. A successful goal call ends the turn; continue the remaining steps on the next goal turn.
    If a question is still open, ask it before starting the goal, never from inside it.
-6. Register external assets with `blender-assets`.
+6. Register confirmed external assets with `blender-assets`; do not import before launch preflight.
 7. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
 8. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
-9. Save the main scene as `<slug>.blend` at the project root.
+9. Verify addon and scene settings. For a new unsaved scene, save it as `<slug>.blend` at the project
+   root before production edits, then verify that exact path with scene settings and update README
+   from planned to saved. Stop on connection, addon, or file mismatch.
 
 ## Rules
 
-- Do not scaffold before requirements are confirmed.
+- Do not scaffold before requirements are confirmed and workflow and review answers are collected.
 - The workspace owns one MCP port in the root `.kilo/kilo.jsonc`.
 - Only one Blender project spawned by this workspace may be open at a time.
 - Do not create a project-local `.kilo/kilo.jsonc`; the root config owns the MCP.

@@ -5,21 +5,22 @@ description: Select and enforce Fully Autonomous or Partially Autonomous work on
 
 # Blender Project Workflow
 
-Ask the workflow mode on new projects and returns to paused projects; never infer it from a previous
-session. Requirements must be confirmed first. Mode selection happens in ordinary chat before the
+Ask the workflow mode on new projects and genuine later returns to paused projects; never infer it
+from a previous session. Requirements must be confirmed first. Mode selection happens before the
 production goal starts, because Kilo removes `question` during an active goal. Workspace maintenance is
 exempt from this project gate.
 
 ## Gate
 
 - Follow `blender-project-goal` for goal recording and its turn boundary. Do not start the goal
-  before requirements are confirmed and the mode is recorded.
+  before requirements, workflow, and review records are complete.
 - If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
 - Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
-- During an active goal, `question` is unavailable. In Partially Autonomous mode, ask the user to run
-  `/goal pause` before an approval or clarification, wait for the answer, then resume with
-  `goal(action="resume")`. If the answer changes scope, update the records and have the user replace
-  the objective with `/goal <objective>`.
+- During an active goal, `question` is unavailable in either autonomy mode. For every necessary
+  question, ask the user to run `/goal pause`, wait until paused, ask, and wait for every required
+  answer. Resume with `goal(action="resume")` only when the answer permits continuation. If scope
+  changes, update confirmed records and the active goal file; have the user replace the objective with
+  `/goal <objective>` when ready to continue. That command starts it; do not resume an active goal.
 
 ## Fully Autonomous
 
@@ -35,20 +36,25 @@ exempt from this project gate.
 - Make one meaningful change at a time. A meaningful change is a new or removed object, collection,
   material, light, camera, render setting, imported asset, or a transform that changes the visible
   result or composition.
-- After each meaningful change or new addition: save the `.blend`, inspect with `look`, summarize
-  what changed, give a recommendation or insight, and ask for approval before continuing.
+- After each meaningful change or new addition: save the `.blend`, inspect with `look`, complete
+  required grading under `blender-project-grading`, record dispositions, summarize the result and
+  recommendation, then pause and ask for approval or revision direction before continuing. When
+  grading is `Off`, controller inspection still remains mandatory.
 - Each delegated `blender-worker` task must contain one meaningful change. Apply the approval gate
   after each task, before dispatching the next change. The worker never asks the user; pause the goal
   first, then ask.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
   changes or a direction shift.
 - Never make the next meaningful change until the user approves.
+- Grader findings do not authorize the next meaningful change. Disclose unresolved findings in the
+  review question and obtain approval or explicit revision direction before correcting the scene.
+  Do not label a change ready or complete while a genuine blocker or major finding remains.
 
 Approval question:
 
 ```text
 header: "Review"
-question: "This change is ready. How should I proceed?"
+question: "Review this saved change and completed review findings. How should I proceed?"
 options:
 - "Approve and continue"
 - "Request changes"
@@ -57,11 +63,18 @@ options:
 - "Pause"
 ```
 
-If the user requests changes, revise, save, inspect with `look`, and ask again. Approval questions
-require an unblocked `question` tool: ask the user to run `/goal pause` first, then ask, then resume
-the goal after the answer. If the user chooses manual modification, prepare the scene for them: select
-the relevant object, frame the camera, hide temporary helpers if useful, save the `.blend`, then ask
-with `question`:
+Handle answers explicitly:
+
+- `Approve and continue`: record approval, then resume for the next authorized change. Approval does
+  not waive genuine unresolved blockers or major findings or satisfy a required `PASS`.
+- `Request changes`: obtain concrete revision direction while paused, then resume only for that
+  revision. Save, inspect, complete required grading, and ask again before any further change.
+- `Switch to Fully Autonomous`: record the exact switch in workflow and decisions, then resume
+  within confirmed scope. Required reviews and blockers still apply.
+- `Pause`, cancellation, or no answer: keep the goal paused and make no further scene changes.
+- `I'll modify it manually`: keep the goal paused. Prepare only the requested manual handoff: select
+  the relevant object, frame it, hide temporary helpers if useful, and save. Do not change the design.
+  Ask with `question`:
 
 ```text
 header: "Your turn"
@@ -71,13 +84,16 @@ options:
 - "Still working"
 ```
 
-Wait until the user says done. Inspect with `get_scene_info` and `look`; ask what changed only if
-inspection leaves a material ambiguity. Update `DECISIONS.md`, obtain explicit confirmation for
-any requirements revision, and confirm the inspected result before continuing.
+`Still working` or no answer keeps the goal paused; do not resume or edit. After `Done`, inspect with
+`get_scene_info` and `look`, save the authoritative result, complete required grading, and record
+dispositions before the next change-review question. Ask what changed only if inspection leaves a
+material ambiguity. Update `DECISIONS.md`, obtain explicit confirmation for requirements revisions,
+and obtain approval of the inspected result before resuming production. Read-only review while
+paused does not authorize scene changes.
 
 ## Select on a new project
 
-After requirements are confirmed and the project is scaffolded, ask:
+After requirements are confirmed and before scaffolding, ask:
 
 ```text
 header: "Workflow"
@@ -87,12 +103,18 @@ options:
 - "Partially Autonomous" — stop for approval after every meaningful change
 ```
 
-Write the answer to `Documents/WORKFLOW.md` and add a change-log row.
+Keep the exact answer in the conversation until scaffolding exists, then write it to
+`Documents/WORKFLOW.md` with selection date and a change-log row. Collect the review answer with
+`blender-project-grading` before scaffolding too; persist it in `Documents/REVIEW.md` afterward.
+Do not reask either mode merely to write its record.
 
 ## Resume
 
-On every return to a paused project, read `Documents/WORKFLOW.md`, then ask. Automatic goal turns
-and compaction within the same active task are continuations, not returns to a paused project:
+On a genuine later return after the user ended or deferred the active task, read
+`Documents/WORKFLOW.md` and `Documents/REVIEW.md`, then ask both workflow and review questions before
+resuming. Routine approval, clarification, and manual-edit pauses within the same active task,
+automatic goal turns, and compaction are continuations: retain selected modes without reasking.
+For a genuine return, ask:
 
 ```text
 header: "Workflow"
@@ -103,14 +125,17 @@ options:
 - "Review requirements"
 ```
 
-If the mode is `Unset`, ask the new-project mode question. Always update `WORKFLOW.md` after a
-switch.
+If the mode is `Unset`, ask the new-project mode question. Record the exact answer and date in
+`WORKFLOW.md` even when continuing the same mode, and finish review selection through
+`blender-project-grading` before resume. If the user chooses `Review requirements`, resolve and
+confirm changes before either record or goal is treated as current.
 
 ## Change mode mid-work
 
-The user may switch at any time. Confirm the switch, update `Documents/WORKFLOW.md` and
-`DECISIONS.md`, then continue under the new mode. When switching to Partially Autonomous, ask
-whether the user wants to review the current scene first.
+The user may switch at any time. If confirmation needs a question, use the universal pause procedure.
+Record the exact switch, update `Documents/WORKFLOW.md`, `DECISIONS.md`, and the active goal record,
+then continue under the new mode. When switching to Partially Autonomous, ask whether the user wants
+to review the current scene first; complete required grading before any change-review question.
 
 ## Enforcement
 

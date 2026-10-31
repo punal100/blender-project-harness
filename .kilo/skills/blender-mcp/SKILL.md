@@ -17,7 +17,9 @@ This skill is required before any Blender scene operation. Do not rely on genera
    For `All` or `Single`, MUST verify `blender_graders.enabled` is true and validate the required
    grader configuration using
    [`blender-project-grading`](../blender-project-grading/SKILL.md). Missing or disabled required
-   configuration MUST stop production; workers MUST return `BLOCKED` to the controller.
+   configuration MUST stop production. The controller validates the roster; a worker MUST verify the
+   supplied preflight status and project records, returning `BLOCKED` if absent or inconsistent.
+   Workers do not read local model settings or dispatch graders.
    Call `get_addon_status` once at the start. Check addon compatibility, Blender version, and enabled
    libraries/generators from the actual response; do not assume a particular response field exists.
 2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative

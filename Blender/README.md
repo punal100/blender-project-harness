@@ -7,9 +7,9 @@ Do not put a Blender project directly at the workspace root. Use this folder as 
 
 ## Create a project
 
-Confirm requirements, select the workflow mode, and choose a review mode before starting Blender.
-Record confirmation evidence and the selected modes in `Documents/REQUIREMENTS.md`,
-`Documents/WORKFLOW.md`, and `Documents/REVIEW.md`. From the workspace root:
+Confirm requirements and collect workflow and review answers before scaffolding. Run the command
+from the workspace root, then persist confirmation evidence and the selected modes in
+`Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, and `Documents/REVIEW.md` before starting Blender:
 
 ```powershell
 .\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
@@ -24,7 +24,7 @@ Only one Blender project spawned by this workspace may be open at a time.
 ```
 
 The launcher opens a live log terminal and writes the session output to the project's ignored
-`logs/blender-<timestamp>.log`. It rejects missing confirmation records, unselected workflow mode,
+`logs/blender-<timestamp>.log`. It rejects missing confirmation records, unselected workflow/review modes,
 outside-project `.blend` paths, reparse points, port conflicts, and concurrent workspace Blender
 instances.
 

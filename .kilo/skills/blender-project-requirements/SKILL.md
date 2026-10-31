@@ -12,16 +12,18 @@ production work until the user explicitly confirms them.
 
 Requirements are settled in ordinary chat before any goal starts. Kilo removes `question` during an
 active goal, so do not use a discovery goal for this discussion. Read the relevant context, confirm
-requirements, scaffold, record `Documents/REQUIREMENTS.md`, then select the workflow mode, and only
-then record and start the production goal. Do not repeat the confirmation after compaction within the
-same active task. Do not let an unconfirmed requirement become scene work. Workspace maintenance is
-exempt from this project gate.
+requirements, collect workflow and review answers, scaffold, and persist the exact requirements,
+workflow, and review records. Then fill and start the production goal before launching Blender.
+Do not repeat confirmation after compaction or routine approval pauses within the same active task.
+For a necessary question during production in either autonomy mode, follow
+`blender-project-goal`: pause first, ask, and wait. Do not let an unconfirmed requirement become scene
+work. Workspace maintenance is exempt from this project gate.
 
 ## Discussion
 
 1. Read `AGENTS.md` and the existing project docs.
-2. If the project exists, read `Documents/REQUIREMENTS.md`, `WORKFLOW.md`, `README.md`,
-   `DECISIONS.md`, and the goals.
+2. If the project exists, read `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`,
+   `Documents/REVIEW.md`, `README.md`, `Documents/DECISIONS.md`, and the goals.
 3. Use the user's existing request as the starting brief. Ask "What do you want to build?" or
    "What should change?" only when that information is missing; never make the user repeat it.
 4. Follow the thread. Use `question` for concrete choices, ambiguities, visual direction, scope,
@@ -39,12 +41,14 @@ exempt from this project gate.
    not confirmation. An affirmative answer to an explicit confirmation question is confirmation;
    record its exact wording and context rather than inferring approval from an unrelated "ok".
 9. On confirmation:
-   - New project: scaffold, write `Documents/REQUIREMENTS.md` with `Status: Confirmed`, and add a
-       change-log row. Use `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`
-       to record the date, exact response, and brief or revision it covers. Record only words the
-       user actually wrote; never cite a session directive or self-generated approval.
-      Then load `blender-project-workflow` and ask the mode, and load `blender-project-grading` and
-      ask the review mode. All three steps happen before the goal starts.
+   - New project: retain the exact confirmation and its scope in the conversation. Load
+     `blender-project-workflow` and collect the mode answer, then load `blender-project-grading` and
+     collect the review answer. Scaffold only after all three answers exist. Write
+     `Documents/REQUIREMENTS.md` with `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
+     `Confirmation: <exact response and scope>`, and a change-log row; persist the exact mode answers
+     in `Documents/WORKFLOW.md` and `Documents/REVIEW.md`. Do not reask answers already supplied.
+     Record only words the user actually wrote; never cite a self-generated approval. Fill and start
+     the goal only after all three records are complete.
    - Existing project: update `Documents/REQUIREMENTS.md` and its change log, then update the
      README, `DECISIONS.md`, and the goal before continuing.
 10. Requirements may be added or changed at any time, but only after explicit user confirmation
@@ -88,6 +92,7 @@ Research is part of the back-and-forth, not a one-time phase.
 - Do not implement Blender changes during requirements discussion.
 - Do not duplicate confirmed requirements in multiple documents; link to
   `Documents/REQUIREMENTS.md`.
-- If a requirement change affects the current goal, update the goal or create a new goal before
-  continuing.
+- If a requirement change affects the current goal, update its actual goal file and replace the
+  saved objective through `blender-project-goal` before continuing. Do not keep grading against the
+  initial brief when a later goal is active.
 - This is a design workspace: do not create `PLAN/` or verifier records.

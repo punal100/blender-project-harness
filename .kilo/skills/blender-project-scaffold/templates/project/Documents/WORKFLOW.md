@@ -12,12 +12,19 @@ Last changed: {{DATE}}
 ## Rules
 
 - Fully Autonomous: proceed within confirmed requirements. Stop for blockers, destructive choices, or scope changes.
-- Partially Autonomous: after every meaningful change or addition, save, inspect with `look`, and ask for approval before continuing.
-- Kilo removes `question` during an active goal. In Partially Autonomous mode, ask the user to run `/goal pause`, ask, wait for every answer, then resume with `goal(action="resume")`.
+- Partially Autonomous: after every meaningful change or addition, save, inspect with `look`, complete
+  required grading and dispositions, then ask for approval or revision direction before the next
+  meaningful change. Grader findings do not authorize corrections without that direction.
+- Kilo removes `question` during an active goal in either mode. For necessary questions, ask the user
+  to run `/goal pause`, wait until paused, ask, and wait for every answer. Resume only when the answer
+  permits the next action. Pause, cancellation, no answer, and manual editing keep the goal paused.
 - Commit atomically after each verified change: one logical change per commit, never one end-of-task dump.
-- Ask the mode on every new project and every return to a paused project. Automatic goal turns and
-  compaction within the same active task continue the selected mode without repeating the question.
-  The user may switch at any time.
+- Collect workflow and review answers after requirements confirmation and before scaffolding, then
+  persist their exact records before filling and starting the goal. Ask both modes before resuming a
+  genuine later return. Routine approval, clarification, and manual-edit pauses within the same task,
+  automatic goal turns, and compaction retain modes without reasking. The user may switch at any time.
+- Require the final applicable `PASS` when grading is enabled and no genuine unresolved blocker or
+  major finding before completion. User approval does not waive those findings.
 
 ## Change log
 

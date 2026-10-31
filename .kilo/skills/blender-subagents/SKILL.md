@@ -154,6 +154,7 @@ Outcome: one visible or technical result
 Allowed: exact objects, collections, files, paths
 Authoritative .blend: exact save path, already open and verified
 Inputs: project docs and references by path
+Preflight: confirmed requirement status, workflow/review modes, controller-validated grader config status
 Decisions: exact dimensions, transforms, names, materials, camera, and assets needed for this task
 Acceptance: observable checks
 Commands / views: exact checks, including `look` views
@@ -198,7 +199,8 @@ Remaining work:
 ```
 
 The controller independently inspects `blender_get_scene_info`, runs `look`, and checks the working
-tree. In Partially Autonomous mode, the controller asks the user for approval after each meaningful
+tree. The controller runs required grading; workers never dispatch graders or interpret the roster.
+In Partially Autonomous mode, the controller asks the user for approval after each meaningful
 worker task; the worker never asks. The controller must update the documents after acceptance and
 commit atomically after each accepted change; workers never commit.
 

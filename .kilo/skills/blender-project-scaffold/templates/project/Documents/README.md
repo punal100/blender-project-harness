@@ -17,7 +17,8 @@ deliverable.
 
 ## Rules
 
-- Do not scaffold or launch Blender until requirements are confirmed.
+- Confirm requirements, collect workflow and review answers, scaffold, then persist all three exact
+  records. Fill and start the goal before launching Blender. Do not reask collected mode answers.
 - Confirmation means `Status: Confirmed`, a `Confirmed: YYYY-MM-DD` date, and the exact
   `Confirmation:` response and scope in `REQUIREMENTS.md`.
 - Before Blender work, ensure a goal is active, a workflow mode is selected, and the review mode is
@@ -26,13 +27,22 @@ deliverable.
   log in `REQUIREMENTS.md`.
 - Record sources used during requirements in `REQUIREMENTS.md`; user confirmation, not research,
   decides scope.
-- In Partially Autonomous mode, ask for approval after every meaningful change or addition.
+- In Partially Autonomous mode, save, inspect, complete required grading, and obtain approval or
+  revision direction after every meaningful change or addition before making the next one. Grader
+  findings never bypass this gate.
+- In either autonomy mode, pause an active goal before necessary questions. Pause, cancellation,
+  unanswered questions, and manual editing keep it paused until continuation is authorized.
+- Ask workflow and review modes before resuming a genuine later return; routine approval or manual
+  pauses within the same active task retain modes without reasking.
 - Grade saved work with the configured graders when review mode is `All` or `Single`; commit each
-  round's reports and manifest. Only preview evidence under `Reviews/**/_evidence/` is ignored.
+  round's verdict, manifest, reports, and index atomically. Only `_evidence/` and `tmp/` under review
+  rounds are ignored. Require final applicable `PASS` with no genuine unresolved blocker or major
+  finding before completion; declining a genuine finding does not waive it.
 - A goal prompt is a design brief, not a coding plan. Do not create `PLAN/` or planning records.
-- Record every external asset in `ASSETS.md` before or when it is added.
+- Record every external asset and third-party derivative in `ASSETS.md` before or when it is added;
+  keep `SOURCE.md` and verbatim `LICENSE.txt` in its external asset folder.
 - Use relative paths from the `.blend` file; never commit machine-specific absolute paths. Packed or
   embedded third-party data in a tracked `.blend` still needs redistribution permission and an asset
   register entry.
-- Update the README, `REQUIREMENTS.md`, `WORKFLOW.md`, and `DECISIONS.md` when scope, workflow,
-  assets, or visual direction changes.
+- Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`, `ASSETS.md`, and `DECISIONS.md`
+  when scope, workflow, review mode, assets, or visual direction changes.

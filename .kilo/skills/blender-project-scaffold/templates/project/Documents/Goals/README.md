@@ -4,9 +4,13 @@ One file per design goal. Use `NN-<slug>.md`; never overwrite an earlier goal. M
 project are expected.
 
 - Start from `01-project-brief.md` for the first goal.
-- Write goals only after requirements are confirmed and the workflow mode is selected.
+- Fill goals only after requirements are confirmed, workflow and review answers are collected,
+  scaffolding exists, and all three exact records are persisted.
 - Each goal is a `/goal` prompt: mission, visual outcome, scope, deliverables, acceptance, and done.
-- Link `../REQUIREMENTS.md` and `../WORKFLOW.md`; do not duplicate their contents.
+- Link `../REQUIREMENTS.md`, `../WORKFLOW.md`, and `../REVIEW.md`; do not duplicate their contents.
+- Identify the active goal's actual file path for production and grading. Do not assume
+  `01-project-brief.md` remains active beyond initial bootstrap.
 - These are design goals, not coding plans. Do not add `PLAN/` records.
-- Before reporting a goal complete, update the README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and
-  `ASSETS.md`.
+- Before reporting complete, update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`,
+  `DECISIONS.md`, and `ASSETS.md`. Require a saved inspected review render and final applicable
+  `PASS` when grading is enabled, with no genuine unresolved blocker or major finding.

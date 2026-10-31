@@ -5,7 +5,7 @@ description: Use when creating or updating a Blender project README. Enforces th
 
 # Blender Project README
 
-Canonical template: `blender-project-scaffold/templates/project/README.md`. Write the project copy
+Canonical template: `../blender-project-scaffold/templates/project/README.md`. Write the project copy
 at `Blender/<Project>/README.md`.
 
 ## Required sections
@@ -19,7 +19,8 @@ at `Blender/<Project>/README.md`.
 - Project structure: the actual folders and the authoritative `.blend`.
 - Blender: workspace MCP port from the root config, launch command, live log terminal and ignored
   `logs/` folder, main file, relative-path rule, and the one-active-instance rule.
-- Workflow: link to `Documents/WORKFLOW.md` and state the selected autonomy mode.
+- Workflow: link to `Documents/WORKFLOW.md` and `Documents/REVIEW.md`; state the selected autonomy
+  and review modes and link to the review-round index.
 - External assets: summary plus links to `Documents/ASSETS.md` and
   `assets/external/README.md`. If there are none, say so explicitly.
 - Goals: index of `Documents/Goals/*.md`.
@@ -40,9 +41,14 @@ Keep the section order. Remove instructional placeholders; replace them with pro
 
 ## Validate
 
-- Every deliverable path exists or is explicitly planned.
-- `Documents/REQUIREMENTS.md` is confirmed and the README links to it.
-- `Documents/WORKFLOW.md` has a selected mode and the README links to it.
-- The stated `.blend` path is the one the MCP `get_scene_info(fields=["settings"])` reports.
-- External assets are registered and the README links to the register.
-- The goal index matches the files in `Documents/Goals/`.
+- Verify every deliverable path exists or is explicitly planned.
+- Verify `Documents/REQUIREMENTS.md` is confirmed and the README links to it.
+- Verify `Documents/WORKFLOW.md` and `Documents/REVIEW.md` contain selected modes and README links.
+- During prelaunch bootstrap, mark the authoritative `.blend` path planned and check its project
+  location and slug without launching Blender. After the first save and before production acceptance,
+  require that path to match MCP `get_scene_info(fields=["settings"])`; stop on mismatch.
+- Verify external assets are registered and the README links to the register.
+- Verify the goal index matches `Documents/Goals/`; identify the active goal's actual path.
+- Before marking complete, require a saved inspected review render and the final applicable `PASS`
+  when grading is enabled, with no genuine unresolved blocker or major finding. Keep `REVIEW.md`
+  and review-round links current.

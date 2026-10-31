@@ -12,12 +12,19 @@ Not affiliated with the Blender Foundation or the mcp-for-blender project.
 - PowerShell 7 or Windows PowerShell. The validated PowerShell launcher is required; unsupported
   `--batch` and `KILO_BLENDER_FORCE_CMD` paths fail instead of bypassing project checks.
 - Kilo with the workspace Blender MCP configured in `.kilo/kilo.jsonc`.
+- `uvx` on `PATH` for the configured `mcp-for-blender` server, plus the matching Blender addon.
+
+The enabled-only `mediamcp` entry inherits its full server definition from user-level Kilo config;
+this repository does not contain its command or credentials. Configure that optional integration
+globally before using it, or disable its workspace entry when unavailable. Never copy credentials
+into tracked config. The disabled Playwright entry overrides any inherited server.
 
 ## Quick start
 
-Confirm project requirements with the agent first. Record `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
-and the exact `Confirmation:` response in the project requirements file. Select and record the
-workflow mode before opening Blender.
+Confirm project requirements with the agent first, then select workflow and review modes. Keep the
+exact answers until scaffolding exists. After creating the project, persist all three records before
+opening Blender: requirements need `Status: Confirmed`, `Confirmed: YYYY-MM-DD`, and the exact
+`Confirmation:` response; mode records need their selected mode and date.
 
 Create a project:
 
@@ -31,7 +38,7 @@ Open it:
 .\tools\start-blender.cmd "Blender\ProjectName"
 ```
 
-The launcher validates project containment, confirmation records, workflow selection, `.blend` paths,
+The launcher validates project containment, confirmation records, workflow/review selection, `.blend` paths,
 the workspace MCP port, reparse points, active ports, and existing workspace Blender processes before
 opening a live log terminal. It writes the session log to the project's ignored
 `logs/blender-<timestamp>.log` and allows only one Blender instance spawned by this workspace at a time.
@@ -74,6 +81,13 @@ logs belong inside their project folder.
 - [`Blender/README.md`](Blender/README.md): project collection and quick start.
 - Each project has its own `README.md`, `Documents/`, and asset register.
 
+Skill files must follow the [Agent Skills specification](https://agentskills.io/specification):
+YAML frontmatter with directory-matching `name` and non-empty `description`, followed by Markdown.
+Agent files use [Kilo's custom-agent format](https://kilo.ai/docs/customize/custom-subagents), with
+`mode: subagent`, positive `steps`, and ordered permissions. [Permission rules](https://kilo.ai/docs/customize/agent-permissions)
+use last-match-wins; broad defaults precede specific exceptions. Static checks do not prove runtime
+registration or a configured model's availability.
+
 ## Workflow
 
 Read `AGENTS.md` and the matching skill before work. Production work requires an active goal; workspace
@@ -84,8 +98,10 @@ end-of-task commit. Inspect every visual change with `look` before reporting don
 
 New projects start with a requirements discussion and explicit confirmation in ordinary chat. Then
 choose Fully Autonomous or Partially Autonomous mode, choose a review mode (`Off`, `All`, `Single`),
-and scaffold. Kilo disables `question` during an active goal, so all clarification must happen before
-the goal starts. On a return to a paused project, confirm whether to continue or switch modes.
+and scaffold. Kilo disables `question` during an active goal, so initial clarification must happen
+before the goal starts; later required questions need a paused goal. On a return to a paused project,
+confirm whether to continue or switch workflow and review modes. Routine approval pauses within
+the same active task do not restart mode selection.
 Partially Autonomous asks for approval after every meaningful change: pause the goal, ask, then resume.
 
 Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
@@ -107,6 +123,11 @@ Configure models and reasoning variants in `blender_graders.graders[]`; each pro
 timestamped round folders under `Documents/Reviews/`, dispositions, re-review, and bounds. Review
 reports and manifests are committed; only preview evidence and temp files are ignored. The controller
 still inspects every change with `look` and owns the final verdict.
+
+Round names must be generated at creation: `R<NN>-<yyyyMMddTHHmmssZ>`, using the next project-wide
+sequence and current UTC time. Never copy an example timestamp or reuse a round folder. Missing or
+disabled grader config blocks production when the project selected `All` or `Single`; `Off` remains
+controller self-review. Model/provider/variant overrides still require an explicit user request.
 
 ## Tooling checks
 
