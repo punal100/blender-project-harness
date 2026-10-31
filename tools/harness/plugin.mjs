@@ -8,6 +8,7 @@ const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_inf
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const PUBLIC_ACTIONS = new Set(['status', 'begin', 'self-review', 'review', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
+const BOOTSTRAP_DOC = /^(?:README\.md|Documents\/(?:README|REQUIREMENTS|WORKFLOW|REVIEW|ASSETS|DECISIONS|Goals\/README|References\/README|Reviews\/README)\.md|Documents\/Goals\/\d+-[a-z0-9-]+\.md|Documents\/References\/[A-Za-z0-9._-]+\.md)$/;
 
 export function createHooks(harness, client) {
   const questions = new Map();
@@ -54,6 +55,10 @@ export function createHooks(harness, client) {
     contained(harness.root, name, true);
     return name;
   }
+  function bootstrapDoc(name) {
+    const match = /^Blender\/[^/]+\/(.+)$/.exec(name);
+    return Boolean(match) && BOOTSTRAP_DOC.test(match[1]);
+  }
   function canCommit(p) {
     harness.fresh(p);
     const c = p.change;
@@ -76,7 +81,7 @@ export function createHooks(harness, client) {
           if (args.action === 'prepare') result = harness.prepare(context.sessionID, payload);
           else if (args.action === 'ticket') {
             const p = stateFor(context.sessionID);
-            if (!p) deny('register project first');
+            if (!p) deny('no registered project for this session; call blender_workflow prepare and complete its registration question first');
             if (payload.operation === 'apply') operationCode(payload.payload, p.change?.objects ?? []);
             else if (stable(payload.payload) !== '{}') deny('save/seal payload must be empty object');
             result = harness.issue(context.sessionID, payload.operation, payload.payload);
@@ -133,12 +138,15 @@ export function createHooks(harness, client) {
       }
       if (tool === 'question') questions.set(input.callID, structuredClone(args));
       if (!p) {
-        if (tool.startsWith('blender_') && !BLENDER_READ.has(tool) && tool !== 'blender_workflow') deny('production tool requires registered project');
+        if (tool.startsWith('blender_') && !BLENDER_READ.has(tool) && tool !== 'blender_workflow') deny('production tool requires a registered project; run blender_workflow prepare and complete its registration question first');
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
           const files = editPaths(tool, args).map(relative);
-          if (files.some((f) => f.startsWith('Blender/') || path.resolve(harness.root, f).startsWith(harness.home))) deny('production files require registered project');
+          if (files.some((f) => path.resolve(harness.root, f).startsWith(harness.home))) deny('harness state is runtime-owned; never write it directly');
+          const registered = new Set(harness.transaction((s) => Object.keys(s.projects)));
+          const blocked = files.filter((f) => f.startsWith('Blender/') && (!bootstrapDoc(f) || registered.has(f.split('/').slice(0, 2).join('/'))));
+          if (blocked.length) deny(`production files require a registered project: ${blocked.join(', ')}. Before registration, write only scaffold documentation (README.md; Documents/REQUIREMENTS.md, WORKFLOW.md, REVIEW.md, ASSETS.md, DECISIONS.md; Documents/Goals/<NN>-<slug>.md). Commit those files, call blender_workflow prepare, and complete its registration question before scene, asset, render, evidence, and manifest writes. Do not bypass this with shell redirection or temp-file copies.`);
         }
-        if (tool === 'bash' && /start-blender\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i.test(args.command ?? '') && !/ListBlender|--version/.test(args.command)) deny('register committed project before Blender launch');
+        if (tool === 'bash' && /start-blender\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i.test(args.command ?? '') && !/ListBlender|--version/.test(args.command)) deny('register the committed project before launching Blender: finish and commit scaffold docs, then call blender_workflow prepare and complete its registration question');
         return;
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
@@ -161,10 +169,10 @@ export function createHooks(harness, client) {
       }
       if (['write', 'edit', 'apply_patch'].includes(tool)) {
         const c = p.change;
-        if (!c) deny('begin bounded change before project writes');
+        if (!c) deny('no open bounded change; call blender_workflow begin with one outcome, exact object names, and exact project-relative paths before writing project files');
         const allowed = new Set(c.paths);
         if (c.round) { allowed.add(`${p.project}/Documents/Reviews/${c.round}/REVIEW.md`); allowed.add(`${p.project}/Documents/Reviews/README.md`); }
-        if (editPaths(tool, args).some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside declared file scope or runtime-owned evidence/report');
+        if (editPaths(tool, args).some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
         harness.fresh(p);
         return;
       }

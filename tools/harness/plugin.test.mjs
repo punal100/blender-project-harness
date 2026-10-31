@@ -31,8 +31,25 @@ test('plugin allows recovery reads but rejects unscoped file writes', async (t) 
 test('unregistered sessions cannot write project files or run mutating shell commands', async (t) => {
   const f = fixture(t), h = hooks(f);
   await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'bypass' }), /registered project/);
-  await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /register committed project/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /prepare/);
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
+});
+
+test('unregistered sessions may draft scaffold docs for a new project only', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const fresh = 'Blender/New Project';
+  for (const name of ['README.md', 'Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md',
+    'Documents/ASSETS.md', 'Documents/DECISIONS.md', 'Documents/Goals/01-brief.md', 'Documents/Reviews/README.md']) {
+    await before(h, 'unregistered', 'write', { filePath: path.join(f.root, fresh, name), content: 'draft' });
+  }
+  for (const name of [`${fresh}/scene.blend`, `${fresh}/renders/final/hero.png`, `${fresh}/assets/models/chair.fbx`,
+    `${fresh}/Documents/Reviews/R01-20261031T110000Z/visual/REPORT.md`]) {
+    await assert.rejects(
+      before(h, 'unregistered', 'write', { filePath: path.join(f.root, name), content: 'x' }),
+      (error) => /registered project/.test(error.message) && /blender_workflow prepare/.test(error.message),
+    );
+  }
+  await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'Documents/REQUIREMENTS.md'), content: 'tamper' }), /registered project/);
 });
 
 test('plugin permits matching ticket once, blocks cross-session ticket', async (t) => {
