@@ -1,42 +1,63 @@
 import bpy
 import os
+import socket
 import traceback
 from bpy.app.handlers import persistent
 
 PORT = int(os.environ.get("BLENDER_PORT", "9876"))
+MAX_START_ATTEMPTS = 5
+RETRY_INTERVAL = 0.5
+_start_attempts = 0
 
 
 def apply_port(*_args):
+    global _start_attempts
+    _start_attempts += 1
     try:
         scene = bpy.context.scene
         if scene is None:
-            return 0.5
+            raise RuntimeError("No active scene available for MCP startup")
 
         server = getattr(bpy.types, "blendermcp_server", None)
-        if getattr(scene, "blendermcp_server_running", False) or (
-            server is not None and getattr(server, "running", False)
-        ):
+        if server is not None or getattr(scene, "blendermcp_server_running", False):
             try:
-                bpy.ops.blendermcp.stop_server()
+                if "FINISHED" not in bpy.ops.blendermcp.stop_server():
+                    raise RuntimeError("MCP stop operator did not finish")
             except Exception:
-                try:
-                    server.stop()
-                except Exception:
-                    pass
-                try:
-                    del bpy.types.blendermcp_server
-                except Exception:
-                    pass
+                if server is None:
+                    raise
+                server.stop()
+            remaining = getattr(bpy.types, "blendermcp_server", None)
+            if remaining is not None:
+                if getattr(remaining, "running", False):
+                    remaining.stop()
+                if getattr(remaining, "running", False):
+                    raise RuntimeError("Existing MCP server did not stop")
+                del bpy.types.blendermcp_server
+            scene.blendermcp_server_running = False
 
         scene.blendermcp_port = PORT
-        bpy.ops.blendermcp.start_server()
+        result = bpy.ops.blendermcp.start_server()
+        server = getattr(bpy.types, "blendermcp_server", None)
+        listener = getattr(server, "socket", None)
+        if ("FINISHED" not in result or not getattr(server, "running", False)
+                or not getattr(scene, "blendermcp_server_running", False)
+                or getattr(server, "port", None) != PORT or listener is None
+                or listener.getsockname()[1] != PORT
+                or not listener.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN)):
+            raise RuntimeError(f"MCP server is not listening on requested port {PORT}")
         print(f"BlenderMCP: listening on port {PORT}", flush=True)
     except Exception:
         traceback.print_exc()
+        if _start_attempts < MAX_START_ATTEMPTS:
+            return RETRY_INTERVAL
+        print(f"BlenderMCP: startup stopped after {MAX_START_ATTEMPTS} attempts", flush=True)
     return None
 
 
 def schedule_apply_port(*_args):
+    global _start_attempts
+    _start_attempts = 0
     if not bpy.app.timers.is_registered(apply_port):
         bpy.app.timers.register(apply_port, first_interval=0.4, persistent=True)
 
