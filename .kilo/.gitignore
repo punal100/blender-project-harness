@@ -5,4 +5,5 @@ pnpm-lock.yaml
 bun.lock
 yarn.lock
 .gitignore
+!skills/blender-project-scaffold/templates/project/**/.gitignore
 agent-manager.json
