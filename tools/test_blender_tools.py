@@ -509,10 +509,31 @@ class IgnoreTests(unittest.TestCase):
 
 
 class WorkspaceContractTests(unittest.TestCase):
+    @staticmethod
+    def permission_action(permissions, tool, target="*"):
+        result = "ask"
+        for pattern, rules in permissions.items():
+            tool_pattern = re.escape(pattern).replace(r"\*", ".*").replace(r"\?", ".")
+            if not re.fullmatch(tool_pattern, tool):
+                continue
+            if isinstance(rules, str):
+                result = rules
+                continue
+            for path_pattern, action in rules.items():
+                expression = re.escape(path_pattern).replace(r"\*", ".*").replace(r"\?", ".")
+                if re.fullmatch(expression, target):
+                    result = action
+        return result
+
     def test_python_tools_parse_without_creating_bytecode(self):
         for path in (ROOT / "tools").glob("*.py"):
             with self.subTest(path=path.name):
-                ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+                tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        methods = [item.name for item in node.body
+                                   if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                        self.assertEqual(len(methods), len(set(methods)), f"Duplicate method in {node.name}")
 
     def test_template_tokens_and_internal_links(self):
         allowed = {"PROJECT_NAME", "PROJECT_SLUG", "DATE", "DESCRIPTION", "GOAL", "GOAL_TITLE"}
@@ -523,6 +544,29 @@ class WorkspaceContractTests(unittest.TestCase):
                 for target in re.findall(r"\]\(([^)]+)\)", text):
                     if "://" not in target and not target.startswith("#"):
                         self.assertTrue((path.parent / target.split("#", 1)[0]).exists(), target)
+
+    def test_skill_sibling_template_references_resolve(self):
+        references = {
+            "blender-assets": "../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md",
+            "blender-project-goal": "../blender-project-scaffold/templates/project/Documents/Goals/01-project-brief.md",
+            "blender-project-readme": "../blender-project-scaffold/templates/project/README.md",
+        }
+        for name, relative in references.items():
+            skill = ROOT / ".kilo/skills" / name
+            with self.subTest(skill=name):
+                self.assertTrue((skill / relative).is_file())
+                self.assertIn(relative, (skill / "SKILL.md").read_text(encoding="utf-8"))
+
+    def test_workspace_markdown_links_resolve(self):
+        tracked = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "*.md"],
+                                 check=True, capture_output=True).stdout.decode("utf-8").split("\0")
+        for name in filter(None, tracked):
+            path = ROOT / name
+            for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
+                if "://" in target or target.startswith("#"):
+                    continue
+                with self.subTest(path=name, target=target):
+                    self.assertTrue((path.parent / target.split("#", 1)[0]).exists())
 
     @unittest.skipUnless(yaml, "PyYAML required for frontmatter validation")
     def test_skill_frontmatter_matches_discovery_contract(self):
@@ -539,6 +583,45 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertIsInstance(metadata["description"], str)
                 self.assertTrue(metadata["description"].strip())
                 self.assertLessEqual(len(metadata["description"]), 1024)
+                self.assertLessEqual(set(metadata), {
+                    "name", "description", "license", "compatibility", "metadata", "allowed-tools"
+                })
+                if "compatibility" in metadata:
+                    self.assertIsInstance(metadata["compatibility"], str)
+                    self.assertTrue(1 <= len(metadata["compatibility"]) <= 500)
+                if "metadata" in metadata:
+                    self.assertIsInstance(metadata["metadata"], dict)
+                    self.assertTrue(all(isinstance(key, str) and isinstance(value, str)
+                                        for key, value in metadata["metadata"].items()))
+                self.assertTrue(text.split("---", 2)[2].strip())
+
+    @unittest.skipUnless(yaml, "PyYAML required for agent frontmatter validation")
+    def test_agent_frontmatter_and_default_permissions(self):
+        supported = {"description", "mode", "steps", "hidden", "permission", "model", "variant",
+                     "temperature", "top_p", "color", "disable", "options", "prompt"}
+        for path in (ROOT / ".kilo/agent").glob("*.md"):
+            with self.subTest(agent=path.stem):
+                text = path.read_text(encoding="utf-8")
+                self.assertTrue(text.startswith("---\n"))
+                metadata = yaml.safe_load(text.split("---", 2)[1])
+                self.assertLessEqual(set(metadata), supported)
+                self.assertIsInstance(metadata["description"], str)
+                self.assertTrue(metadata["description"].strip())
+                self.assertEqual(metadata["mode"], "subagent")
+                self.assertIs(metadata["hidden"], True)
+                self.assertIs(type(metadata["steps"]), int)
+                self.assertGreater(metadata["steps"], 0)
+                permissions = metadata["permission"]
+                self.assertEqual(next(iter(permissions.items())), ("*", "deny"))
+                for tool in ("future_mutation_tool", "notify_user", "send_file", "blender_import_asset",
+                             "blender_disable_telemetry", "mediamcp_generate_video", "generate_image"):
+                    self.assertEqual(self.permission_action(permissions, tool), "deny", tool)
+                for tool in ("read", "glob", "grep"):
+                    target = "Blender/Example/Documents/Reviews/R01-20261031T081500Z/_evidence/scene.txt"
+                    self.assertEqual(self.permission_action(permissions, tool, target), "allow", tool)
+                    self.assertEqual(self.permission_action(permissions, tool, "config.json"), "deny", tool)
+                    self.assertEqual(self.permission_action(permissions, tool, ".git/config"), "deny", tool)
+                self.assertEqual(self.permission_action(permissions, "context7_query-docs"), "allow")
 
     @unittest.skipUnless(yaml, "PyYAML required for worker validation")
     def test_worker_budgets_and_protected_paths(self):
@@ -589,15 +672,51 @@ class WorkspaceContractTests(unittest.TestCase):
             self.assertEqual(permissions[tool], "deny", tool)
         edit_rules = list(permissions["edit"].items())
         self.assertEqual(edit_rules[0], ("*", "deny"))
-        allow_index = edit_rules.index(("Blender/**/Documents/Reviews/**", "allow"))
+        allow_index = edit_rules.index(("Blender/*/Documents/Reviews/R*-*/*/REPORT.md", "allow"))
         self.assertGreater(allow_index, edit_rules.index(("*", "deny")))
         for pattern in ("Blender/**/Documents/Reviews/**/_evidence/**",
                         "Blender/**/Documents/Reviews/**/tmp/**"):
             self.assertIn((pattern, "deny"), edit_rules)
             self.assertGreater(edit_rules.index((pattern, "deny")), allow_index)
+        base = "Blender/Example/Documents/Reviews/R01-20261031T081500Z"
+        self.assertEqual(self.permission_action(permissions, "edit", base + "/visual/REPORT.md"), "allow")
+        for target in (base + "/REVIEW.md", base + "/manifest.json", base + "/README.md",
+                       base + "/_evidence/visual/REPORT.md", base + "/tmp/visual/REPORT.md",
+                       "AGENTS.md", "Blender/Example/example.blend"):
+            self.assertEqual(self.permission_action(permissions, "edit", target), "deny", target)
         body = (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8")
         for expected in ("REPORT.md", "PASS", "CHANGES_REQUIRED", "BLOCKED"):
             self.assertIn(expected, body)
+        self.assertNotIn("Binary verdict", body)
+        self.assertNotIn("valid but unusual", body)
+        self.assertIn("do not read other graders' reports from the current round", body)
+        self.assertIn("Read only the prior reports explicitly named for re-review", body)
+
+    @unittest.skipUnless(yaml, "PyYAML required for embedded config validation")
+    def test_embedded_roster_examples_obey_parallel_budget(self):
+        for name in ("blender-subagents", "blender-project-grading"):
+            text = (ROOT / f".kilo/skills/{name}/SKILL.md").read_text(encoding="utf-8")
+            for snippet in re.findall(r"```json\n(.*?)\n```", text, flags=re.DOTALL):
+                config = json.loads(snippet)
+                if "blender_graders" in config:
+                    graders = config["blender_graders"]
+                    self.assertLessEqual(graders["max_parallel"], len(graders["graders"]), name)
+
+    def test_review_round_names_and_approval_gates_are_dynamic(self):
+        paths = [ROOT / ".kilo/skills/blender-project-grading/SKILL.md",
+                 ROOT / TEMPLATE / "Documents/Reviews/README.md"]
+        for path in paths:
+            with self.subTest(path=path.name):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("R<NN>-<yyyyMMddTHHmmssZ>", text)
+                self.assertIn("UTC", text)
+                self.assertNotRegex(text, r"R\d+-\d{8}T\d{6}Z")
+        grading = paths[0].read_text(encoding="utf-8")
+        self.assertIn("project-wide sequence", grading)
+        self.assertIn("before making another", grading)
+        self.assertIn("never rewrite a failed verdict", grading)
+        self.assertNotIn("Round: R01", grading)
+        self.assertNotIn("Documents/Goals/01-project-brief.md", grading)
 
     @unittest.skipUnless(yaml, "PyYAML required for grader validation")
     def test_grader_config_example_is_valid(self):
@@ -641,7 +760,7 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn("**/tmp/", ignore)
         brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")
         self.assertIn("`../REVIEW.md`", brief)
-        self.assertIn("review mode is `Unset`", brief)
+        self.assertRegex(brief, r"either mode is `Unset`|review mode is `Unset`")
         scaffold = (ROOT / ".kilo/skills/blender-project-scaffold/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Documents/REVIEW.md", scaffold)
         self.assertIn("Reviews/", scaffold)
@@ -683,7 +802,35 @@ class WorkspaceContractTests(unittest.TestCase):
         for guide in guides:
             self.assertIn(guide, notices)
         self.assertIn("Copyright (c) 2026 Punal Manalan",
-                      (ROOT / "LICENSE").read_text(encoding="utf-8"))
+                       (ROOT / "LICENSE").read_text(encoding="utf-8"))
+
+    def test_reference_python_examples_parse(self):
+        references = ROOT / ".kilo/skills/blender-mcp/references"
+        for path in references.glob("*.md"):
+            text = path.read_text(encoding="utf-8")
+            for index, snippet in enumerate(re.findall(
+                    r"^[ \t]*```python\n(.*?)^[ \t]*```", text, flags=re.MULTILINE | re.DOTALL)):
+                lines = snippet.splitlines()
+                indentation = min((len(line) - len(line.lstrip()) for line in lines if line.strip()), default=0)
+                source = "\n".join(line[indentation:] for line in lines)
+                with self.subTest(path=path.name, example=index):
+                    ast.parse(source, filename=f"{path.name}:example-{index}")
+
+    def test_animation_example_handles_missing_slot_without_import(self):
+        from types import SimpleNamespace
+
+        guide = (ROOT / ".kilo/skills/blender-mcp/references/animation.md").read_text(encoding="utf-8")
+        snippet = next(code for code in re.findall(r"```python\n(.*?)\n```", guide, flags=re.DOTALL)
+                       if "def fcurves(obj):" in code)
+        namespace = {}
+        exec(compile(snippet, "animation.md:fcurves", "exec"), namespace)
+        fcurves = namespace["fcurves"]
+        self.assertEqual(fcurves(SimpleNamespace(animation_data=None)), [])
+        self.assertEqual(fcurves(SimpleNamespace(animation_data=SimpleNamespace(action=None))), [])
+        layered = SimpleNamespace(action=SimpleNamespace(is_action_layered=True), action_slot=None)
+        self.assertEqual(fcurves(SimpleNamespace(animation_data=layered)), [])
+        legacy = SimpleNamespace(action=SimpleNamespace(is_action_layered=False, fcurves=["curve"]))
+        self.assertEqual(fcurves(SimpleNamespace(animation_data=legacy)), ["curve"])
 
 
 if __name__ == "__main__":

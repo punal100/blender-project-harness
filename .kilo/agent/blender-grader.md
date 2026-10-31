@@ -77,6 +77,8 @@ the assigned round against the confirmed spec and the supplied evidence.
 The task names the project root, spec files, evidence folder, report path, focus areas, and prior
 round if this is a re-review. Read the spec first, then the evidence, then the prior report when
 present.
+During an initial pass, do not read other graders' reports from the current round. Base findings on
+the supplied spec and frozen evidence. Read only the prior reports explicitly named for re-review.
 
 Evidence may include camera renders, viewport previews, scene summaries, render settings, and the
 object inventory. If the spec or evidence needed for a dimension is missing or unreadable, mark that
