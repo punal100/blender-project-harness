@@ -1,0 +1,15 @@
+{
+  "name": "blender-workflow-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test *.test.mjs",
+    "doctor": "node cli.mjs doctor"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "3.25.76"
+  }
+}

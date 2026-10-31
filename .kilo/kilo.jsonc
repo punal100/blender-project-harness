@@ -3,7 +3,7 @@
   "mcp": {
     "blender": {
       "type": "local",
-      "command": ["uvx", "mcp-for-blender"],
+      "command": ["node", "tools/harness/server.mjs"],
       "enabled": true,
       "environment": { "BLENDER_PORT": "9877" }
     },
