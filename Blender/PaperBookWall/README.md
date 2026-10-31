@@ -34,7 +34,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 ## Deliverables
 
-- Main Blender file: `paperbookwall.blend` (planned at project root until first save)
+- Main Blender file: `paperbookwall.blend` (saved at project root)
 - Final renders: `renders/final/`
 - Exports: `exports/`
 - Documentation: `Documents/`
@@ -82,8 +82,7 @@ PaperBookWall/
   the workspace MCP port, records the instance outside the repository, and rejects conflicting
   workspace instances.
 - Each launch writes `logs/blender-<timestamp>.log`; `logs/` is ignored.
-- Main file: save the first scene as `paperbookwall.blend` in the project root. Before production
-  edits, verify MCP scene settings report that exact path; then replace the planned status above.
+- Main file: `paperbookwall.blend` in the project root; MCP scene settings report that exact path.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.
 - Only one Blender project spawned by this workspace may be open at a time. Close the current one
   before opening another.
