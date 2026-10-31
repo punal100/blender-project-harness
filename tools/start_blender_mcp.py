@@ -4,10 +4,19 @@ import socket
 import traceback
 from bpy.app.handlers import persistent
 
-PORT = int(os.environ.get("BLENDER_PORT", "9876"))
 MAX_START_ATTEMPTS = 5
 RETRY_INTERVAL = 0.5
 _start_attempts = 0
+
+
+def requested_port():
+    value = os.environ.get("BLENDER_PORT", "").strip()
+    if not value.isdigit() or not 1024 <= int(value) <= 65535:
+        raise RuntimeError(
+            "BLENDER_PORT is missing or invalid; launch Blender through the workspace launcher "
+            "so the port matches .kilo/kilo.jsonc"
+        )
+    return int(value)
 
 
 def apply_port(*_args):
@@ -17,6 +26,7 @@ def apply_port(*_args):
         scene = bpy.context.scene
         if scene is None:
             raise RuntimeError("No active scene available for MCP startup")
+        port = requested_port()
 
         server = getattr(bpy.types, "blendermcp_server", None)
         if server is not None or getattr(scene, "blendermcp_server_running", False):
@@ -36,17 +46,17 @@ def apply_port(*_args):
                 del bpy.types.blendermcp_server
             scene.blendermcp_server_running = False
 
-        scene.blendermcp_port = PORT
+        scene.blendermcp_port = port
         result = bpy.ops.blendermcp.start_server()
         server = getattr(bpy.types, "blendermcp_server", None)
         listener = getattr(server, "socket", None)
         if ("FINISHED" not in result or not getattr(server, "running", False)
                 or not getattr(scene, "blendermcp_server_running", False)
-                or getattr(server, "port", None) != PORT or listener is None
-                or listener.getsockname()[1] != PORT
+                or getattr(server, "port", None) != port or listener is None
+                or listener.getsockname()[1] != port
                 or not listener.getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN)):
-            raise RuntimeError(f"MCP server is not listening on requested port {PORT}")
-        print(f"BlenderMCP: listening on port {PORT}", flush=True)
+            raise RuntimeError(f"MCP server is not listening on requested port {port}")
+        print(f"BlenderMCP: listening on port {port}", flush=True)
     except Exception:
         traceback.print_exc()
         if _start_attempts < MAX_START_ATTEMPTS:

@@ -71,9 +71,11 @@ uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon
 Open Blender and enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**
 (search for `MCP for Blender`). Restart Blender once it is enabled.
 
-This workspace routes MCP through `.kilo/kilo.jsonc` and expects port `9877`. Please don't create a
-project-local Kilo config or run a second MCP server. If you installed `uvx` or the addon while Kilo
-was open, fully reload Kilo so it picks up the new PATH and workspace configuration.
+This workspace routes MCP through `.kilo/kilo.jsonc`, which sets `BLENDER_PORT` (default `9877`).
+The launcher and the addon both use that value, so you can change it to any free port as long as it
+stays in one place. Please don't create a project-local Kilo config or run a second MCP server. If
+you installed `uvx` or the addon while Kilo was open, fully reload Kilo so it picks up the new PATH
+and workspace configuration.
 
 ## Start building
 
@@ -130,7 +132,7 @@ Common fixes:
 - **Harness dependency missing:** run `npm ci --prefix tools/harness` again.
 - **Addon or port error:** reinstall with
   `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and reload
-  Kilo. Keep the workspace port at `9877`.
+  Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc` in sync with the launcher.
 - **Blender not found:** point `BLENDER_EXE` at your installed Blender executable, then let the
   workspace launcher start Blender.
 
