@@ -150,7 +150,7 @@ Do not disable safe mode or add credentials, tokens, or private data to scripts 
 ## Troubleshooting
 
 - **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. The orchestrator must use `.\tools\start-blender.cmd "Blender\<project-folder>"` and confirm the workspace `BLENDER_PORT`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
-- **Addon outdated**: run `uvx mcp-for-blender install-addon`, restart Blender through the launcher.
+- **Addon outdated**: run `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender through the launcher.
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.
 - **`look` fails**: inspect harness `status` and retry the exact sealed render path when safe. A viewport
