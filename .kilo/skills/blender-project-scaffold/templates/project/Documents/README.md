@@ -30,7 +30,7 @@ deliverable.
 - In Partially Autonomous mode, save, inspect, complete required grading, and obtain approval or
   revision direction after every meaningful change or addition before making the next one. Grader
   findings never bypass this gate.
-- In either autonomy mode, the controller follows `blender-project-goal` for required-input handoffs,
+- In either autonomy mode, the orchestrator follows `blender-project-goal` for required-input handoffs,
   questions, objective updates, and resume. Users provide inputs, never goal commands. Pause,
   cancellation, unanswered questions, and manual editing keep work stopped until continuation is
   authorized.

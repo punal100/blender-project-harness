@@ -15,7 +15,7 @@ Last changed: {{DATE}}
 - Partially Autonomous: after every meaningful change or addition, save, inspect with `look`, complete
   required grading and dispositions, then ask for approval or revision direction before the next
   meaningful change. Grader findings do not authorize corrections without that direction.
-- Kilo removes `question` during an active goal in either mode. The controller follows
+- Kilo removes `question` during an active goal in either mode. The orchestrator follows
   `blender-project-goal` for required-input handoffs, questions, objective updates, and resume; never
   delegate goal commands to the user or repeat the stop procedure for already stopped work. Wait for
   every required answer. Pause, cancellation, no answer, and manual editing keep work stopped.

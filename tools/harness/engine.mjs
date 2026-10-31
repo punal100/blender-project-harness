@@ -135,8 +135,8 @@ export class Harness {
   }
 
   owner(state, session) {
-    const projects = Object.values(state.projects).filter((p) => p.controller === session);
-    if (projects.length !== 1) deny('register exactly one project for controller session');
+    const projects = Object.values(state.projects).filter((p) => p.orchestrator === session);
+    if (projects.length !== 1) deny('register exactly one project for orchestrator session');
     return projects[0];
   }
   fresh(p) {
@@ -165,10 +165,10 @@ export class Harness {
       if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be project-root .blend filename');
       contained(this.projectPath(args.project), args.scene, true);
       const prior = s.projects[args.project];
-      const reRegister = Boolean(prior?.escalation?.requested && prior.controller === session && !prior.change);
+      const reRegister = Boolean(prior?.escalation?.requested && prior.orchestrator === session && !prior.change);
       if ((prior && !reRegister) || s.challenge) deny('project already registered or registration is pending; finish or recover before re-registering');
-      if (Object.values(s.projects).some((p) => p.project === args.project && p.controller !== session)) deny('project owned by another controller');
-      if (Object.values(s.projects).some((p) => p.controller === session && p.project !== args.project)) deny('controller already owns another project');
+      if (Object.values(s.projects).some((p) => p.project === args.project && p.orchestrator !== session)) deny('project owned by another orchestrator');
+      if (Object.values(s.projects).some((p) => p.orchestrator === session && p.project !== args.project)) deny('orchestrator already owns another project');
       const snapshot = this.snapshot(args.project);
       this.assertCommitted(args.project, snapshot);
       const question = `Register ${args.project}, scene ${args.scene}, goal ${args.goal}, workflow ${records.workflow}, review ${records.review}? HARNESS REGISTER ${crypto.randomUUID()}`;
@@ -188,14 +188,14 @@ export class Harness {
         if (stable(this.snapshot(c.project)) !== stable(c.snapshot) || stable(this.records(c.project, c.goal)) !== stable(c.records) || this.head() !== c.checkpoint) deny('registration facts changed');
         const existing = s.projects[c.project];
         if (c.reRegister) {
-          if (!existing || existing.controller !== session || !existing.escalation?.requested || existing.change) deny('explicit escalation is no longer valid');
+          if (!existing || existing.orchestrator !== session || !existing.escalation?.requested || existing.change) deny('explicit escalation is no longer valid');
           Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, complete: false, escalation: null, lastRender: null });
         } else {
-          s.projects[c.project] = { project: c.project, controller: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, history: [], complete: false, escalation: null };
+          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, history: [], complete: false, escalation: null };
         }
         s.challenge = null;
       } else {
-        const p = Object.values(s.projects).find((p) => p.controller === session && p.change?.approvalQuestion === q.question);
+        const p = Object.values(s.projects).find((p) => p.orchestrator === session && p.change?.approvalQuestion === q.question);
         if (!p) return;
         this.fresh(p);
         if (stable(q.options.map((o) => o.label)) !== stable(['Approve change', 'Request revision', 'Pause'])) deny('approval options changed');
@@ -251,7 +251,7 @@ export class Harness {
         if (!c?.inspected || p.records.review !== 'Off' || !args.notes?.trim()) deny('inspect sealed render before self-review');
         c.verdict = 'PASS'; c.notes = args.notes;
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
-        const text = `# Controller Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
+        const text = `# Orchestrator Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
         fs.writeFileSync(contained(this.root, name, true), text, { flag: 'wx' });
         c.reports[name] = digest(text);
         this.updateManifest(p);
@@ -363,9 +363,9 @@ export class Harness {
     }
     return null;
   }
-  bindGrader(controller, child, prompt, model) {
+  bindGrader(orchestrator, child, prompt, model) {
     return this.transaction((s) => {
-      const p = this.owner(s, controller); this.fresh(p);
+      const p = this.owner(s, orchestrator); this.fresh(p);
       const c = p.change;
       if (!c?.inspected) deny('grader child requires inspected frozen evidence');
       const match = prompt.match(/HARNESS_GRADER:([a-f0-9-]{36})/);
@@ -389,10 +389,10 @@ export class Harness {
       return { project: p.project, report: g.report, sceneHash: p.change.sceneHash, evidenceKey: p.change.evidenceKey };
     });
   }
-  collectGrader(controller, child) {
+  collectGrader(orchestrator, child) {
     return this.transaction((s) => {
       const assignment = this.graderAssignment(s, child);
-      if (!assignment || assignment.p.controller !== controller) deny('completed task has no assigned grader');
+      if (!assignment || assignment.p.orchestrator !== orchestrator) deny('completed task has no assigned grader');
       const { p, g } = assignment; this.fresh(p);
       const text = fs.readFileSync(contained(this.root, g.report), 'utf8');
       const verdicts = [...text.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];

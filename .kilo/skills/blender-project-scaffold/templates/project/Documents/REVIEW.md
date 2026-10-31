@@ -7,7 +7,7 @@ Single grader: —
 
 ## Modes
 
-- `Off` — no grader subagents; the controller self-reviews with `look`.
+- `Off` — no grader subagents; the orchestrator self-reviews with `look`.
 - `All` — every configured grader reviews each round in batches bounded by configured `max_parallel`.
 - `Single` — only the grader named above reviews.
 

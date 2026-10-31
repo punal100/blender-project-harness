@@ -5,7 +5,7 @@ Independent grader rounds live here. One folder per round, never reused:
 ```text
 R<NN>-<yyyyMMddTHHmmssZ>/
   manifest.json        # frozen goal/spec/scene/evidence hashes, graders, tasks, and verdicts
-  REVIEW.md            # controller verdict, merged findings, dispositions
+  REVIEW.md            # orchestrator verdict, merged findings, dispositions
   _evidence/           # ignored: previews, scene summary, temp files
   <grader>/
     REPORT.md          # that grader's structured verdict and findings
@@ -17,7 +17,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - Format the current UTC creation time as `yyyyMMddTHHmmssZ`. Never hardcode a date, reuse a round
   folder or identifier, or reset numbering for a new goal. Stop and resolve a naming collision.
 - Each grader owns exactly one `<grader>/` folder and writes only `REPORT.md`.
-- The controller writes `manifest.json`, `REVIEW.md`, and the index below.
+- The orchestrator writes `manifest.json`, `REVIEW.md`, and the index below.
 - Everything is tracked except `_evidence/` and `tmp/`, which this folder's `.gitignore` excludes.
 - Record the active goal's actual `Documents/Goals/NN-<slug>.md` path in the manifest; do not assume
   the initial brief remains active. Cite requirement or acceptance IDs from that goal and requirements.

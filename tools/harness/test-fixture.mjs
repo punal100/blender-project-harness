@@ -35,7 +35,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   const commit = (message = 'test: fixture checkpoint') => git(root, ['-c', 'user.name=Harness Test', '-c', 'user.email=harness-test@example.invalid', 'commit', '--quiet', '-m', message]);
   commit('test: fixture scaffold');
   const harness = new Harness(root, { stateRoot: path.join(temp, 'state') });
-  const session = 'ses_controller';
+  const session = 'ses_orchestrator';
   const questionArgs = (question, labels) => ({ questions: [{ question, custom: false, multiple: false, options: labels.map((label) => ({ label, description: label })) }] });
   const registration = harness.prepare(session, { project, scene: 'scene.blend', goal });
   harness.question(session, questionArgs(registration.question, registration.labels), [['Confirm registration']]);

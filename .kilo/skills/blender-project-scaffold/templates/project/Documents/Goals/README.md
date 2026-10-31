@@ -7,7 +7,7 @@ project are expected.
 - Fill goals only after requirements are confirmed, workflow and review answers are collected,
   scaffolding exists, and all three exact records are persisted.
 - Each recorded goal contains mission, visual outcome, scope, deliverables, acceptance, and done.
-  The controller manages its lifecycle through `blender-project-goal`; users provide inputs.
+  The orchestrator manages its lifecycle through `blender-project-goal`; users provide inputs.
 - Link `../REQUIREMENTS.md`, `../WORKFLOW.md`, and `../REVIEW.md`; do not duplicate their contents.
 - Identify the active goal's actual file path for production and grading. Do not assume
   `01-project-brief.md` remains active beyond initial bootstrap.

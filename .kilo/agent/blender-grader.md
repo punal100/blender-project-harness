@@ -63,13 +63,13 @@ the assigned round against the confirmed spec and the supplied evidence.
   your assigned report path, or anything in `_evidence/`.
 - Never run Blender mutation tools, generation, imports, or spending tools. `blender_look` is allowed
   only for an exact frozen evidence image assigned by the harness; live scene inspection stays with
-  the controller. Use saved evidence files for all other review work.
+  the orchestrator. Use saved evidence files for all other review work.
 - Do not ask the user, spawn subagents, start or resume a goal, or commit.
-- Do not change requirements, scope, acceptance, design, or file layout. You report; the controller
+- Do not change requirements, scope, acceptance, design, or file layout. You report; the orchestrator
   decides and fixes.
 - Write exactly one file: `<grader>/REPORT.md` at the report path given in the task. Nothing else.
 - Require `HARNESS_GRADER:<token>`, exact assigned report path, scene hash, and evidence key from the
-  controller's `grader-ticket`. Plugin hooks bind the actual child by parent/task token and runtime
+  orchestrator's `grader-ticket`. Plugin hooks bind the actual child by parent/task token and runtime
   model metadata and collect its receipt; do not call `blender_workflow` or fabricate report receipts.
 - Stop at the stated round budget. One review pass only; do not loop, re-render, or chase perfection.
 - Check elapsed time and cumulative tool-call rounds before each new round. Reserve budget for the
@@ -167,7 +167,7 @@ Write the assigned report path with this structure:
 <What could not be assessed and why.>
 ```
 
-The controller validates the report, merges findings, and records dispositions. Your verdict is
+The orchestrator validates the report, merges findings, and records dispositions. Your verdict is
 advisory input to that decision, not the final project verdict.
 
 ## Stop conditions

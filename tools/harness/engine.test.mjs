@@ -162,7 +162,7 @@ function registrationQuestion(prepared) {
   };
 }
 
-function register(f, session = 'controller') {
+function register(f, session = 'orchestrator') {
   const prepared = f.harness.prepare(session, {
     project: f.project,
     goal: f.goal.slice(f.project.length + 1),
@@ -172,12 +172,12 @@ function register(f, session = 'controller') {
   return prepared;
 }
 
-function activate(f, session = 'controller') {
+function activate(f, session = 'orchestrator') {
   register(f, session);
   f.harness.command(session, 'goal-active', { objective: f.prompt });
 }
 
-function begin(f, session = 'controller', options = {}) {
+function begin(f, session = 'orchestrator', options = {}) {
   const args = {
     outcome: options.outcome ?? 'Update fixture scene',
     objects: options.objects ?? ['FixtureCube'],
@@ -199,13 +199,13 @@ function issueAndConsume(f, session, operation, extra = {}) {
   return { ...issued, payload, context };
 }
 
-function finishSave(f, session = 'controller') {
+function finishSave(f, session = 'orchestrator') {
   const issued = issueAndConsume(f, session, 'save');
   f.harness.finish(issued.token, { ok: true });
   return issued;
 }
 
-function seal(f, session = 'controller', { round = 'R01-20261031T110000Z', inspect = true } = {}) {
+function seal(f, session = 'orchestrator', { round = 'R01-20261031T110000Z', inspect = true } = {}) {
   const renderPath = `${f.project}/renders/final/${round}.png`;
   const evidenceRoot = `${f.project}/Documents/Reviews/${round}/_evidence`;
   const evidenceNames = [
@@ -226,7 +226,7 @@ function seal(f, session = 'controller', { round = 'R01-20261031T110000Z', inspe
   return { ...issued, result, round, renderPath, evidence, absoluteRender };
 }
 
-function selfReview(f, session = 'controller') {
+function selfReview(f, session = 'orchestrator') {
   return f.harness.command(session, 'self-review', { notes: 'Fixture inspection passed.' });
 }
 
@@ -234,7 +234,7 @@ function scopedCommit(f, message = 'change fixture') {
   commit(f.root, message, [f.project]);
 }
 
-function reviewAll(f, session = 'controller') {
+function reviewAll(f, session = 'orchestrator') {
   const sealed = seal(f, session);
   gate(() => selfReview(f, session));
   gate(() => f.harness.command(session, 'review', { notes: 'Missing grader receipt must fail.' }));
@@ -278,7 +278,7 @@ function reviewAll(f, session = 'controller') {
 
 test('prepare rejects an uncommitted scaffold and accepts Git-clean CRLF content', (t) => {
   const missing = useFixture(t, { commitInitial: false });
-  gate(() => missing.harness.prepare('controller', {
+  gate(() => missing.harness.prepare('orchestrator', {
     project: missing.project,
     goal: missing.goal.slice(missing.project.length + 1),
     scene: missing.sceneName,
@@ -306,7 +306,7 @@ test('records reject invalid modes and grader configurations before registration
   for (const [name, options, mutate] of cases) {
     const f = useFixture(t, options);
     if (mutate) mutate(f);
-    gate(() => f.harness.prepare('controller', {
+    gate(() => f.harness.prepare('orchestrator', {
       project: f.project,
       goal: f.goal.slice(f.project.length + 1),
       scene: f.sceneName,
@@ -317,45 +317,45 @@ test('records reject invalid modes and grader configurations before registration
 
 test('registration accepts only exact runtime question and goal prompt', (t) => {
   const f = useFixture(t);
-  gate(() => f.harness.command('controller', 'goal-active', { objective: f.prompt }));
-  const prepared = f.harness.prepare('controller', {
+  gate(() => f.harness.command('orchestrator', 'goal-active', { objective: f.prompt }));
+  const prepared = f.harness.prepare('orchestrator', {
     project: f.project,
     goal: f.goal.slice(f.project.length + 1),
     scene: f.sceneName,
   });
-  f.harness.question('controller', {
+  f.harness.question('orchestrator', {
     questions: [{ question: 'forged', options: [{ label: 'Confirm registration' }], custom: false, multiple: false }],
   }, [['Confirm registration']]);
-  gate(() => f.harness.command('controller', 'status'));
-  f.harness.question('controller', registrationQuestion(prepared), [[{ label: 'Confirm registration' }]]);
-  gate(() => f.harness.command('controller', 'status'));
+  gate(() => f.harness.command('orchestrator', 'status'));
+  f.harness.question('orchestrator', registrationQuestion(prepared), [[{ label: 'Confirm registration' }]]);
+  gate(() => f.harness.command('orchestrator', 'status'));
   const custom = registrationQuestion(prepared);
   custom.questions[0].custom = true;
-  f.harness.question('controller', custom, [['Confirm registration']]);
-  gate(() => f.harness.command('controller', 'status'));
-  f.harness.question('other-controller', registrationQuestion(prepared), [['Confirm registration']]);
-  gate(() => f.harness.command('other-controller', 'status'));
-  f.harness.question('controller', registrationQuestion(prepared), [['Confirm registration']]);
-  f.harness.command('controller', 'goal-active', { objective: f.prompt });
-  gate(() => f.harness.command('controller', 'goal-active', { objective: 'forged goal' }));
+  f.harness.question('orchestrator', custom, [['Confirm registration']]);
+  gate(() => f.harness.command('orchestrator', 'status'));
+  f.harness.question('other-orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
+  gate(() => f.harness.command('other-orchestrator', 'status'));
+  f.harness.question('orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
+  f.harness.command('orchestrator', 'goal-active', { objective: f.prompt });
+  gate(() => f.harness.command('orchestrator', 'goal-active', { objective: 'forged goal' }));
 });
 
 test('command and public method schemas reject malformed lifecycle input and path escapes', (t) => {
   const f = useFixture(t);
-  gate(() => f.harness.prepare('controller', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: 'wrong.txt' }));
-  gate(() => f.harness.prepare('controller', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName, approved: true }));
-  gate(() => f.harness.prepare('controller', { project: 'Blender/../escape', goal: 'Documents/Goals/01-test-goal.md', scene: f.sceneName }));
+  gate(() => f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: 'wrong.txt' }));
+  gate(() => f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName, approved: true }));
+  gate(() => f.harness.prepare('orchestrator', { project: 'Blender/../escape', goal: 'Documents/Goals/01-test-goal.md', scene: f.sceneName }));
   activate(f);
-  gate(() => f.harness.command('controller', 'begin', { outcome: '', objects: ['FixtureCube'], paths: ['notes.txt'] }));
-  gate(() => f.harness.command('controller', 'begin', { outcome: 'bad objects', objects: ['\u0000'], paths: ['notes.txt'] }));
-  gate(() => f.harness.command('controller', 'begin', { outcome: 'bad paths', objects: ['FixtureCube'], paths: [] }));
-  gate(() => f.harness.command('controller', 'begin', { outcome: 'escape', objects: ['FixtureCube'], paths: ['../outside.txt'] }));
-  gate(() => f.harness.command('controller', 'begin', { outcome: 'drive', objects: ['FixtureCube'], paths: ['C:outside.txt'] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: '', objects: ['FixtureCube'], paths: ['notes.txt'] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'bad objects', objects: ['\u0000'], paths: ['notes.txt'] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'bad paths', objects: ['FixtureCube'], paths: [] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'escape', objects: ['FixtureCube'], paths: ['../outside.txt'] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'drive', objects: ['FixtureCube'], paths: ['C:outside.txt'] }));
   begin(f);
-  gate(() => f.harness.issue('controller', 'unknown', ticketPayload(f)));
-  gate(() => f.harness.command('controller', 'unknown-action'));
+  gate(() => f.harness.issue('orchestrator', 'unknown', ticketPayload(f)));
+  gate(() => f.harness.command('orchestrator', 'unknown-action'));
   gate(() => f.harness.finish('forged-token', { ok: true }));
-  gate(() => f.harness.command('controller', 'approval'));
+  gate(() => f.harness.command('orchestrator', 'approval'));
 });
 
 test('tickets require hook authorization and reject forged, replayed, cross-session, and expired use', (t) => {
@@ -363,25 +363,25 @@ test('tickets require hook authorization and reject forged, replayed, cross-sess
   activate(f);
   begin(f);
   const payload = ticketPayload(f, { operation: 'save' });
-  const issued = f.harness.issue('controller', 'save', payload);
+  const issued = f.harness.issue('orchestrator', 'save', payload);
   gate(() => f.harness.consume('forged-token', 'save', payload));
   gate(() => f.harness.issue('other-session', 'save', payload));
-  gate(() => f.harness.issue('controller', 'save', payload));
+  gate(() => f.harness.issue('orchestrator', 'save', payload));
   gate(() => f.harness.consume(issued.token, 'save', payload));
   gate(() => f.harness.authorize('other-session', issued.token, 'save', payload));
-  gate(() => f.harness.authorize('controller', issued.token, 'apply', payload));
-  gate(() => f.harness.authorize('controller', issued.token, 'save', { ...payload, forged: true }));
-  f.harness.authorize('controller', issued.token, 'save', payload);
-  gate(() => f.harness.authorize('controller', issued.token, 'save', payload));
+  gate(() => f.harness.authorize('orchestrator', issued.token, 'apply', payload));
+  gate(() => f.harness.authorize('orchestrator', issued.token, 'save', { ...payload, forged: true }));
+  f.harness.authorize('orchestrator', issued.token, 'save', payload);
+  gate(() => f.harness.authorize('orchestrator', issued.token, 'save', payload));
   gate(() => f.harness.consume(issued.token, 'save', { ...payload, forged: true }));
   f.harness.consume(issued.token, 'save', payload);
   gate(() => f.harness.consume(issued.token, 'save', payload));
   f.harness.finish(issued.token, { ok: true });
   gate(() => f.harness.finish(issued.token, { ok: true }));
 
-  const expired = f.harness.issue('controller', 'save', ticketPayload(f, { second: true }));
+  const expired = f.harness.issue('orchestrator', 'save', ticketPayload(f, { second: true }));
   f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
-  gate(() => f.harness.authorize('controller', expired.token, 'save', expired.payload));
+  gate(() => f.harness.authorize('orchestrator', expired.token, 'save', expired.payload));
 });
 
 test('deadline and forty apply operations block edits but preserve recovery save and seal', (t) => {
@@ -389,11 +389,11 @@ test('deadline and forty apply operations block edits but preserve recovery save
   activate(f);
   begin(f);
   for (let index = 0; index < 40; index += 1) {
-    const issued = issueAndConsume(f, 'controller', 'apply', { index });
+    const issued = issueAndConsume(f, 'orchestrator', 'apply', { index });
     f.harness.finish(issued.token, { ok: true });
   }
-  assert.equal(f.harness.command('controller', 'status').change.operations, 40);
-  gate(() => f.harness.issue('controller', 'apply', ticketPayload(f, { index: 40 })));
+  assert.equal(f.harness.command('orchestrator', 'status').change.operations, 40);
+  gate(() => f.harness.issue('orchestrator', 'apply', ticketPayload(f, { index: 40 })));
   finishSave(f);
   const sealed = seal(f);
   assert.equal(sealed.result.change.sealed, true);
@@ -402,12 +402,12 @@ test('deadline and forty apply operations block edits but preserve recovery save
   activate(deadline);
   begin(deadline);
   deadline.harness.transaction((state) => {
-    const project = Object.values(state.projects).find((entry) => entry.controller === 'controller');
+    const project = Object.values(state.projects).find((entry) => entry.orchestrator === 'orchestrator');
     project.change.deadline = Date.now() - 1;
   });
-  gate(() => deadline.harness.issue('controller', 'apply', ticketPayload(deadline, { late: true })));
+  gate(() => deadline.harness.issue('orchestrator', 'apply', ticketPayload(deadline, { late: true })));
   finishSave(deadline);
-  assert.equal(deadline.harness.command('controller', 'status').change.operations, 0);
+  assert.equal(deadline.harness.command('orchestrator', 'status').change.operations, 0);
   assert.equal(seal(deadline).result.change.sealed, true);
 });
 
@@ -415,12 +415,12 @@ test('recover rejects live writer and recovers expired unconsumed tickets', (t) 
   const f = useFixture(t);
   activate(f);
   begin(f);
-  const issued = issueAndConsume(f, 'controller', 'apply', { recovery: true });
-  gate(() => f.harness.recover('controller'));
+  const issued = issueAndConsume(f, 'orchestrator', 'apply', { recovery: true });
+  gate(() => f.harness.recover('orchestrator'));
   f.harness.finish(issued.token, { ok: false, error: 'controlled upstream failure' });
-  const expired = f.harness.issue('controller', 'save', {});
+  const expired = f.harness.issue('orchestrator', 'save', {});
   f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
-  const recovered = f.harness.recover('controller');
+  const recovered = f.harness.recover('orchestrator');
   assert.equal(recovered.change.sealed, false);
   finishSave(f);
   assert.equal(seal(f).result.change.sealed, true);
@@ -430,9 +430,9 @@ test('failed apply closes edit route but preserves recovery save and seal', (t) 
   const f = useFixture(t);
   activate(f);
   begin(f);
-  const issued = issueAndConsume(f, 'controller', 'apply', { failure: true });
+  const issued = issueAndConsume(f, 'orchestrator', 'apply', { failure: true });
   f.harness.finish(issued.token, { ok: false, error: 'mock operation failed' });
-  gate(() => f.harness.issue('controller', 'apply', { next: true }));
+  gate(() => f.harness.issue('orchestrator', 'apply', { next: true }));
   finishSave(f);
   assert.equal(seal(f).result.change.sealed, true);
 });
@@ -441,15 +441,15 @@ test('sealed render must be inspected before self-review can pass', (t) => {
   const f = useFixture(t);
   activate(f);
   begin(f);
-  const sealed = seal(f, 'controller', { inspect: false });
+  const sealed = seal(f, 'orchestrator', { inspect: false });
   gate(() => selfReview(f));
-  f.harness.inspect('controller', sealed.absoluteRender, false);
+  f.harness.inspect('orchestrator', sealed.absoluteRender, false);
   gate(() => selfReview(f));
-  f.harness.inspect('controller', path.join(f.root, f.project, 'renders', 'final', 'wrong.png'), true);
+  f.harness.inspect('orchestrator', path.join(f.root, f.project, 'renders', 'final', 'wrong.png'), true);
   gate(() => selfReview(f));
-  f.harness.inspect('controller', sealed.absoluteRender, true);
+  f.harness.inspect('orchestrator', sealed.absoluteRender, true);
   selfReview(f);
-  assert.equal(f.harness.command('controller', 'status').change.verdict, 'PASS');
+  assert.equal(f.harness.command('orchestrator', 'status').change.verdict, 'PASS');
 });
 
 test('stale scene, evidence, and specification freeze review state', (t) => {
@@ -474,25 +474,25 @@ test('partial approval ignores forged JSON and Pause, then accepts only actual l
   begin(f);
   seal(f);
   selfReview(f);
-  const approval = f.harness.command('controller', 'approval');
-  f.harness.question('controller', {
+  const approval = f.harness.command('orchestrator', 'approval');
+  f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
   }, [[{ label: 'Approve change' }]]);
-  assert.equal(f.harness.command('controller', 'status').change.approved, false);
-  f.harness.question('controller', {
+  assert.equal(f.harness.command('orchestrator', 'status').change.approved, false);
+  f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
   }, [['Pause']]);
-  assert.equal(f.harness.command('controller', 'status').change.approved, false);
-  gate(() => f.harness.command('controller', 'checkpoint'));
+  assert.equal(f.harness.command('orchestrator', 'status').change.approved, false);
+  gate(() => f.harness.command('orchestrator', 'checkpoint'));
   gate(() => begin(f));
   const forged = registrationQuestion(approval);
   forged.questions[0].options.push({ label: 'Forged approval' });
-  gate(() => f.harness.question('controller', forged, [['Forged approval']]));
-  assert.equal(f.harness.command('controller', 'status').change.approved, false);
-  f.harness.question('controller', {
+  gate(() => f.harness.question('orchestrator', forged, [['Forged approval']]));
+  assert.equal(f.harness.command('orchestrator', 'status').change.approved, false);
+  f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
   }, [['Approve change']]);
-  assert.equal(f.harness.command('controller', 'status').change.approved, true);
+  assert.equal(f.harness.command('orchestrator', 'status').change.approved, true);
 });
 
 test('All review mode freezes grader evidence and rejects stale reports', (t) => {
@@ -503,7 +503,7 @@ test('All review mode freezes grader evidence and rejects stale reports', (t) =>
   assert.equal(reviewed.status.change.verdict, 'PASS');
   const report = path.join(f.root, reviewed.grader.report);
   fs.appendFileSync(report, 'tampered\n');
-  gate(() => f.harness.command('controller', 'review', { notes: 'retry' }));
+  gate(() => f.harness.command('orchestrator', 'review', { notes: 'retry' }));
 });
 
 test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {
@@ -513,13 +513,13 @@ test('checkpoint accepts one exact scoped commit and completes goal after PASS',
   seal(f);
   selfReview(f);
   gate(() => begin(f));
-  gate(() => f.harness.command('controller', 'goal-complete'));
-  gate(() => f.harness.command('controller', 'checkpoint'));
+  gate(() => f.harness.command('orchestrator', 'goal-complete'));
+  gate(() => f.harness.command('orchestrator', 'checkpoint'));
   write(f.root, `${f.project}/notes.txt`, 'approved change\n');
   scopedCommit(f);
-  f.harness.command('controller', 'checkpoint');
+  f.harness.command('orchestrator', 'checkpoint');
   assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
-  const complete = f.harness.command('controller', 'goal-complete');
+  const complete = f.harness.command('orchestrator', 'goal-complete');
   assert.equal(complete.complete, true);
   assert.equal(complete.change, null);
 });
@@ -532,9 +532,9 @@ test('goal completion requires active goal after a clean checkpoint', (t) => {
   selfReview(f);
   write(f.root, `${f.project}/notes.txt`, 'approved change\n');
   scopedCommit(f);
-  f.harness.command('controller', 'checkpoint');
-  f.harness.command('controller', 'goal-complete');
-  assert.equal(f.harness.command('controller', 'status').complete, true);
+  f.harness.command('orchestrator', 'checkpoint');
+  f.harness.command('orchestrator', 'goal-complete');
+  assert.equal(f.harness.command('orchestrator', 'status').complete, true);
 });
 
 test('checkpoint rejects unrelated files and multiple commits', (t) => {
@@ -546,7 +546,7 @@ test('checkpoint rejects unrelated files and multiple commits', (t) => {
   write(unrelated.root, `${unrelated.project}/notes.txt`, 'approved change\n');
   write(unrelated.root, `${unrelated.project}/unrelated.txt`, 'outside scope\n');
   commit(unrelated.root, 'unrelated change', [`${unrelated.project}/notes.txt`, `${unrelated.project}/unrelated.txt`]);
-  gate(() => unrelated.harness.command('controller', 'checkpoint'));
+  gate(() => unrelated.harness.command('orchestrator', 'checkpoint'));
 
   const multiple = useFixture(t);
   activate(multiple);
@@ -557,7 +557,7 @@ test('checkpoint rejects unrelated files and multiple commits', (t) => {
   scopedCommit(multiple, 'first change');
   write(multiple.root, `${multiple.project}/notes.txt`, 'second commit\n');
   scopedCommit(multiple, 'second change');
-  gate(() => multiple.harness.command('controller', 'checkpoint'));
+  gate(() => multiple.harness.command('orchestrator', 'checkpoint'));
 });
 
 test('state survives Harness restart and state lock blocks writers', (t) => {
@@ -566,17 +566,17 @@ test('state survives Harness restart and state lock blocks writers', (t) => {
   const restarted = new Harness(f.root, { stateRoot: f.stateRoot });
   assert.equal(path.dirname(restarted.home), tempRoot);
   assert.equal(restarted.home.startsWith(f.root + path.sep), false);
-  assert.equal(restarted.command('controller', 'status').goalActive, true);
-  f.harness.transaction(() => gate(() => restarted.command('controller', 'status')));
+  assert.equal(restarted.command('orchestrator', 'status').goalActive, true);
+  f.harness.transaction(() => gate(() => restarted.command('orchestrator', 'status')));
   const started = begin(f);
   const again = new Harness(f.root, { stateRoot: f.stateRoot });
-  assert.deepEqual(again.command('controller', 'status'), started);
+  assert.deepEqual(again.command('orchestrator', 'status'), started);
 });
 
-test('registration rejects takeover of project owned by another active controller', (t) => {
+test('registration rejects takeover of project owned by another active orchestrator', (t) => {
   const f = useFixture(t);
   activate(f);
-  gate(() => f.harness.prepare('second-controller', {
+  gate(() => f.harness.prepare('second-orchestrator', {
     project: f.project,
     goal: f.goal.slice(f.project.length + 1),
     scene: f.sceneName,
@@ -588,9 +588,9 @@ test('two registered projects cannot open concurrent logical changes', (t) => {
   const other = { ...f, ...createProject(f.root, { name: 'Other' }) };
   commit(f.root, 'second scaffold', [other.project]);
   activate(f);
-  activate(other, 'other-controller');
+  activate(other, 'other-orchestrator');
   begin(f);
-  gate(() => begin(other, 'other-controller'));
+  gate(() => begin(other, 'other-orchestrator'));
 });
 
 test('contained and project methods reject traversal and symlink paths', (t) => {
@@ -607,7 +607,7 @@ test('contained and project methods reject traversal and symlink paths', (t) => 
     t.skip(`symlink creation unavailable: ${error.code ?? error.message}`);
     return;
   }
-  gate(() => f.harness.command('controller', 'begin', {
+  gate(() => f.harness.command('orchestrator', 'begin', {
     outcome: 'linked path',
     objects: ['FixtureCube'],
     paths: ['linked/file.txt'],

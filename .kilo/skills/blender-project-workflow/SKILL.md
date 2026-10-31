@@ -20,7 +20,7 @@ exempt from this project gate.
   with exact labels, `custom:false,multiple:false`. Only runtime answers grant registration.
 - Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
 - During an active goal, `question` is unavailable in either autonomy mode. For every necessary
-  question, follow `blender-project-goal` for the controller-owned required-input handoff, questions,
+  question, follow `blender-project-goal` for the orchestrator-owned required-input handoff, questions,
   and start/resume. Never delegate goal commands to the user. Already stopped work needs no second
   pause. Confirmed scope or mode changes require supported registration before objective replacement.
 
@@ -43,8 +43,8 @@ exempt from this project gate.
 - After each meaningful change or new addition: save the `.blend`, inspect with `look`, complete
   required grading under `blender-project-grading`, record dispositions, summarize the result and
   recommendation, then follow the required-input handoff and ask for approval or revision direction.
-  When grading is `Off`, controller inspection still remains mandatory.
-- Current workers inspect only; the controller makes each meaningful change through the harness.
+  When grading is `Off`, orchestrator inspection still remains mandatory.
+- Current workers inspect only; the orchestrator makes each meaningful change through the harness.
   Delegated writes require explicit assignment and reviewed support. Workers never ask the user.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
   changes or a direction shift.
@@ -135,7 +135,7 @@ confirm changes before either record or goal is treated as current.
 
 The user may switch at any time. If confirmation needs a question, follow `blender-project-goal`.
 Record the exact switch, update `Documents/WORKFLOW.md`, `DECISIONS.md`, and the active goal record,
-then resolve changed registration facts through supported tooling before the controller starts the
+then resolve changed registration facts through supported tooling before the orchestrator starts the
 updated objective. If unsupported, report the tooling blocker instead of resuming stale work. When
 switching to Partially Autonomous, ask whether the user wants to review the current scene first;
 complete required grading before any change-review question.

@@ -100,7 +100,7 @@ colour, scale, and mood. Name the review image or render that will prove it.
    `{notes}`; no graders run.
 8. In Partially Autonomous mode, summarize the saved, inspected, graded change and ask for approval
    or revision direction before the next meaningful change. In either autonomy mode, follow
-   `blender-project-goal` for controller-owned required-input handoffs and subsequent questions/resume.
+   `blender-project-goal` for orchestrator-owned required-input handoffs and subsequent questions/resume.
    Users provide decisions, not goal commands. Already stopped work needs no repeated stop procedure.
    For change approval, call `approval` while paused and use its exact returned question and labels
    `Approve change`, `Request revision`, `Pause`, with `custom:false,multiple:false`. Only runtime answers

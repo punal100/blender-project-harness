@@ -1,14 +1,14 @@
 ---
 name: blender-subagents
-description: Use when the controller session delegates Blender work to bounded subagents. Defines the worker and grader model configs, one-task scope, time and step limits, design authority, and stop conditions.
+description: Use when the orchestrator session delegates Blender work to bounded subagents. Defines the worker and grader model configs, one-task scope, time and step limits, design authority, and stop conditions.
 ---
 
 # Blender Subagents
 
-The current session is the controller. It owns requirements, design, scope, acceptance, user
+The current session is the orchestrator. It owns requirements, design, scope, acceptance, user
 communication, and commits. A `blender-worker` subagent executes one specific task and returns.
 
-Current harness operations are controller-only under `AGENTS.md`. Workers perform read-only
+Current harness operations are orchestrator-only under `AGENTS.md`. Workers perform read-only
 inspection; `blender_execute_blender_code`, `blender_workflow`, and `blender_harness_execute` stay
 denied. Delegated writes require explicit assignment plus reviewed tooling and narrowly scoped
 permissions, not an ad hoc allow rule. Unsupported work returns `BLOCKED`; no arbitrary Python fallback.
@@ -40,7 +40,7 @@ read worker settings from `blender_subagents.workers`:
 ```
 
 - If `config.json` is missing, copy `config.example.json` without overwriting any local settings and
-  stop delegation until the user confirms the values. Controller work may continue without delegation.
+  stop delegation until the user confirms the values. Orchestrator work may continue without delegation.
 - The examples show separate role sections of the same object. An absent `workers` section means
   worker delegation is unconfigured; do not infer defaults or borrow grader settings. Reject legacy
   flat or mixed layouts before delegation. When migrating an older local config, move its existing
@@ -52,7 +52,7 @@ read worker settings from `blender_subagents.workers`:
 - Resolve the configured model, provider, and variant with `agent_manager_models` before use.
   A configured model is not permission to override tool-level model restrictions. Pass overrides
   only when the user explicitly requested them; otherwise use supported inheritance or keep work
-  in the controller. Never silently substitute a different model or worker.
+  in the orchestrator. Never silently substitute a different model or worker.
 - `max_steps` must not exceed the `steps` ceiling in `.kilo/agent/blender-worker.md`. Reject an
   oversized budget before spawning. Count steps as agentic tool-call rounds, including research,
   inspection, retries, saves, and verification, not as individual calls inside a parallel round.
@@ -111,13 +111,13 @@ Independent review uses `blender-grader`, configured at `blender_subagents.grade
   `Documents/Reviews/<round>/<grader>/REPORT.md`.
 - Retain each runtime-bound `task_id` without rewriting the sealed manifest; resume the same session
   for a re-review when model and focus are unchanged, with a fresh ticket and exact assigned path.
-- Controller calls `blender_workflow` `grader-ticket` with `{name}` after sealed-render inspection,
+- Orchestrator calls `blender_workflow` `grader-ticket` with `{name}` after sealed-render inspection,
   then includes `HARNESS_GRADER:<token>` and the exact returned report path in the normal grader task.
   Plugin hooks bind the actual child by parent/task token and runtime model metadata, restrict writes
   to that report, and forbid peer report reads. Graders do not need `blender_workflow` permission.
 - One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
   missing spec/evidence. Graders never loop or ask the user.
-- A single blocker fails the round regardless of other PASS verdicts. The controller, not a vote
+- A single blocker fails the round regardless of other PASS verdicts. The orchestrator, not a vote
   count, records the final verdict and every finding's disposition.
 
 Workspace-maintenance tasks may use `general`, or read-only `explore`, without the Blender worker/grader
@@ -126,7 +126,7 @@ exception as permission to substitute these agents for production workers or gra
 
 ## Design authority
 
-The controller decides and owns:
+The orchestrator decides and owns:
 
 - requirements, visual direction, composition, camera, lighting, materials, colour, scale, naming,
   file layout, scope, and acceptance;
@@ -134,9 +134,9 @@ The controller decides and owns:
 - all user questions, workflow approvals, and documentation changes;
 - commits and final verification.
 
-In Partially Autonomous mode, each task must contain exactly one meaningful change. The controller
+In Partially Autonomous mode, each task must contain exactly one meaningful change. The orchestrator
 must obtain approval before dispatching the next change; a worker task cannot bypass this gate.
-`question` is unavailable during an active goal; the controller follows `blender-project-goal` for
+`question` is unavailable during an active goal; the orchestrator follows `blender-project-goal` for
 the required-input handoff and subsequent questions/resume. Users provide decisions, not goal commands.
 Never self-approve or continue because a question could not be asked.
 
@@ -144,7 +144,7 @@ A worker may:
 
 - inspect the exact assigned scene task with read-only Blender MCP;
 - inspect with `get_scene_info` and `look`;
-- return exact facts and bounded options to the controller without editing or saving;
+- return exact facts and bounded options to the orchestrator without editing or saving;
 - choose only implementation mechanics that do not change the visible result, structure, scope, or
   acceptance.
 
@@ -154,11 +154,11 @@ A worker must not:
 - edit `AGENTS.md`, skills, config, project `Documents/`, or project `README.md`;
 - change requirements, design, acceptance criteria, task scope, or the active goal;
 - work outside the assigned objects, collections, files, or paths;
-- generate images, video, or 3D models, spend credits, or choose an external asset. The controller
+- generate images, video, or 3D models, spend credits, or choose an external asset. The orchestrator
   must select assets and perform authorized generation itself.
 
 If a design or scope decision is needed, the worker stops and returns `BLOCKED` with 2-3 concrete
-options. The controller decides and may resume the same worker with its `task_id` for a narrow
+options. The orchestrator decides and may resume the same worker with its `task_id` for a narrow
 correction. Include budget already used and the remaining deadline; resuming must not silently reset
 limits. Start a fresh bounded task when the outcome or scope changes.
 
@@ -169,13 +169,13 @@ Every worker prompt is self-contained and one outcome only:
 ```text
 Task ID:
 Project:
-Controller goal:
+Orchestrator goal:
 User prompt: verbatim user words for Blender MCP user_prompt
 Outcome: one read-only inspection result; current worker harness does not support writes
 Allowed: exact objects, collections, files, paths
 Authoritative .blend: exact save path, already open and verified
 Inputs: project docs and references by path
-Preflight: confirmed requirement status, workflow/review modes, controller-validated grader config status
+Preflight: confirmed requirement status, workflow/review modes, orchestrator-validated grader config status
 Decisions: exact dimensions, transforms, names, materials, camera, and assets needed for this task
 Acceptance: observable checks
 Commands / views: exact checks, including `look` views
@@ -186,7 +186,7 @@ Output: DONE|PARTIAL|BLOCKED + evidence, <= 12 lines
 ```
 
 Do not ask a worker to "make it look good", "finish the scene", or choose a style. Split that into
-specific changes or decide it in the controller first.
+specific changes or decide it in the orchestrator first.
 
 ## Time and stop limits
 
@@ -201,7 +201,7 @@ The worker stops at the first of:
 - a missing input or an acceptance check that cannot be run.
 
 On stop, it leaves the scene unchanged and returns `PARTIAL` or `BLOCKED`. It does
-not start another task or continue exploring. The controller decides whether to resume, narrow,
+not start another task or continue exploring. The orchestrator decides whether to resume, narrow,
 replace the worker, or take over.
 
 ## Verification and handoff
@@ -219,10 +219,10 @@ Blockers/options:
 Remaining work:
 ```
 
-The controller independently inspects `blender_get_scene_info`, runs `look`, and checks the working
-tree. The controller runs required grading; workers never dispatch graders or interpret the roster.
-In Partially Autonomous mode, the controller asks the user for approval after each meaningful
-worker task that leads to a controller change; the worker never asks. The controller owns ticketed
+The orchestrator independently inspects `blender_get_scene_info`, runs `look`, and checks the working
+tree. The orchestrator runs required grading; workers never dispatch graders or interpret the roster.
+In Partially Autonomous mode, the orchestrator asks the user for approval after each meaningful
+worker task that leads to an orchestrator change; the worker never asks. The orchestrator owns ticketed
 save/seal, returned-render `blender_look`, review receipts, and required runtime approval. Inspect
 status/diff/log, stage exact paths, commit atomically, and run `checkpoint` before another `begin`.
 Failed rounds commit before bounded `revision:true` fixes. Workers never commit or edit harness state.

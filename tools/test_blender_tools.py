@@ -817,7 +817,7 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn("entire filled prompt", goal)
         self.assertIn("this entire filled prompt", brief)
 
-    def test_agent_instructions_keep_goal_controls_with_controller(self):
+    def test_agent_instructions_keep_goal_controls_with_orchestrator(self):
         paths = [ROOT / "AGENTS.md", *sorted((ROOT / ".kilo/skills").rglob("*.md"))]
         for path in paths:
             with self.subTest(path=str(path.relative_to(ROOT))):
@@ -827,7 +827,7 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertFalse(re.search(r'goal\(action=["\'](?:pause|clear|update)["\']', text),
                                  "Only supported goal actions may be documented")
         goal = (ROOT / ".kilo/skills/blender-project-goal/SKILL.md").read_text(encoding="utf-8")
-        for expected in ("controller owns", "already paused", "no successful action",
+        for expected in ("orchestrator owns", "already paused", "no successful action",
                          "next ordinary user turn", "not approval", "registration",
                          "A final response alone does not prove", "runtime receipt"):
             self.assertIn(expected, goal)

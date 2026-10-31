@@ -168,9 +168,9 @@ or unclear, use Context7, official docs, and web search, then test against the l
 
 ## Subagents
 
-The main session is the controller and owns all design decisions. Copy `config.example.json` to the
+The main session is the orchestrator and owns all design decisions. Copy `config.example.json` to the
 gitignored `config.json`, set the `blender_subagents.workers` model, provider, variant, and limits, then load
-`blender-subagents`. Current workers perform bounded read-only inspection through `task`; controller
+`blender-subagents`. Current workers perform bounded read-only inspection through `task`; orchestrator
 owns harness operations. Raw execution and harness mutation tools remain denied until explicit
 delegated-write assignment and reviewed tooling support exist. Workers stop at their budget and
 return `BLOCKED` instead of deciding scope or design. Graders need no `blender_workflow` permission;
@@ -182,13 +182,13 @@ Graders are independent, read-only subagents that check saved work against confi
 Configure models and reasoning variants in `blender_subagents.graders.graders[]`; each project records `Off`,
 `All`, or `Single` in `Documents/REVIEW.md`. Load `blender-project-grading` for evidence capture,
 timestamped round folders under `Documents/Reviews/`, dispositions, re-review, and bounds. Review
-reports and manifests are committed; only preview evidence and temp files are ignored. The controller
+reports and manifests are committed; only preview evidence and temp files are ignored. The orchestrator
 still inspects every change with `look` and owns the final verdict.
 
 Round names must be generated at creation: `R<NN>-<yyyyMMddTHHmmssZ>`, using the next project-wide
 sequence and current UTC time. Never copy an example timestamp or reuse a round folder. Missing or
 disabled grader config blocks production when the project selected `All` or `Single`; `Off` remains
-controller self-review. Model/provider/variant overrides still require an explicit user request.
+orchestrator self-review. Model/provider/variant overrides still require an explicit user request.
 
 Both roles belong under `blender_subagents`: `workers` holds the writer configuration and `graders`
 holds the review switch, limits, and roster. For older local configs, move the worker fields into

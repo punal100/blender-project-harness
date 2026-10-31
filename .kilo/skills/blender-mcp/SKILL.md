@@ -20,7 +20,7 @@ project/goal/review gates and must not launch or modify Blender unless separatel
    For `All` or `Single`, MUST verify `blender_subagents.graders.enabled` is true and validate the required
    grader configuration using
    [`blender-project-grading`](../blender-project-grading/SKILL.md). Missing or disabled required
-   configuration MUST stop production. The controller validates the roster; a worker MUST verify the
+   configuration MUST stop production. The orchestrator validates the roster; a worker MUST verify the
    supplied preflight status and project records, returning `BLOCKED` if absent or inconsistent.
    Workers do not read local model settings or dispatch graders.
    Before launch, scaffold documents and goal must be committed and `blender_workflow` `prepare`
@@ -30,7 +30,7 @@ project/goal/review gates and must not launch or modify Blender unless separatel
    libraries/generators from the actual response; do not assume a particular response field exists.
 2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative
    file path. Use `query`, `root`, `fields`, and `limit` for later targeted checks.
-3. On a connection failure, stop scene work. The controller may launch the declared project through:
+3. On a connection failure, stop scene work. The orchestrator may launch the declared project through:
    ```powershell
    .\tools\start-blender.cmd "Blender\<project-folder>"
    ```
@@ -48,7 +48,7 @@ project/goal/review gates and must not launch or modify Blender unless separatel
 |---|---|
 | `get_addon_status` | Connection, addon version, Blender version, enabled libraries and generators |
 | `get_scene_info` | Text summary: objects, placement, materials, topology, weights, settings |
-| `blender_workflow` | Controller custom tool: `{action: string, payload: JSON string}`; registration, bounded changes, tickets, review, approval, checkpoint/status |
+| `blender_workflow` | Orchestrator custom tool: `{action: string, payload: JSON string}`; registration, bounded changes, tickets, review, approval, checkpoint/status |
 | `harness_execute` | Execute one ticketed, schema-validated apply/save/seal operation; exposed as `blender_harness_execute` |
 | `execute_blender_code` | Blocked raw Python; never a fallback or diagnostic loophole |
 | `look` | Inspect an image: viewport, camera, multi-angle, animation frames, render, or image file |
@@ -112,7 +112,7 @@ Raw Python is not permitted for scene edits, saves, renders, API probes, or file
 During separately authorized tooling maintenance, review implementation against official API docs:
 query exact object names, validate enum identifiers, find shader nodes by type, reject name collisions,
 and keep filesystem/network/process access within reviewed tooling scope. Do not test maintenance
-against live Blender unless separately requested. Current workers remain read-only; controller owns
+against live Blender unless separately requested. Current workers remain read-only; orchestrator owns
 harness operations.
 
 ## API and documentation gaps
@@ -149,7 +149,7 @@ Do not disable safe mode or add credentials, tokens, or private data to scripts 
 
 ## Troubleshooting
 
-- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. The controller must use `.\tools\start-blender.cmd "Blender\<project-folder>"` and confirm the workspace `BLENDER_PORT`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
+- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. The orchestrator must use `.\tools\start-blender.cmd "Blender\<project-folder>"` and confirm the workspace `BLENDER_PORT`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
 - **Addon outdated**: run `uvx mcp-for-blender install-addon`, restart Blender through the launcher.
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.

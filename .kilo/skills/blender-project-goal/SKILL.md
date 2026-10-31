@@ -9,7 +9,7 @@ Blender production requires an active goal and a recorded project prompt. Read-o
 workspace maintenance do not require a Blender goal. Do not launch or modify Blender for maintenance
 unless the user separately requested it.
 
-The controller owns goal creation, input handoffs, objective updates, and resume through supported
+The orchestrator owns goal creation, input handoffs, objective updates, and resume through supported
 tools. Users provide requirements, decisions, and approvals in ordinary chat; never ask them to
 manage goal commands or copy goal prompts.
 
@@ -89,7 +89,7 @@ start/resume, not pause. Apply this procedure in both autonomy modes:
    direction does not replace its runtime receipt. Wait for every required answer. Pause, cancellation,
    no answer, or ongoing manual editing leave work stopped. Do not reselect modes for routine input
    handoffs within the same task.
-4. Once the answer authorizes continuation and registration/records remain current, the controller
+4. Once the answer authorizes continuation and registration/records remain current, the orchestrator
    calls `goal(action="resume")` for the unchanged objective and ends the turn. Follow
    `blender-project-workflow` for approval, revision, commit, and checkpoint ordering. Missing tools or
    rejected calls are concrete blockers to report, not reasons to ask the user to operate goal controls.
@@ -98,7 +98,7 @@ start/resume, not pause. Apply this procedure in both autonomy modes:
 
 For a confirmed change to current scope, update requirements and the active goal file through
 supported harness handling. For a separate next task, create the next numbered goal file; preserve
-earlier goals. Complete required scoped commits and runtime registration before the controller calls
+earlier goals. Complete required scoped commits and runtime registration before the orchestrator calls
 `goal(action="start", objective=<the entire filled prompt>)` to replace the saved objective. End that
 turn; do not also call resume. Never resume an outdated objective after changing its recorded prompt.
 
@@ -133,10 +133,10 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
   create a project goal before requirements are confirmed or a workflow or review mode is selected.
 - Do not start a goal to ask questions; Kilo disables `question` during goal execution.
 - In either autonomy mode, follow the required-input handoff before necessary questions and let the
-  controller resume only after required answers permit continuation. Do not reselect modes for
+  orchestrator resume only after required answers permit continuation. Do not reselect modes for
   routine approval handoffs within the same active task.
 - Never invent user confirmation or a session directive to bypass these gates.
-- Production uses controller-only harness operations under `AGENTS.md`; raw Python, imports, and
+- Production uses orchestrator-only harness operations under `AGENTS.md`; raw Python, imports, and
   generation are blocked. Unsupported operations stop until tooling is reviewed and extended.
   Maintenance remains exempt, without Blender access.
 - This is a design goal, not a coding plan. Do not create `PLAN/` or plan-check/verifier records.

@@ -6,7 +6,7 @@ description: Use when configuring or running independent Blender grader subagent
 # Blender Project Grading
 
 Independent graders review saved work against confirmed requirements. They do not replace the
-controller's own `look` inspection, and they never edit the scene. The controller owns design,
+orchestrator's own `look` inspection, and they never edit the scene. The orchestrator owns design,
 acceptance, fixes, approvals, and commits.
 
 `AGENTS.md` defines the canonical harness contract. Workspace maintenance and read-only questions
@@ -32,7 +32,7 @@ infer a selection from an existing config or another mode answer.
 
 Record the mode in `Blender/<Project>/Documents/REVIEW.md`:
 
-- `Off` — no graders; the controller self-reviews with `look`.
+- `Off` — no graders; the orchestrator self-reviews with `look`.
 - `All` — every configured grader reviews in batches bounded by `max_parallel`.
 - `Single` — only the grader named in `Single grader`.
 
@@ -41,7 +41,7 @@ record and change log. The machine-level `blender_subagents.graders.enabled` fla
 only when it is true and the project mode is not `Off`. If `All` or `Single` is selected but grading
 is disabled, missing, invalid, or unavailable, stop production and resolve the mismatch. Do not
 silently downgrade to self-review. In `Single`, the named grader must exist in the configured roster.
-The controller must assess acceptance criteria outside that grader's focus.
+The orchestrator must assess acceptance criteria outside that grader's focus.
 
 ## Config
 
@@ -112,7 +112,7 @@ parallel without touching the live scene:
 
 The harness owns capture and temporary-setting restoration; never change deliverable framing for
 evidence. Graders may use `blender_look` only on an exact frozen evidence image assigned by the
-harness. Live scene inspection stays controller-only; parallel graders use files only.
+harness. Live scene inspection stays orchestrator-only; parallel graders use files only.
 
 `_evidence/` is gitignored. Reports, manifests, and the round index are tracked.
 
@@ -145,7 +145,7 @@ Documents/Reviews/
 ```
 
 Each grader writes only its exact assigned `<grader>/REPORT.md`. The harness writes `manifest.json`;
-the controller writes `REVIEW.md` and updates `Documents/Reviews/README.md`. Static permission globs
+the orchestrator writes `REVIEW.md` and updates `Documents/Reviews/README.md`. Static permission globs
 do not isolate dynamically assigned graders: plugin hooks bind actual children by parent/task token
 and runtime model metadata, enforce the exact report path, and forbid reading peer reports.
 
@@ -158,7 +158,7 @@ round. A base commit alone is insufficient evidence identity for an uncommitted 
 
 ## Dispatch
 
-After seal and successful controller `blender_look`, call `blender_workflow` `grader-ticket` with
+After seal and successful orchestrator `blender_look`, call `blender_workflow` `grader-ticket` with
 `{name}` for each selected grader. Pass its unique token, exact report path, and literal marker
 `HARNESS_GRADER:<token>` to the normal task; do not fabricate a child session or report receipt.
 Graders need no custom-tool permission: plugin hooks bind and collect the actual task result.
@@ -196,7 +196,7 @@ and rounds already used; never reset limits to continue a failed pass.
 
 ## Aggregate and dispose
 
-After all graders return, the controller:
+After all graders return, the orchestrator:
 
 1. Validates each report exists, cites the frozen evidence, and declares exactly one valid verdict.
    Missing, malformed, or failed reports make the round `BLOCKED`; never count them as `PASS`.
@@ -223,14 +223,14 @@ Verdicts:
 - `CHANGES_REQUIRED` — at least one blocker or major remains.
 - `BLOCKED` — evidence/spec missing, grader failure, or a design decision is needed.
 
-The final verdict belongs to the controller, not to a vote count. A single substantiated blocker fails the round
+The final verdict belongs to the orchestrator, not to a vote count. A single substantiated blocker fails the round
 regardless of other PASS verdicts. Two consecutive rounds with no improvement on the same finding
 escalate to the user instead of a third automatic round.
 
 ## Re-review
 
 New round folder, same grader sessions where possible. Prompt each resumed grader with the prior
-own report path, new evidence path, new exact report path, fresh `grader-ticket` marker, and controller
+own report path, new evidence path, new exact report path, fresh `grader-ticket` marker, and orchestrator
 dispositions. Never permit peer report reads. The grader must
 mark each prior finding `FIXED`, `OPEN`, or `REGRESSED` with evidence, then add any new findings.
 Let runtime receipts bind task IDs and the previous round; do not rewrite frozen evidence metadata.
@@ -238,7 +238,7 @@ Let runtime receipts bind task IDs and the previous round; do not rewrite frozen
 ## Partially Autonomous
 
 Graders run before the approval question. After each meaningful scene change, save, inspect with
-`look`, complete its review round, then use the controller-owned `blender-project-goal` input handoff
+`look`, complete its review round, then use the orchestrator-owned `blender-project-goal` input handoff
 and ask approval before making another meaningful change, including grader-requested fixes. Review
 findings do not authorize bypassing Partially Autonomous gates. Use harness `approval` and its exact
 returned question and labels

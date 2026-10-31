@@ -34,7 +34,7 @@ export function createHooks(harness, client) {
     return info;
   }
   function stateFor(session) {
-    return harness.transaction((s) => Object.values(s.projects).find((p) => p.controller === session) ?? null);
+    return harness.transaction((s) => Object.values(s.projects).find((p) => p.orchestrator === session) ?? null);
   }
   function editPaths(tool, args) {
     if (tool === 'apply_patch') {
@@ -69,7 +69,7 @@ export function createHooks(harness, client) {
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
-          if (session.parentID) deny('workflow control belongs to root controller');
+          if (session.parentID) deny('workflow control belongs to root orchestrator');
           const payload = JSON.parse(args.payload);
           if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
           let result;
@@ -94,13 +94,13 @@ export function createHooks(harness, client) {
       if (/execute_blender_code|import_asset|generate_3d/.test(tool)) deny('raw Blender mutation disabled; use ticketed harness_execute');
       if (tool === 'blender_harness_execute') {
         const session = await identity(input.sessionID);
-        if (session.parentID) deny('only controller may mutate Blender');
+        if (session.parentID) deny('only orchestrator may mutate Blender');
         harness.authorize(input.sessionID, args.token, args.operation, args.payload);
         return;
       }
       const p = stateFor(input.sessionID);
       const session = await identity(input.sessionID);
-      if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.controller === session.parentID))) {
+      if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
         await childAssignment(input.sessionID);
         const assignment = harness.graderStep(input.sessionID, tool, args);
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
