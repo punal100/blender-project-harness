@@ -16,8 +16,8 @@ requirements, collect workflow and review answers, scaffold, and persist the exa
 workflow, and review records. Then fill and start the production goal before launching Blender.
 Do not repeat confirmation after compaction or routine approval pauses within the same active task.
 For a necessary question during production in either autonomy mode, follow
-`blender-project-goal`: pause first, ask, and wait. Do not let an unconfirmed requirement become scene
-work. Workspace maintenance is exempt from this project gate.
+`blender-project-goal` for the controller-owned input handoff, questions, and continuation. Do not let
+an unconfirmed requirement become scene work. Workspace maintenance is exempt from this project gate.
 
 ## Discussion
 
@@ -92,7 +92,9 @@ Research is part of the back-and-forth, not a one-time phase.
 - Do not implement Blender changes during requirements discussion.
 - Do not duplicate confirmed requirements in multiple documents; link to
   `Documents/REQUIREMENTS.md`.
-- If a requirement change affects the current goal, update its actual goal file and replace the
-  saved objective through `blender-project-goal` before continuing. Do not keep grading against the
-  initial brief when a later goal is active.
+- If a requirement change affects the current goal, the controller updates its actual goal file and
+  replaces the saved objective through supported registration and `blender-project-goal` before
+  continuing. An unsupported registration change is a tooling blocker; never hand goal commands to
+  the user or resume an outdated objective. Do not keep grading against the initial brief when a
+  later goal is active.
 - This is a design workspace: do not create `PLAN/` or verifier records.

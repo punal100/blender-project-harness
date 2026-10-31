@@ -8,7 +8,7 @@ deliverable.
 | `REQUIREMENTS.md` | Confirmed scope, acceptance criteria, research notes, and requirement change log. |
 | `WORKFLOW.md` | Current autonomy mode and workflow switch history. |
 | `REVIEW.md` | Review mode (`Off`, `All`, `Single`) and grader selection. |
-| `Goals/` | `/goal` prompts for design work. One file per goal; multiple goals per project. |
+| `Goals/` | Recorded design goal prompts. One file per goal; multiple goals per project. |
 | `Reviews/` | Timestamped grader rounds: manifests, verdicts, findings, ignored evidence. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
@@ -30,8 +30,10 @@ deliverable.
 - In Partially Autonomous mode, save, inspect, complete required grading, and obtain approval or
   revision direction after every meaningful change or addition before making the next one. Grader
   findings never bypass this gate.
-- In either autonomy mode, pause an active goal before necessary questions. Pause, cancellation,
-  unanswered questions, and manual editing keep it paused until continuation is authorized.
+- In either autonomy mode, the controller follows `blender-project-goal` for required-input handoffs,
+  questions, objective updates, and resume. Users provide inputs, never goal commands. Pause,
+  cancellation, unanswered questions, and manual editing keep work stopped until continuation is
+  authorized.
 - Ask workflow and review modes before resuming a genuine later return; routine approval or manual
   pauses within the same active task retain modes without reasking.
 - Grade saved work with the configured graders when review mode is `All` or `Single`; commit each

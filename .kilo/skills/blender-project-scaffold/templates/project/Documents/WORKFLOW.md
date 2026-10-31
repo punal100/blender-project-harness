@@ -15,9 +15,10 @@ Last changed: {{DATE}}
 - Partially Autonomous: after every meaningful change or addition, save, inspect with `look`, complete
   required grading and dispositions, then ask for approval or revision direction before the next
   meaningful change. Grader findings do not authorize corrections without that direction.
-- Kilo removes `question` during an active goal in either mode. For necessary questions, ask the user
-  to run `/goal pause`, wait until paused, ask, and wait for every answer. Resume only when the answer
-  permits the next action. Pause, cancellation, no answer, and manual editing keep the goal paused.
+- Kilo removes `question` during an active goal in either mode. The controller follows
+  `blender-project-goal` for required-input handoffs, questions, objective updates, and resume; never
+  delegate goal commands to the user or repeat the stop procedure for already stopped work. Wait for
+  every required answer. Pause, cancellation, no answer, and manual editing keep work stopped.
 - Commit atomically after each verified change: one logical change per commit, never one end-of-task dump.
 - Collect workflow and review answers after requirements confirmation and before scaffolding, then
   persist their exact records before filling and starting the goal. Ask both modes before resuming a

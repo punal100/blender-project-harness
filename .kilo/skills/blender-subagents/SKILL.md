@@ -136,7 +136,8 @@ The controller decides and owns:
 
 In Partially Autonomous mode, each task must contain exactly one meaningful change. The controller
 must obtain approval before dispatching the next change; a worker task cannot bypass this gate.
-`question` is unavailable during an active goal, so ask the user to run `/goal pause`, ask, then resume.
+`question` is unavailable during an active goal; the controller follows `blender-project-goal` for
+the required-input handoff and subsequent questions/resume. Users provide decisions, not goal commands.
 Never self-approve or continue because a question could not be asked.
 
 A worker may:

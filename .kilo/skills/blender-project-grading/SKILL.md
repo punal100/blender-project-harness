@@ -238,9 +238,10 @@ Let runtime receipts bind task IDs and the previous round; do not rewrite frozen
 ## Partially Autonomous
 
 Graders run before the approval question. After each meaningful scene change, save, inspect with
-`look`, complete its review round, then pause the goal and ask approval before making another
-meaningful change, including grader-requested fixes. Review findings do not authorize bypassing
-Partially Autonomous gates. Use harness `approval` and its exact returned question and labels
+`look`, complete its review round, then use the controller-owned `blender-project-goal` input handoff
+and ask approval before making another meaningful change, including grader-requested fixes. Review
+findings do not authorize bypassing Partially Autonomous gates. Use harness `approval` and its exact
+returned question and labels
 `Approve change`, `Request revision`, `Pause`; only runtime answers count. Graders never ask the user.
 
 ## Commit and ignore policy

@@ -91,8 +91,9 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
   records after scaffolding and before filling and starting the goal. Launch only after that.
 - On a genuine later return, ask both mode questions before resume. Routine approval, clarification,
   or manual-edit pauses within the same active task retain the selected modes without reasking.
-- In Partially Autonomous mode, save, inspect, complete required grading, and obtain approval or
-  revision direction before the next meaningful change. In either mode, pause before necessary questions.
+- In Partially Autonomous mode, the agent saves, inspects, completes required grading, and obtains
+  approval or revision direction before the next meaningful change. In either mode, the agent manages
+  goal handoffs and continuation; users provide inputs and decisions.
 - Require the saved inspected review render, current documents, and final applicable `PASS` when
   grading is enabled before completion; no genuine unresolved blocker or major finding permits it.
 

@@ -20,10 +20,9 @@ exempt from this project gate.
   with exact labels, `custom:false,multiple:false`. Only runtime answers grant registration.
 - Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
 - During an active goal, `question` is unavailable in either autonomy mode. For every necessary
-  question, ask the user to run `/goal pause`, wait until paused, ask, and wait for every required
-  answer. Resume with `goal(action="resume")` only when the answer permits continuation. If scope
-  changes, update confirmed records and the active goal file; have the user replace the objective with
-  `/goal <objective>` when ready to continue. That command starts it; do not resume an active goal.
+  question, follow `blender-project-goal` for the controller-owned required-input handoff, questions,
+  and start/resume. Never delegate goal commands to the user. Already stopped work needs no second
+  pause. Confirmed scope or mode changes require supported registration before objective replacement.
 
 ## Fully Autonomous
 
@@ -43,8 +42,8 @@ exempt from this project gate.
   result or composition.
 - After each meaningful change or new addition: save the `.blend`, inspect with `look`, complete
   required grading under `blender-project-grading`, record dispositions, summarize the result and
-  recommendation, then pause and ask for approval or revision direction before continuing. When
-  grading is `Off`, controller inspection still remains mandatory.
+  recommendation, then follow the required-input handoff and ask for approval or revision direction.
+  When grading is `Off`, controller inspection still remains mandatory.
 - Current workers inspect only; the controller makes each meaningful change through the harness.
   Delegated writes require explicit assignment and reviewed support. Workers never ask the user.
 - Ask occasionally whether the user wants to modify anything, especially after a few approved
@@ -54,10 +53,11 @@ exempt from this project gate.
   review question and obtain approval or explicit revision direction before correcting the scene.
   Do not label a change ready or complete while a genuine blocker or major finding remains.
 
-Approval is runtime-captured: after saved render inspection, required grading, and dispositions, ask
-the user to run `/goal pause` and wait until paused. Call `blender_workflow` `approval` with `{}`;
-pass its returned question unchanged to `question`, with exactly `Approve change`, `Request revision`,
-`Pause`, `custom:false,multiple:false`. Never substitute a hand-written approval question or approved
+Approval is runtime-captured: after saved render inspection, required grading, and dispositions, use
+the `blender-project-goal` handoff if execution is active; if already stopped, ask directly in ordinary
+chat. Call `blender_workflow` `approval` with `{}`; pass its returned question unchanged to `question`,
+with exactly `Approve change`, `Request revision`, `Pause`, `custom:false,multiple:false`. Never
+substitute a hand-written approval question or approved
 JSON. Forged JSON is ignored. Other questions and mode changes remain separate paused-goal steps.
 
 Handle answers explicitly:
@@ -83,13 +83,14 @@ options:
 - "Still working"
 ```
 
-`Still working` or no answer keeps the goal paused; do not resume or edit. After `Done`, inspect with
-`get_scene_info` and `look`; resolve stale harness state through reviewed tooling, then capture a new
-saved/sealed state and complete required grading before the next change-review question. Never edit
-external harness state or reuse stale approval. Ask what changed only if inspection leaves a
+`Still working` or no answer keeps work stopped; do not resume or edit. After `Done`, inspect with
+`get_scene_info` and `look`; resolve stale harness state through reviewed tooling. Inspection while
+stopped is read-only; ticketed save/seal requires supported recovery, current registration, and an
+agent-resumed active goal. Complete required grading before the next change-review question. Never
+edit external harness state or reuse stale approval. Ask what changed only if inspection leaves a
 material ambiguity. Update `DECISIONS.md`, obtain explicit confirmation for requirements revisions,
-and obtain approval of the inspected result before resuming production. Read-only review while
-paused does not authorize scene changes.
+and obtain approval of the inspected result before further scene changes. Read-only review while
+stopped does not authorize scene changes.
 
 ## Select on a new project
 
@@ -132,15 +133,17 @@ confirm changes before either record or goal is treated as current.
 
 ## Change mode mid-work
 
-The user may switch at any time. If confirmation needs a question, use the universal pause procedure.
+The user may switch at any time. If confirmation needs a question, follow `blender-project-goal`.
 Record the exact switch, update `Documents/WORKFLOW.md`, `DECISIONS.md`, and the active goal record,
-then continue under the new mode. When switching to Partially Autonomous, ask whether the user wants
-to review the current scene first; complete required grading before any change-review question.
+then resolve changed registration facts through supported tooling before the controller starts the
+updated objective. If unsupported, report the tooling blocker instead of resuming stale work. When
+switching to Partially Autonomous, ask whether the user wants to review the current scene first;
+complete required grading before any change-review question.
 
 ## Enforcement
 
 - Use `question` for approvals and workflow changes; do not treat a visual check as approval.
-- If a question is cancelled or unanswered, pause; do not continue.
+- If a question is cancelled or unanswered, keep work stopped; do not continue or ask for goal commands.
 - Fully Autonomous still stops for blockers and scope changes.
 - Requirements changes follow `blender-project-requirements`, not this skill.
 - `status` recovers phase after compaction/restart. `checkpoint` requires exactly one scoped commit,

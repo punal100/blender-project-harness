@@ -807,12 +807,30 @@ class WorkspaceContractTests(unittest.TestCase):
         goal = (ROOT / ".kilo/skills/blender-project-goal/SKILL.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".kilo/skills/blender-project-workflow/SKILL.md").read_text(encoding="utf-8")
         brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")
-        for text in (goal, workflow, brief):
-            self.assertIn("/goal pause", text)
+        for text in (workflow, brief):
+            self.assertIn("blender-project-goal", text)
+        self.assertIn('goal_report(status="blocked"', goal)
+        self.assertIn('goal(action="resume")', goal)
+        self.assertIn('goal(action="start", objective=', goal)
         self.assertIn("`question` is unavailable", workflow)
         self.assertIn("ordinary chat", goal)
         self.assertIn("entire filled prompt", goal)
         self.assertIn("this entire filled prompt", brief)
+
+    def test_agent_instructions_keep_goal_controls_with_controller(self):
+        paths = [ROOT / "AGENTS.md", *sorted((ROOT / ".kilo/skills").rglob("*.md"))]
+        for path in paths:
+            with self.subTest(path=str(path.relative_to(ROOT))):
+                text = path.read_text(encoding="utf-8")
+                self.assertFalse(re.search(r"(?<![\w])/goal(?:[\s`]|$)", text),
+                                 "Goal slash commands must not be assigned to the user")
+                self.assertFalse(re.search(r'goal\(action=["\'](?:pause|clear|update)["\']', text),
+                                 "Only supported goal actions may be documented")
+        goal = (ROOT / ".kilo/skills/blender-project-goal/SKILL.md").read_text(encoding="utf-8")
+        for expected in ("controller owns", "already paused", "no successful action",
+                         "next ordinary user turn", "not approval", "registration",
+                         "A final response alone does not prove", "runtime receipt"):
+            self.assertIn(expected, goal)
 
     def test_reference_guides_are_attributed(self):
         references = ROOT / ".kilo/skills/blender-mcp/references"

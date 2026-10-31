@@ -9,6 +9,10 @@ Blender production requires an active goal and a recorded project prompt. Read-o
 workspace maintenance do not require a Blender goal. Do not launch or modify Blender for maintenance
 unless the user separately requested it.
 
+The controller owns goal creation, input handoffs, objective updates, and resume through supported
+tools. Users provide requirements, decisions, and approvals in ordinary chat; never ask them to
+manage goal commands or copy goal prompts.
+
 ## Session start and reset
 
 1. Read this skill and enough project context to identify the saved goal and pending work. These
@@ -24,9 +28,10 @@ unless the user separately requested it.
    `Documents/REVIEW.md`, ask both selection questions in ordinary chat, and record the exact answers
    before resuming. Routine approval, clarification, and manual-edit pauses, automatic goal turns,
    and compaction within the same active task are continuations; do not reask modes for those pauses.
-4. Resume saved work with `goal(action="resume")` only when its requirements, workflow, review, and
-   goal records are current and the pending answer permits continuation. Do not duplicate an active
-   goal or resume it again on automatic goal turns or after compaction. Use harness `status` to recover
+4. Resume unchanged saved work with `goal(action="resume")` only when its requirements, workflow,
+   review, and goal records are current and the pending answer permits continuation. Changed objectives
+   follow the replacement procedure below. Do not duplicate an active goal or resume it again on
+   automatic goal turns or after compaction. Use harness `status` to recover
    its phase; changed registration facts require explicit re-registration while paused.
 5. For new work, write the filled goal prompt and start the production goal only after requirements,
    workflow, and review records are complete, scaffold documents and goal are committed, and runtime
@@ -60,21 +65,48 @@ unless the user separately requested it.
    approved JSON.
 6. For a new goal, call `goal(action="start", objective=<the full prompt text>)` immediately. Writing
    the file without starting the goal is incomplete. For saved work, complete the return gates above
-   and call `goal(action="resume")` instead. After success, end the turn and wait for continuation.
+   and call `goal(action="resume")` for an unchanged objective; use the replacement procedure for a
+   changed objective. After success, end the turn and wait for continuation.
 
-## Questions during a goal
+## Required input and continuation
 
 Kilo removes `question` while a goal is active
-(https://kilo.ai/docs/code-with-ai/agents/goals#clarification-questions). In either autonomy mode, when
-a necessary question arises, ask the user to run `/goal pause` and wait until the goal is paused before
-calling `question`. Wait for every required answer. Resume only when the answer authorizes the next
-action and records are current; Pause, cancellation, unanswered questions, and manual editing keep
-the goal paused. Follow `blender-project-workflow` for Partially Autonomous approval branches.
+(https://kilo.ai/docs/code-with-ai/agents/goals#clarification-questions). The `goal` tool supports
+start/resume, not pause. Apply this procedure in both autonomy modes:
 
-If an answer changes scope or requirements, obtain explicit confirmation, update the documents and
-active goal file, then have the user replace the objective with `/goal <objective>` only when ready to
-continue. That command starts the replacement objective; do not call resume again while it is active.
-Never self-confirm requirements or record a directive the user did not give.
+1. If already paused, stopped, or blocked awaiting input, proceed directly to ordinary-chat questions.
+   Do not repeat the stop procedure or request a user command. A final response alone does not prove
+   a pause: Kilo auto-pauses a turn with no successful action and no completion report, as well as
+   explicit Stop and backend restarts. Harness `goalActive` records start/resume history, not live
+   Kilo goal status; it is not approval or permission to continue editing.
+2. If active execution cannot continue because a required approval or decision is missing and
+   `question` is unavailable, call `goal_report(status="blocked", reason=<concrete pending input>)`.
+   Then end the turn with saved progress, findings, recommended next change, and the decision needed.
+   Call no further tools. Do not report complete or invent a pause action. Routine reversible choices
+   within Fully Autonomous scope do not require this handoff.
+3. On the next ordinary user turn, recover the pending phase and ask any required `question` before
+   resuming. For harness approval, obtain the exact `approval` question and labels unchanged; freeform
+   direction does not replace its runtime receipt. Wait for every required answer. Pause, cancellation,
+   no answer, or ongoing manual editing leave work stopped. Do not reselect modes for routine input
+   handoffs within the same task.
+4. Once the answer authorizes continuation and registration/records remain current, the controller
+   calls `goal(action="resume")` for the unchanged objective and ends the turn. Follow
+   `blender-project-workflow` for approval, revision, commit, and checkpoint ordering. Missing tools or
+   rejected calls are concrete blockers to report, not reasons to ask the user to operate goal controls.
+
+## Changed objectives and next work
+
+For a confirmed change to current scope, update requirements and the active goal file through
+supported harness handling. For a separate next task, create the next numbered goal file; preserve
+earlier goals. Complete required scoped commits and runtime registration before the controller calls
+`goal(action="start", objective=<the entire filled prompt>)` to replace the saved objective. End that
+turn; do not also call resume. Never resume an outdated objective after changing its recorded prompt.
+
+Changed specifications, modes, or goal paths invalidate registration. Current harness re-registration
+is limited to its supported capped-review escalation path; ordinary `prepare` retries or `recover`
+do not unlock arbitrary goal changes. If tooling cannot safely register the requested revision or
+next task, report that exact maintenance blocker and leave production stopped. Never edit external
+state or move lifecycle work to the user. Never self-confirm requirements or invent user directives.
 
 ## Required goal content
 
@@ -100,8 +132,9 @@ Never self-confirm requirements or record a directive the user did not give.
 - Requirements, workflow selection, review mode, and scaffolding happen before the goal. Do not
   create a project goal before requirements are confirmed or a workflow or review mode is selected.
 - Do not start a goal to ask questions; Kilo disables `question` during goal execution.
-- In either autonomy mode, pause before necessary questions and resume only on an answer that permits
-  continuation. Do not reselect modes for routine approval pauses within the same active task.
+- In either autonomy mode, follow the required-input handoff before necessary questions and let the
+  controller resume only after required answers permit continuation. Do not reselect modes for
+  routine approval handoffs within the same active task.
 - Never invent user confirmation or a session directive to bypass these gates.
 - Production uses controller-only harness operations under `AGENTS.md`; raw Python, imports, and
   generation are blocked. Unsupported operations stop until tooling is reviewed and extended.
