@@ -20,10 +20,18 @@ $projectsRoot = Join-Path $workspaceRoot "Blender"
 $template = Join-Path $workspaceRoot ".kilo\skills\blender-project-scaffold\templates\project"
 
 if ($Start) {
-    throw "-Start is not supported for a new scaffold. Record confirmed requirements and workflow, then use .\tools\start-blender.cmd separately."
+    throw "-Start is not supported for a new scaffold. Record confirmed requirements, workflow, and review mode, then use .\tools\start-blender.cmd separately."
 }
 if (-not (Test-Path -LiteralPath $projectsRoot -PathType Container)) {
     throw "Project collection not found: $projectsRoot"
+}
+$collectionItem = Get-Item -LiteralPath $projectsRoot -Force
+while ($collectionItem) {
+    if (($collectionItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Project paths must not use symbolic links or junctions: $($collectionItem.FullName)"
+    }
+    if ($collectionItem.FullName.TrimEnd('\') -ieq $workspaceRoot.TrimEnd('\')) { break }
+    $collectionItem = $collectionItem.Parent
 }
 if (-not (Test-Path -LiteralPath $template -PathType Container)) {
     throw "Project template not found: $template"
@@ -41,16 +49,6 @@ if (Test-Path -LiteralPath $destination) {
     throw "Project already exists: $destination"
 }
 
-if ($DryRun) {
-    Write-Host "Project: $destination"
-    Write-Host "Slug: $slug"
-    Write-Host "Template: $template"
-    exit 0
-}
-
-New-Item -ItemType Directory -Path $destination | Out-Null
-Get-ChildItem -LiteralPath $template -Force | Copy-Item -Destination $destination -Recurse
-
 $date = Get-Date -Format "yyyy-MM-dd"
 $replacements = @{
     "{{PROJECT_NAME}}" = $Name
@@ -61,7 +59,7 @@ $replacements = @{
     "{{GOAL_TITLE}}" = $GoalTitle
 }
 
-Get-ChildItem -Recurse -File -Force -LiteralPath $destination | ForEach-Object {
+$renderedFiles = @(Get-ChildItem -Recurse -File -Force -LiteralPath $template | ForEach-Object {
     $extension = $_.Extension.ToLowerInvariant()
     $isText = $_.Name -eq ".gitignore" -or @(".md", ".jsonc", ".json", ".txt", ".py", ".ps1", ".cmd", ".gitkeep") -contains $extension
     if (-not $isText) { return }
@@ -74,15 +72,43 @@ Get-ChildItem -Recurse -File -Force -LiteralPath $destination | ForEach-Object {
         }
         return [string]$replacements[$token.Value]
     })
-    [System.IO.File]::WriteAllText($_.FullName, $text, (New-Object System.Text.UTF8Encoding($false)))
+    [pscustomobject]@{
+        RelativePath = $_.FullName.Substring($template.Length).TrimStart('\')
+        Text = $text
+    }
+})
+
+if ($DryRun) {
+    Write-Host "Project: $destination"
+    Write-Host "Slug: $slug"
+    Write-Host "Template: $template"
+    exit 0
+}
+
+$staging = Join-Path $projectsRoot (".scaffold-" + [guid]::NewGuid().ToString("N"))
+$ownsStaging = $false
+try {
+    New-Item -ItemType Directory -Path $staging | Out-Null
+    $ownsStaging = $true
+    Get-ChildItem -LiteralPath $template -Force | Copy-Item -Destination $staging -Recurse
+    foreach ($file in $renderedFiles) {
+        [System.IO.File]::WriteAllText((Join-Path $staging $file.RelativePath), $file.Text,
+            (New-Object System.Text.UTF8Encoding($false)))
+    }
+    [System.IO.Directory]::Move($staging, $destination)
+    $ownsStaging = $false
+} catch {
+    if ($ownsStaging) { Remove-Item -LiteralPath $staging -Recurse -Force }
+    throw
 }
 
 Write-Host "Created Blender project: $destination"
 Write-Host ""
 Write-Host "Next:"
 Write-Host "1. Write confirmed requirements and confirmation evidence to Documents\REQUIREMENTS.md."
-Write-Host "2. Ask the workflow mode and write Documents\WORKFLOW.md."
-Write-Host "3. Fill README.md and Documents\Goals\01-project-brief.md; start the recorded goal."
-Write-Host "4. From the workspace root: .\tools\start-blender.cmd `"Blender\$Name`""
-Write-Host "5. Save the main scene as $slug.blend in the project root."
-Write-Host "6. Only one Blender project spawned by this workspace may be open at a time."
+Write-Host "2. Record the selected workflow mode and exact response in Documents\WORKFLOW.md."
+Write-Host "3. Record the selected review mode in Documents\REVIEW.md; name the grader for Single mode."
+Write-Host "4. Fill README.md and Documents\Goals\01-project-brief.md; start the recorded goal."
+Write-Host "5. From the workspace root: .\tools\start-blender.cmd `"Blender\$Name`""
+Write-Host "6. Save the main scene as $slug.blend in the project root."
+Write-Host "7. Only one Blender project spawned by this workspace may be open at a time."

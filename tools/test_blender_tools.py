@@ -19,6 +19,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = Path(".kilo/skills/blender-project-scaffold/templates/project")
 POWERSHELL = shutil.which("pwsh.exe") or shutil.which("powershell.exe")
+POWERSHELLS = [path for path in (shutil.which("pwsh.exe"), shutil.which("powershell.exe")) if path]
 
 
 @unittest.skipUnless(os.name == "nt" and POWERSHELL, "Windows PowerShell required")
@@ -55,7 +56,7 @@ class ToolTests(unittest.TestCase):
             "environment": {"BLENDER_PORT": str(port)},
         }}}), encoding="utf-8")
 
-    def write_records(self, requirements=None, workflow=None):
+    def write_records(self, requirements=None, workflow=None, review=None):
         documents = self.project / "Documents"
         documents.mkdir(exist_ok=True)
         (documents / "REQUIREMENTS.md").write_text(requirements or (
@@ -65,10 +66,16 @@ class ToolTests(unittest.TestCase):
         (documents / "WORKFLOW.md").write_text(workflow or (
             "Mode: Fully Autonomous\nSelected: 2026-10-30\n"
         ), encoding="utf-8")
+        (documents / "REVIEW.md").write_text(review or (
+            "Mode: Off\nSelected: 2026-10-30\nSingle grader: -\n"
+        ), encoding="utf-8")
 
     def run_script(self, name, *arguments, expected=0):
+        return self.run_script_with(POWERSHELL, name, *arguments, expected=expected)
+
+    def run_script_with(self, shell, name, *arguments, expected=0):
         completed = subprocess.run(
-            [POWERSHELL, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            [shell, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
              str(self.root / "tools" / name), *map(str, arguments)],
             cwd=self.root, capture_output=True, text=True, timeout=30,
         )
@@ -105,6 +112,35 @@ class ToolTests(unittest.TestCase):
                 self.assertIn("Requirements are not confirmed", self.launch(expected=1))
         (self.project / "Documents/REQUIREMENTS.md").unlink()
         self.assertIn("records are missing", self.launch(expected=1))
+
+    def test_missing_or_invalid_review_record_rejected(self):
+        (self.project / "Documents/REVIEW.md").unlink()
+        self.assertIn("review records are missing", self.launch(expected=1))
+        for review in (
+            "Mode: Unset\nSelected: 2026-10-30\nSingle grader: -\n",
+            "Mode: Off\nSelected: -\nSingle grader: -\n",
+            "Mode: Invalid\nSelected: 2026-10-30\nSingle grader: -\n",
+            "Mode: Off\nSelected: 2026-02-30\n",
+            "Mode: Off\nMode: All\nSelected: 2026-10-30\n",
+        ):
+            with self.subTest(review=review):
+                self.write_records(review=review)
+                self.assertIn("Review mode is not selected", self.launch(expected=1))
+
+    def test_single_review_requires_valid_grader_metadata(self):
+        for metadata in ("", "Single grader: -\n", "Single grader: Unset\n",
+                         "Single grader: Visual Review\n", "Single grader: visual\nSingle grader: assets\n"):
+            with self.subTest(metadata=metadata):
+                self.write_records(review="Mode: Single\nSelected: 2026-10-30\n" + metadata)
+                self.assertIn("Single review mode requires", self.launch(expected=1))
+        self.write_records(review=(
+            "Mode: Single\nSelected: 2026-10-30\nSingle grader: visual-review\n"
+        ))
+        self.launch()
+
+    def test_all_review_mode_does_not_require_single_metadata(self):
+        self.write_records(review="Mode: All\nSelected: 2026-10-30\n")
+        self.launch()
 
     def test_invalid_calendar_date_rejected(self):
         self.write_records(requirements=(
@@ -245,6 +281,39 @@ class ToolTests(unittest.TestCase):
         self.assertIn("(startup scene)", self.launch())
         self.assertEqual(before, self.snapshot())
 
+    def test_production_lock_timestamp_is_idempotent_on_available_powershells(self):
+        for shell in POWERSHELLS:
+            with self.subTest(shell=shell):
+                command = (
+                    "$p=Get-Process -Id {0}; "
+                    "[pscustomobject]@{{processName=$p.ProcessName; "
+                    "processStartedAt=$p.StartTime.ToUniversalTime().ToString('o')}} | ConvertTo-Json -Compress"
+                ).format(os.getpid())
+                result = subprocess.run(
+                    [shell, "-NoLogo", "-NoProfile", "-Command", command],
+                    capture_output=True, text=True, timeout=30,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                process = json.loads(result.stdout)
+                self.lock.write_text(json.dumps({
+                    "pid": os.getpid(), "processName": process["processName"],
+                    "processStartedAt": process["processStartedAt"],
+                    "project": str(self.project), "blend": "", "port": self.port,
+                }), encoding="utf-8")
+                before = self.snapshot()
+                output = self.run_script_with(shell, "start-blender.ps1", "-Project", self.project,
+                                              "-BlenderExe", self.fake_exe, "-DryRun")
+                self.assertIn("Already running", output)
+                self.assertEqual(before, self.snapshot())
+
+    def test_malformed_lock_pid_is_recovered(self):
+        for pid in ("not-a-pid", 0, -1, 2147483648, [os.getpid()], {"value": os.getpid()}):
+            with self.subTest(pid=pid):
+                self.lock.write_text(json.dumps({"pid": pid}), encoding="utf-8")
+                before = self.snapshot()
+                self.assertIn("(startup scene)", self.launch())
+                self.assertEqual(before, self.snapshot())
+
     def test_concurrent_launch_rejected_by_workspace_mutex(self):
         import ctypes
         from ctypes import wintypes
@@ -297,6 +366,56 @@ class ToolTests(unittest.TestCase):
         before = self.snapshot()
         self.run_script("new-blender-project.ps1", "-Name", "Preview", "-DryRun")
         self.assertEqual(before, self.snapshot())
+
+    def test_scaffold_rejects_collection_junction(self):
+        original = self.root / "Blender"
+        moved = self.root / "Original projects"
+        original.rename(moved)
+        command = "New-Item -ItemType Junction -Path '{}' -Target '{}' | Out-Null".format(
+            str(original).replace("'", "''"), str(moved).replace("'", "''")
+        )
+        result = subprocess.run([POWERSHELL, "-NoProfile", "-Command", command],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.addCleanup(lambda: original.rmdir() if original.exists() else None)
+        output = self.run_script("new-blender-project.ps1", "-Name", "Escaped", expected=1)
+        self.assertIn("symbolic links or junctions", output)
+        self.assertFalse((moved / "Escaped").exists())
+
+    def test_scaffold_failure_does_not_leave_partial_destination(self):
+        template_readme = self.root / TEMPLATE / "README.md"
+        template_readme.write_text("{{UNKNOWN_TOKEN}}", encoding="utf-8")
+        output = self.run_script("new-blender-project.ps1", "-Name", "Broken", expected=1)
+        self.assertIn("Unknown template token", output)
+        self.assertFalse((self.root / "Blender/Broken").exists())
+        self.assertIn("Unknown template token", self.run_script(
+            "new-blender-project.ps1", "-Name", "Broken", expected=1
+        ))
+
+    def test_scaffold_copy_failure_cleans_only_new_destination(self):
+        locked = self.root / TEMPLATE / "locked.bin"
+        locked.write_bytes(b"Locked template fixture")
+        existing = self.root / "Blender/Existing"
+        existing.mkdir()
+        sentinel = existing / "keep.txt"
+        sentinel.write_text("Existing project must survive", encoding="utf-8")
+        script = str(self.root / "tools/new-blender-project.ps1").replace("'", "''")
+        source = str(locked).replace("'", "''")
+        command = (
+            "$held=[System.IO.File]::Open('{0}',[System.IO.FileMode]::Open,"
+            "[System.IO.FileAccess]::Read,[System.IO.FileShare]::None); "
+            "try {{ & '{1}' -Name Broken }} finally {{ $held.Dispose() }}"
+        ).format(source, script)
+        result = subprocess.run([POWERSHELL, "-NoLogo", "-NoProfile", "-Command", command],
+                                cwd=self.root, capture_output=True, text=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("locked.bin", result.stdout + result.stderr)
+        self.assertFalse((self.root / "Blender/Broken").exists())
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "Existing project must survive")
+        self.assertIn("Project already exists", self.run_script(
+            "new-blender-project.ps1", "-Name", "Existing", expected=1
+        ))
+        self.assertTrue(sentinel.is_file())
 
     def test_batch_wrappers_preserve_failures_and_reject_fallback(self):
         for name, args, message in (

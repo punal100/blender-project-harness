@@ -166,14 +166,18 @@ function Assert-ProjectReady {
 
     $requirementsPath = Join-Path $Root "Documents\REQUIREMENTS.md"
     $workflowPath = Join-Path $Root "Documents\WORKFLOW.md"
+    $reviewPath = Join-Path $Root "Documents\REVIEW.md"
     if (-not (Test-Path -LiteralPath $requirementsPath -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
-        throw "Project requirements and workflow records are missing. Complete Documents\REQUIREMENTS.md and Documents\WORKFLOW.md before launch."
+        -not (Test-Path -LiteralPath $workflowPath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $reviewPath -PathType Leaf)) {
+        throw "Project requirements, workflow, or review records are missing. Complete Documents\REQUIREMENTS.md, Documents\WORKFLOW.md, and Documents\REVIEW.md before launch."
     }
     Assert-NoProjectReparsePoint -Path $requirementsPath -Boundary $Root
     Assert-NoProjectReparsePoint -Path $workflowPath -Boundary $Root
+    Assert-NoProjectReparsePoint -Path $reviewPath -Boundary $Root
     $requirements = [System.IO.File]::ReadAllText($requirementsPath)
     $workflow = [System.IO.File]::ReadAllText($workflowPath)
+    $review = [System.IO.File]::ReadAllText($reviewPath)
     $confirmation = Get-RecordField -Text $requirements -Name "Confirmation"
     if ((Get-RecordField -Text $requirements -Name "Status") -cne "Confirmed" -or
         -not (Test-RecordDate (Get-RecordField -Text $requirements -Name "Confirmed")) -or
@@ -183,6 +187,18 @@ function Assert-ProjectReady {
     if ((Get-RecordField -Text $workflow -Name "Mode") -cnotin @("Fully Autonomous", "Partially Autonomous") -or
         -not (Test-RecordDate (Get-RecordField -Text $workflow -Name "Selected"))) {
         throw "Workflow is not selected. Record Mode: Fully Autonomous or Mode: Partially Autonomous and Selected: YYYY-MM-DD in Documents\WORKFLOW.md."
+    }
+    $reviewMode = Get-RecordField -Text $review -Name "Mode"
+    if ($reviewMode -cnotin @("Off", "All", "Single") -or
+        -not (Test-RecordDate (Get-RecordField -Text $review -Name "Selected"))) {
+        throw "Review mode is not selected. Record Mode: Off, All, or Single and Selected: YYYY-MM-DD in Documents\REVIEW.md."
+    }
+    if ($reviewMode -ceq "Single") {
+        $singleGrader = Get-RecordField -Text $review -Name "Single grader"
+        if ($singleGrader -cnotmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$' -or
+            $singleGrader -match '^(TBD|Pending|Unset)$') {
+            throw "Single review mode requires Single grader: <configured lowercase grader name> in Documents\REVIEW.md."
+        }
     }
 }
 
@@ -299,14 +315,32 @@ if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
     } catch {
         $lock = $null
     }
-    if ($lock -and $lock.pid) {
-        $existing = Get-Process -Id ([int]$lock.pid) -ErrorAction SilentlyContinue
+    $lockProcessId = 0
+    if ($lock -and [int]::TryParse([string]$lock.pid, [ref]$lockProcessId) -and $lockProcessId -gt 0) {
+        $existing = Get-Process -Id $lockProcessId -ErrorAction SilentlyContinue
         $expectedName = if ($lock.processName) { [string]$lock.processName } else { "blender" }
-        $sameStart = $existing -and (-not $lock.processStartedAt -or
-            $existing.StartTime.ToUniversalTime().ToString("o") -eq $lock.processStartedAt)
+        $sameStart = $false
+        if ($existing) {
+            if (-not $lock.processStartedAt) {
+                $sameStart = $true
+            } else {
+                $recordedStart = [datetime]::MinValue
+                if ($lock.processStartedAt -is [datetime]) {
+                    $recordedStart = $lock.processStartedAt
+                    $validStart = $true
+                } else {
+                    $validStart = [datetime]::TryParseExact([string]$lock.processStartedAt, "o",
+                        [System.Globalization.CultureInfo]::InvariantCulture,
+                        [System.Globalization.DateTimeStyles]::RoundtripKind, [ref]$recordedStart)
+                }
+                $sameStart = $validStart -and $existing.StartTime.ToUniversalTime() -eq $recordedStart.ToUniversalTime()
+            }
+        }
         if ($sameStart -and $existing.ProcessName -ieq $expectedName) {
             if ($lock.project -ieq $projectRoot) {
-                if ($lock.blend -ine $blendPath -or [int]$lock.port -ne $effectivePort) {
+                $lockPort = 0
+                if ($lock.blend -ine $blendPath -or
+                    -not [int]::TryParse([string]$lock.port, [ref]$lockPort) -or $lockPort -ne $effectivePort) {
                     throw "This project is already running with a different scene or port. Close it before changing either."
                 }
                 Write-Host "Already running: PID $($lock.pid), port $($lock.port), project $($lock.project)."
