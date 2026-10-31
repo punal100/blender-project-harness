@@ -5,22 +5,28 @@ description: Use when adding, importing, linking, packing, or delivering externa
 
 # Blender Assets
 
-All paths below are relative to `Blender/<Project>/`.
+Project paths below are relative to `Blender/<Project>/`; the template reference is relative to this
+skill's directory.
 
 ## Folder policy
 
-- Project-owned files: `assets/textures/`, `assets/hdri/`, `assets/models/`, `assets/audio/`.
-- Third-party files: `assets/external/<source-or-vendor>/<asset>/`.
-- Documentation: `Documents/ASSETS.md` and a `SOURCE.md` beside each external asset.
+- Store project-owned files in `assets/textures/`, `assets/hdri/`, `assets/models/`, `assets/audio/`.
+- Store third-party files, including licensed files and derivatives, in
+  `assets/external/<source-or-vendor>/<asset>/`. Modification does not remove source or licence duties.
+- Record each third-party original and derivative in `Documents/ASSETS.md`; keep `SOURCE.md` and a
+  verbatim `LICENSE.txt` beside every external asset. Preserve original licence files too.
 
 ## Workflow
 
-1. Search with the Blender MCP `search_assets` tool or import manually.
+1. Find the asset with Blender MCP `search_assets` or manual source discovery. Do not import before
+   the source, licence, and intended-use checks below are complete.
 2. Record source, author, licence, attribution, redistribution, local path, and packaging mode in
    `Documents/ASSETS.md`.
 3. Add `SOURCE.md` from
-   `blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
-4. Keep the licence file with the asset.
+   `../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
+4. Copy the applicable licence terms verbatim to `LICENSE.txt` beside the asset, preserving any
+   original licence files. Record the licence source URL and attribution exactly. If terms cannot be
+   obtained or do not permit intended use, stop; do not invent, summarize, or substitute licence terms.
 5. Link or import with relative paths from the `.blend` (`//assets/...`). Never leave
    machine-specific absolute paths.
 6. Check missing files before delivery.
@@ -39,13 +45,15 @@ All paths below are relative to `Blender/<Project>/`.
 
 ## Validation
 
-- `bpy.ops.file.report_missing_files()` reports nothing.
-- `bpy.ops.file.make_paths_relative()` has been applied.
-- Moving or copying the project folder does not break the scene.
-- `Documents/ASSETS.md` has a row for every third-party asset.
-- Every external asset folder contains `SOURCE.md` and the licence terms.
-- Every linked, packed, or embedded third-party datablock in a deliverable `.blend` has a registered
-  source, licence, and packaging decision.
+- Run `bpy.ops.file.report_missing_files()` and inspect missing-file reports; an operator return
+  status alone does not prove files exist. Resolve every missing dependency before delivery.
+- Apply `bpy.ops.file.make_paths_relative()` and verify external paths resolve within shipped folders.
+- Verify moving or copying the project folder does not break the scene.
+- Require an `ASSETS.md` row for every third-party asset and derivative.
+- Require `SOURCE.md` and verbatim `LICENSE.txt` in every external asset folder, and verify both
+  metadata files are tracked when committing the project.
+- Require a registered source, licence, and packaging decision for every linked, packed, or embedded
+  third-party datablock in a deliverable `.blend`.
 
 For delivery copies, pack external data into the `.blend` only when its licence permits redistribution,
 or ship the documented asset folders together. Keep an unpacked working copy when the assets still need

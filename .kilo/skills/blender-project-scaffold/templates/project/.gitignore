@@ -32,7 +32,7 @@ backups/**
 !backups/.gitkeep
 !backups/README.md
 
-# External assets: keep metadata, not binaries by default
+# External assets: keep SOURCE.md and mandatory verbatim LICENSE.txt, not binaries by default
 assets/external/**
 !assets/external/**/
 !assets/external/README.md
