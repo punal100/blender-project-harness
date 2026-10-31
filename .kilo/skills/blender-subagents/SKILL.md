@@ -116,9 +116,9 @@ Independent review uses `blender-grader`, configured at `blender_subagents.grade
   Plugin hooks bind the actual child by parent/task token and runtime model metadata, restrict writes
   to that report, and forbid peer report reads. Graders do not need `blender_workflow` permission.
 - One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
-  missing spec/evidence. A failed or missing report records `BLOCKED` and permits reissuing
-  `grader-ticket` for the same grader before `review`; after aggregation, retry only in a new round.
-  Graders never loop or ask the user.
+  missing spec/evidence. A failed or missing report records `BLOCKED` and permits one replacement
+  `grader-ticket` before `review`; a second failure aggregates as blocked. After aggregation, retry
+  only in a new round. Graders never loop or ask the user.
 - A single blocker fails the round regardless of other PASS verdicts. The orchestrator, not a vote
   count, records the final verdict and every finding's disposition.
 

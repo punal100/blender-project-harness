@@ -194,8 +194,9 @@ unchanged; graders are read-only and never open or save Blender files.
 
 Retain each runtime-bound `task_id` without rewriting the sealed manifest. Resume that same session for the next round when
 the model and focus are unchanged; otherwise start fresh and record why. Each new round receives a
-new per-pass budget. Retrying or resuming within the same round must preserve its original deadline
-and rounds already used; never reset limits to continue a failed pass.
+new per-pass budget. A failed or missing report permits one replacement `grader-ticket` before
+`review`, with a fresh pass budget. After that replacement attempt fails, aggregate the grader as
+`BLOCKED`; never reset limits again within the same round.
 
 ## Aggregate and dispose
 
@@ -221,8 +222,9 @@ After all graders return, the orchestrator:
 
 Grader failure recovery: a failed child, expired budget, missing report, or invalid report is recorded
 as `BLOCKED` for that grader with an `error` in harness status. Before `review` aggregates the round,
-reissue `grader-ticket` for the same grader and dispatch a replacement child; the retry reuses the
-grader's report path and resets its budget. After `review`, retry only through a new revision round.
+reissue `grader-ticket` once for the same grader and dispatch a replacement child; the retry reuses
+the grader's report path and gets a fresh pass budget. After the replacement fails or `review` has
+aggregated, retry only through a new revision round.
 
 Verdicts:
 

@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { instanceStatus, launchProject, stopProject } from './blender.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
+export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 export const stable = (value) => JSON.stringify(canonical(value));
@@ -254,7 +255,7 @@ export class Harness {
       this.fresh(p);
       const c = p.change;
       if (action === 'goal-active') {
-        if (p.complete || (args.objective !== undefined && args.objective !== p.records.goalText)) deny('goal must match registered prompt');
+        if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
         p.goalActive = true;
       } else if (action === 'goal-complete') {
         const last = p.history.at(-1);
@@ -299,8 +300,10 @@ export class Harness {
         if (!g) deny('unknown grader');
         if (c.verdict) deny('review already aggregated; begin a revision before re-dispatching graders');
         const existing = c.graders[g.name];
+        const attempt = existing ? (existing.attempt ?? 1) : 0;
         const retryable = existing && (existing.error || (!existing.verdict && Date.now() > existing.deadline));
         if (existing && !retryable) deny('grader already dispatched');
+        if (retryable && attempt >= 2) deny('grader retry budget exhausted; aggregate the round as blocked');
         if (Object.values(c.graders).filter((g) => !g.verdict && !g.error && Date.now() <= g.deadline).length >= p.records.maxParallel) deny('grader parallel limit reached');
         const token = crypto.randomUUID();
         const report = existing?.report ?? `${p.project}/Documents/Reviews/${c.round}/${g.name}/REPORT.md`;
@@ -308,7 +311,7 @@ export class Harness {
         const full = contained(this.root, report, true);
         if (fs.existsSync(full)) fs.rmSync(full);
         const deadline = Date.now() + g.max_minutes * 60000;
-        c.graders[g.name] = { token, report, attempt: (existing?.attempt ?? 0) + 1, deadline, steps: 0 };
+        c.graders[g.name] = { token, report, attempt: attempt + 1, deadline, steps: 0 };
         this.updateManifest(p);
         const absolute = (name) => path.join(this.root, ...name.split('/'));
         const evidencePath = absolute(`${p.project}/Documents/Reviews/${c.round}/_evidence`);

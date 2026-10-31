@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, stable } from './engine.mjs';
+import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.mjs';
 import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
@@ -179,7 +179,7 @@ export function createHooks(harness, client) {
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
       if (tool === 'goal') {
-        if (args.action === 'start' && args.objective !== p.records.goalText) deny('goal objective must equal registered prompt');
+        if (args.action === 'start' && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText)) deny('goal objective must equal registered prompt');
         harness.fresh(p); return;
       }
       if (tool === 'goal_report') {

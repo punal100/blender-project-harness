@@ -400,6 +400,7 @@ test('registration accepts only exact runtime question and goal prompt', (t) => 
   unregistered('other-orchestrator');
   f.harness.question('orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
   f.harness.command('orchestrator', 'goal-active', { objective: f.prompt });
+  f.harness.command('orchestrator', 'goal-active', { objective: f.prompt.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n') + '\r\n' });
   gate(() => f.harness.command('orchestrator', 'goal-active', { objective: 'forged goal' }));
 });
 
@@ -588,6 +589,8 @@ test('expired uncollected grader ticket can be reissued', (t) => {
   const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
   assert.notEqual(retry.token, first.token);
   assert.equal(f.harness.command('orchestrator', 'status').change.graders.visual.attempt, 2);
+  f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+  gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }), /retry budget/);
 });
 
 test('review records an expired uncollected grader as BLOCKED', (t) => {

@@ -139,7 +139,7 @@ test('plugin blocks early completion, fake internal commands and wrong goal', as
   await assert.rejects(before(h, f.session, 'goal_report', { status: 'complete' }), /completion blocked/);
   await assert.rejects(before(h, f.session, 'goal', { action: 'start', objective: 'fake' }), /objective/);
   await assert.rejects(h.tool.blender_workflow.execute({ action: 'goal-active', payload: '{}' }, { sessionID: f.session }), /internal/);
-  await before(h, f.session, 'goal', { action: 'start', objective: f.objective });
+  await before(h, f.session, 'goal', { action: 'start', objective: f.objective.replace(/\n/g, '\r\n') + '\r\n' });
 });
 
 test('plugin injects compact durable recovery context', async (t) => {
