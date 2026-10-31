@@ -218,6 +218,11 @@ After all graders return, the orchestrator:
 6. Fixes the scene only through normal workflow gates and a new bounded `begin` with `revision:true`,
    ticketed save/seal, and returned-render `look`. Fixes get their own scoped commits and checkpoints.
 
+Grader failure recovery: a failed child, expired budget, missing report, or invalid report is recorded
+as `BLOCKED` for that grader with an `error` in harness status. Before `review` aggregates the round,
+reissue `grader-ticket` for the same grader and dispatch a replacement child; the retry reuses the
+grader's report path and resets its budget. After `review`, retry only through a new revision round.
+
 Verdicts:
 
 - `PASS` — all selected graders completed, required dimensions were assessed, required evidence

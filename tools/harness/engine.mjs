@@ -277,17 +277,31 @@ export class Harness {
       } else if (action === 'grader-ticket') {
         if (!c?.inspected || p.records.review === 'Off') deny('sealed inspection required before grader dispatch');
         const g = p.records.roster.find((g) => g.name === args.name);
-        if (!g || c.graders[g.name]) deny('unknown or already dispatched grader');
-        if (Object.values(c.graders).filter((g) => !g.verdict).length >= p.records.maxParallel) deny('grader parallel limit reached');
+        if (!g) deny('unknown grader');
+        if (c.verdict) deny('review already aggregated; begin a revision before re-dispatching graders');
+        const existing = c.graders[g.name];
+        const retryable = existing && (existing.error || (!existing.verdict && Date.now() > existing.deadline));
+        if (existing && !retryable) deny('grader already dispatched');
+        if (Object.values(c.graders).filter((g) => !g.verdict && !g.error && Date.now() <= g.deadline).length >= p.records.maxParallel) deny('grader parallel limit reached');
         const token = crypto.randomUUID();
-        const report = `${p.project}/Documents/Reviews/${c.round}/${g.name}/REPORT.md`;
+        const report = existing?.report ?? `${p.project}/Documents/Reviews/${c.round}/${g.name}/REPORT.md`;
         fs.mkdirSync(path.dirname(contained(this.root, report, true)), { recursive: true });
-        c.graders[g.name] = { token, report, deadline: Date.now() + g.max_minutes * 60000, steps: 0 };
+        const full = contained(this.root, report, true);
+        if (fs.existsSync(full)) fs.rmSync(full);
+        c.graders[g.name] = { token, report, attempt: (existing?.attempt ?? 0) + 1, deadline: Date.now() + g.max_minutes * 60000, steps: 0 };
         this.updateManifest(p);
         return { token, marker: `HARNESS_GRADER:${token}`, grader: g, report,
           sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, evidence: c.evidence, round: c.round, goal: `${p.project}/${p.goal}` };
       } else if (action === 'review') {
-        if (!c?.inspected || p.records.review === 'Off' || p.records.roster.some((g) => !c.graders[g.name]?.verdict)) deny('required grader reports incomplete');
+        if (!c?.inspected || p.records.review === 'Off') deny('sealed inspection required before review');
+        for (const roster of p.records.roster) {
+          const g = c.graders[roster.name];
+          if (g && !g.verdict && (g.error || Date.now() > g.deadline)) {
+            g.verdict = 'BLOCKED';
+            g.error ??= `grader deadline exceeded before collection: ${roster.name}`;
+          }
+        }
+        if (p.records.roster.some((g) => !c.graders[g.name]?.verdict)) deny('required grader reports incomplete');
         const verdicts = Object.values(c.graders).map((g) => g.verdict);
         c.verdict = verdicts.every((v) => v === 'PASS') ? 'PASS' : verdicts.includes('BLOCKED') ? 'BLOCKED' : 'CHANGES_REQUIRED';
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
@@ -433,10 +447,13 @@ export class Harness {
       const assignment = this.graderAssignment(s, child);
       if (!assignment || assignment.p.orchestrator !== orchestrator) deny('completed task has no assigned grader');
       const { p, g } = assignment; this.fresh(p);
-      const text = fs.readFileSync(contained(this.root, g.report), 'utf8');
+      const fail = (error) => { g.verdict = 'BLOCKED'; g.error = error; this.updateManifest(p); return this.status(p); };
+      const full = contained(this.root, g.report, true);
+      if (!fs.existsSync(full)) return fail(`grader report missing: ${g.report}`);
+      const text = fs.readFileSync(full, 'utf8');
       const verdicts = [...text.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
-      if (verdicts.length !== 1 || !text.includes(p.change.sceneHash) || !text.includes(p.change.evidenceKey)) deny('grader report needs one verdict and frozen scene/evidence hashes');
-      if (verdicts[0][1] === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) deny('PASS report contains blocker/major finding');
+      if (verdicts.length !== 1 || !text.includes(p.change.sceneHash) || !text.includes(p.change.evidenceKey)) return fail(`grader report invalid: ${g.report}`);
+      if (verdicts[0][1] === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) return fail(`PASS report contains blocker/major finding: ${g.report}`);
       g.verdict = verdicts[0][1]; p.change.reports[g.report] = digest(text);
       this.updateManifest(p);
       return this.status(p);

@@ -569,6 +569,93 @@ test('All review mode freezes grader evidence and rejects stale reports', (t) =>
   gate(() => f.harness.command('orchestrator', 'review', { notes: 'retry' }));
 });
 
+test('expired uncollected grader ticket can be reissued', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${first.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+  const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.notEqual(retry.token, first.token);
+  assert.equal(f.harness.command('orchestrator', 'status').change.graders.visual.attempt, 2);
+});
+
+test('review records an expired uncollected grader as BLOCKED', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  const sealed = seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${ticket.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+  const sceneHash = f.harness.hash(f.scene);
+  write(f.root, `${f.project}/Documents/Reviews/${sealed.round}/REVIEW.md`, [
+    'Verdict: BLOCKED',
+    `Scene hash: ${sceneHash}`,
+    'Finding dispositions: grader expired without a report',
+    '',
+  ].join('\n'));
+  const reviewed = f.harness.command('orchestrator', 'review', { notes: 'Expired grader recorded BLOCKED.' });
+  assert.equal(reviewed.change.verdict, 'BLOCKED');
+  assert.match(reviewed.change.graders.visual.error, /deadline/);
+  gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
+});
+
+test('missing grader report records BLOCKED and allows re-dispatch before review', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  const sealed = seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${first.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  const failed = f.harness.collectGrader('orchestrator', 'child-one');
+  assert.equal(failed.change.graders.visual.verdict, 'BLOCKED');
+  assert.match(failed.change.graders.visual.error, /missing/);
+
+  const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.notEqual(retry.token, first.token);
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-two',
+    `Review assignment ${retry.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  write(f.root, retry.report, [
+    '# Visual report',
+    '- Verdict: PASS',
+    `Scene hash: ${retry.sceneHash}`,
+    `Evidence key: ${retry.evidenceKey}`,
+    '',
+  ].join('\n'));
+  f.harness.collectGrader('orchestrator', 'child-two');
+  write(f.root, `${f.project}/Documents/Reviews/${sealed.round}/REVIEW.md`, [
+    'Verdict: PASS',
+    `Scene hash: ${retry.sceneHash}`,
+    'Finding dispositions: none',
+    '',
+  ].join('\n'));
+  const reviewed = f.harness.command('orchestrator', 'review', { notes: 'Retry passed.' });
+  assert.equal(reviewed.change.verdict, 'PASS');
+  gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
+});
+
 test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {
   const f = useFixture(t);
   activate(f);
