@@ -135,6 +135,25 @@ export class Harness {
     return { workflow, review, roster, maxParallel, maxRounds, specs, goalText };
   }
 
+  workerConfig() {
+    const file = contained(this.root, 'config.json', true);
+    if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
+    const cfg = readJson(file).blender_subagents?.workers;
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg) || cfg.agent !== 'blender-worker'
+      || ['provider', 'model', 'variant'].some((k) => typeof cfg[k] !== 'string' || !cfg[k].trim())) {
+      deny('invalid worker config; validate blender_subagents.workers before delegation');
+    }
+    if (!Number.isInteger(cfg.max_minutes) || cfg.max_minutes < 1 || !Number.isInteger(cfg.max_steps) || cfg.max_steps < 1
+      || !Number.isInteger(cfg.max_failed_attempts) || ![1, 2].includes(cfg.max_failed_attempts) || cfg.max_parallel !== 1) {
+      deny('invalid worker limits; max_parallel must be 1');
+    }
+    const agent = contained(this.root, '.kilo/agent/blender-worker.md', true);
+    if (fs.existsSync(agent)) {
+      const steps = Number(/^steps:\s*(\d+)\s*$/m.exec(fs.readFileSync(agent, 'utf8'))?.[1]);
+      if (Number.isInteger(steps) && cfg.max_steps > steps) deny('worker max_steps exceeds agent steps ceiling');
+    }
+    return { ...cfg };
+  }
   owner(state, session) {
     const projects = Object.values(state.projects).filter((p) => p.orchestrator === session);
     if (projects.length !== 1) deny('register exactly one project for orchestrator session');

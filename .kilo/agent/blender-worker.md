@@ -30,12 +30,6 @@ permission:
   bash: deny
   edit:
     "*": deny
-    "Blender/**": allow
-    "Blender/**/Documents/**": deny
-    "Blender/**/README.md": deny
-    "Blender/**/AGENTS.md": deny
-    "Blender/**/.kilo/**": deny
-    "Blender/**/.gitignore": deny
   webfetch: allow
   websearch: allow
   skill: allow

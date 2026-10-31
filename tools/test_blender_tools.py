@@ -186,11 +186,10 @@ class WorkspaceContractTests(unittest.TestCase):
         for tool in ("task", "agent_manager", "goal", "goal_report", "question", "bash",
                      "external_directory", "blender_generate_3d", "mediamcp_*", "generate_image"):
             self.assertEqual(permissions[tool], "deny", tool)
-        edit_rules = list(permissions["edit"].items())
-        self.assertEqual(edit_rules[:2], [("*", "deny"), ("Blender/**", "allow")])
-        for pattern in ("Blender/**/Documents/**", "Blender/**/README.md", "Blender/**/AGENTS.md",
-                        "Blender/**/.kilo/**", "Blender/**/.gitignore"):
-            self.assertIn((pattern, "deny"), edit_rules[2:])
+        self.assertEqual(list(permissions["edit"].items()), [("*", "deny")])
+        for target in ("Blender/Example/example.blend", "Blender/Example/Documents/DECISIONS.md",
+                       "Blender/Example/README.md", "AGENTS.md", "tools/harness/plugin.mjs"):
+            self.assertEqual(self.permission_action(permissions, "edit", target), "deny", target)
         for path in (ROOT / "config.example.json", ROOT / "config.json"):
             if not path.exists():
                 continue

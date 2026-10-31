@@ -31,6 +31,37 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.equal(result.limits.operationsPerChange, 40);
 });
 
+test('production worker delegation requires valid read-only limits', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const worker = {
+    agent: 'blender-worker',
+    provider: 'fixture-provider',
+    model: 'fixture-model',
+    variant: 'fixture-variant',
+    max_minutes: 10,
+    max_steps: 18,
+    max_failed_attempts: 2,
+    max_parallel: 1,
+  };
+  f.write('config.json', JSON.stringify({ blender_subagents: { workers: worker } }));
+  f.write('.kilo/agent/blender-worker.md', '---\nsteps: 20\n---\n');
+  await before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false });
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: true }),
+    /foreground/,
+  );
+  f.write('config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_parallel: 2 } } }));
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
+    /max_parallel/,
+  );
+  f.write('config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_steps: 21 } } }));
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
+    /steps ceiling/,
+  );
+});
+
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await before(h, f.session, 'read', { filePath: path.join(f.root, f.project, 'README.md') });

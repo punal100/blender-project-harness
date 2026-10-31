@@ -193,7 +193,14 @@ export function createHooks(harness, client) {
         return;
       }
       if (tool === 'task') {
-        if (args.subagent_type !== 'blender-grader' || args.background || !/HARNESS_GRADER:[a-f0-9-]{36}/.test(args.prompt ?? '')) deny('production delegation requires foreground assigned grader');
+        if (args.background) deny('production delegation must be foreground');
+        if (args.subagent_type === 'blender-worker') {
+          if (!p.goalActive || !args.prompt?.trim()) deny('worker delegation requires an active goal and a task prompt');
+          if (/HARNESS_GRADER:/.test(args.prompt)) deny('worker task cannot carry a grader marker');
+          harness.workerConfig();
+          return;
+        }
+        if (args.subagent_type !== 'blender-grader' || !/HARNESS_GRADER:[a-f0-9-]{36}/.test(args.prompt ?? '')) deny('production delegation requires foreground assigned grader');
         const token = args.prompt.match(/HARNESS_GRADER:([a-f0-9-]{36})/)[1];
         if (!p.change?.inspected || !Object.values(p.change.graders).some((g) => g.token === token)) deny('grader ticket missing');
         taskArgs.set(input.callID, args); return;
