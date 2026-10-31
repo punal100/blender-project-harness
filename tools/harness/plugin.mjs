@@ -6,7 +6,8 @@ import { operationCode } from './blender-operations.mjs';
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'begin', 'self-review', 'review', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'self-review', 'review', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
+const BLENDER_SHELL = /start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOC = /^(?:README\.md|Documents\/(?:README|REQUIREMENTS|WORKFLOW|REVIEW|ASSETS|DECISIONS|Goals\/README|References\/README|Reviews\/README)\.md|Documents\/Goals\/\d+-[a-z0-9-]+\.md|Documents\/References\/[A-Za-z0-9._-]+\.md)$/;
 
@@ -70,7 +71,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. prepare, status, begin, ticket, grader-ticket, self-review, review, approval, checkpoint, recover, escalate. payload is JSON. Runtime owns approvals/evidence; never edit state.',
+        description: 'Mandatory Blender workflow gate. prepare, status, launch, stop, begin, ticket, grader-ticket, self-review, review, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -87,7 +88,10 @@ export function createHooks(harness, client) {
             result = harness.issue(context.sessionID, payload.operation, payload.payload);
           } else {
             if (!PUBLIC_ACTIONS.has(args.action)) deny('internal workflow action unavailable');
-            result = args.action === 'recover' ? harness.recover(context.sessionID) : harness.command(context.sessionID, args.action, payload);
+            result = args.action === 'recover' ? harness.recover(context.sessionID)
+              : args.action === 'launch' ? await harness.launch(context.sessionID)
+                : args.action === 'stop' ? await harness.stop(context.sessionID)
+                  : harness.command(context.sessionID, args.action, payload);
           }
           return JSON.stringify(result, null, 2);
         },
@@ -146,7 +150,7 @@ export function createHooks(harness, client) {
           const blocked = files.filter((f) => f.startsWith('Blender/') && (!bootstrapDoc(f) || registered.has(f.split('/').slice(0, 2).join('/'))));
           if (blocked.length) deny(`production files require a registered project: ${blocked.join(', ')}. Before registration, write only scaffold documentation (README.md; Documents/REQUIREMENTS.md, WORKFLOW.md, REVIEW.md, ASSETS.md, DECISIONS.md; Documents/Goals/<NN>-<slug>.md). Commit those files, call blender_workflow prepare, and complete its registration question before scene, asset, render, evidence, and manifest writes. Do not bypass this with shell redirection or temp-file copies.`);
         }
-        if (tool === 'bash' && /start-blender\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i.test(args.command ?? '') && !/ListBlender|--version/.test(args.command)) deny('register the committed project before launching Blender: finish and commit scaffold docs, then call blender_workflow prepare and complete its registration question');
+        if (tool === 'bash' && BLENDER_SHELL.test(args.command ?? '') && !/--version/.test(args.command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
         return;
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
@@ -181,6 +185,7 @@ export function createHooks(harness, client) {
       }
       if (tool === 'bash') {
         const command = args.command ?? '';
+        if (BLENDER_SHELL.test(command) && !/--version/.test(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('production Git/launch commands require workspace root');
         if (/[;&|`\r\n$<>]/.test(command)) deny('production shell accepts one literal command only');
         if (/^git status(?: --short)?(?: --branch)?$/.test(command) || /^git diff(?: --stat| --check| --cached| --name-only)*$/.test(command) || /^git log --oneline -10$/.test(command)) return;
@@ -193,8 +198,6 @@ export function createHooks(harness, client) {
           return;
         }
         if (/^git commit -m (?:"[^"\r\n]+"|'[^'\r\n]+')$/.test(command)) { canCommit(p); return; }
-        const launch = /^(?:\.\\|\.\/)?tools[\\/]start-blender\.cmd "(Blender[\\/][A-Za-z0-9 _-]+)"$/.exec(command);
-        if (launch && launch[1].replaceAll('\\', '/') === p.project && !p.change) { harness.assertCommitted(p.project, harness.snapshot(p.project)); return; }
         deny('production shell route denied; use guarded tools or scoped Git checkpoint');
       }
       deny(`unclassified production tool: ${tool}`);

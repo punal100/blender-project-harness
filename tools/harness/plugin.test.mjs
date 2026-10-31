@@ -33,7 +33,7 @@ test('plugin allows recovery reads but rejects unscoped file writes', async (t) 
 test('unregistered sessions cannot write project files or run mutating shell commands', async (t) => {
   const f = fixture(t), h = hooks(f);
   await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'bypass' }), /registered project/);
-  await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /prepare/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /retired/);
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
 });
 
@@ -52,6 +52,12 @@ test('unregistered sessions may draft scaffold docs for a new project only', asy
     );
   }
   await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'Documents/REQUIREMENTS.md'), content: 'tamper' }), /registered project/);
+});
+
+test('launch requires an active goal and shell Blender commands are retired', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  await assert.rejects(h.tool.blender_workflow.execute({ action: 'launch', payload: '{}' }, { sessionID: f.session }), /active goal/);
+  await assert.rejects(before(h, f.session, 'bash', { command: 'blender.exe scene.blend' }), /retired/);
 });
 
 test('plugin permits matching ticket once, blocks cross-session ticket', async (t) => {

@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { instanceStatus, launchProject, stopProject } from './blender.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
@@ -214,7 +215,7 @@ export class Harness {
   }
   status(p) {
     const c = p.change;
-    return { project: p.project, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete,
+    return { project: p.project, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
        change: c ? { id: c.id, outcome: c.outcome, sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, approved: Boolean(c.approval), graders: c.graders } : null,
        next: p.escalation ? 'Explicit re-registration required after escalation' : !p.goalActive ? 'Start/resume registered goal' : !c ? 'Begin bounded change' : !c.sealed ? 'Edit; save and seal' : !c.inspected ? 'look(image=<sealed render>)' : !c.verdict ? 'Complete required review' : p.records.workflow === 'Partially Autonomous' && !c.approval ? 'Pause goal and ask approval question' : 'Checkpoint scoped commit' };
   }
@@ -228,7 +229,7 @@ export class Harness {
           ? 'Answer the pending registration question, then start or resume the goal'
           : s.challenge ? `Another session is registering ${s.challenge.project}; wait for it to finish or expire`
             : 'Complete and commit scaffold docs, then call prepare and answer its registration question';
-        return { project: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, next: pending };
+        return { project: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending };
       }
       const p = this.owner(s, session);
       this.fresh(p);
@@ -322,6 +323,23 @@ export class Harness {
     });
   }
 
+  launch(session) {
+    const p = this.transaction((s) => {
+      const owner = this.owner(s, session);
+      this.fresh(owner);
+      if (owner.complete || owner.change || !owner.goalActive) deny('launch requires the registered project with an active goal and no open change; stop Blender before changing scope');
+      this.assertCommitted(owner.project, this.snapshot(owner.project));
+      return { project: owner.project, scene: owner.scene };
+    });
+    return launchProject({ root: this.root, home: this.home, project: p.project, scene: p.scene, session });
+  }
+  stop(session) {
+    const p = this.transaction((s) => {
+      const owner = this.owner(s, session);
+      return { project: owner.project };
+    });
+    return stopProject({ root: this.root, home: this.home, project: p.project });
+  }
   issue(session, operation, payload) {
     return this.transaction((s) => {
       const p = this.owner(s, session); this.fresh(p);
