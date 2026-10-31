@@ -1,0 +1,89 @@
+{
+  "round": "R01-20261031T095604Z",
+  "created_utc": "2026-10-31T09:56:04Z",
+  "previous_round": null,
+  "active_goal": "Blender/CozyRetroRoom/Documents/Goals/01-project-brief.md",
+  "base_commit": "82470c61a95e43908ada1106ed36381fa8184e11",
+  "dirty_state": true,
+  "project_root": "D:/Projects/_Templates/Blender/Blender/CozyRetroRoom",
+  "scene": {
+    "path": "Blender/CozyRetroRoom/cozyretroroom.blend",
+    "sha256": "C3C7ED0CAD03301C82AD2CE20DD1C9267761AACE1D4CDE5834B20BBC1AF6D263"
+  },
+  "spec": [
+    {
+      "path": "Blender/CozyRetroRoom/Documents/REQUIREMENTS.md",
+      "sha256": "ACA1582D6069D95C6EC7F7ECF0D01580EFDE90987D4BD95E54F39E713E64E9CA"
+    },
+    {
+      "path": "Blender/CozyRetroRoom/Documents/Goals/01-project-brief.md",
+      "sha256": "83A6D1F397B6984B75DD70546C8A82527038DDE1D91D474636C491549F0D3402"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "Blender/CozyRetroRoom/Documents/Reviews/R01-20261031T095604Z/_evidence/camera.png",
+      "sha256": "9D51727E85C35032A0AFC8FF4859BDD47D5C19DCC742DDBC1D1F7830CB270A02"
+    },
+    {
+      "path": "Blender/CozyRetroRoom/Documents/Reviews/R01-20261031T095604Z/_evidence/scene.txt",
+      "sha256": "064149AC32FDE74390287F2DB6089773A10948AE78CAD1B38B624741B1392DA3"
+    }
+  ],
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10,
+      "report_path": "Blender/CozyRetroRoom/Documents/Reviews/R01-20261031T095604Z/visual/REPORT.md",
+      "task_id": "ses_e6e97f978ffefoE532dUhlL4M3",
+      "dispatch_status": "completed",
+      "verdict": "BLOCKED"
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "max_minutes": 5,
+      "max_steps": 10,
+      "report_path": "Blender/CozyRetroRoom/Documents/Reviews/R01-20261031T095604Z/technical/REPORT.md",
+      "task_id": "ses_e6e97ece2ffeWgSNIJF2K7jHTL",
+      "dispatch_status": "completed",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10,
+      "report_path": "Blender/CozyRetroRoom/Documents/Reviews/R01-20261031T095604Z/spec/REPORT.md",
+      "task_id": "ses_e6e97e0f8ffemAoa82jKNPoS2i",
+      "dispatch_status": "completed",
+      "verdict": "BLOCKED"
+    }
+  ],
+  "dispatch": {
+    "started_utc": "2026-10-31T10:01:00Z",
+    "deadline_utc": "2026-10-31T10:06:00Z",
+    "completed_utc": "2026-10-31T10:09:10Z",
+    "rounds_already_used": 0,
+    "max_parallel": 3,
+    "live_inspection": false
+  },
+  "controller_review": {
+    "render": "Blender/CozyRetroRoom/renders/final/cozyretroroom-review.png",
+    "inspected_with_look": true,
+    "notes": "Initial full scene assembly inspected: room corner, paneling, window, rug, desk, CRT computer, keyboard, lamp, mug, floppies, chair, poster, warm lamp and teal CRT lighting."
+  },
+  "round_verdict": "BLOCKED",
+  "notes": "Evidence frozen before dispatch. Scene is uncommitted; base commit is the last repository commit."
+}
