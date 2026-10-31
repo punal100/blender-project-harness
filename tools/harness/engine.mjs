@@ -121,8 +121,10 @@ export class Harness {
       const cfg = config.blender_subagents?.graders;
       if (config.blender_graders || config.workers || !cfg || cfg.enabled !== true || cfg.agent !== 'blender-grader' || !Array.isArray(cfg.graders) || !cfg.graders.length) deny('grader config missing, legacy, or disabled');
       const names = new Set();
+      const graderSteps = this.agentSteps('blender-grader');
       for (const g of cfg.graders) {
         if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(g.name ?? '') || names.has(g.name) || ['focus', 'provider', 'model', 'variant'].some((k) => typeof g[k] !== 'string' || !g[k].trim()) || !Number.isInteger(g.max_steps) || g.max_steps < 1 || g.max_steps > 12 || !Number.isInteger(g.max_minutes) || g.max_minutes < 1) deny('invalid grader roster');
+        if (graderSteps && g.max_steps > graderSteps) deny('invalid grader roster');
         names.add(g.name);
       }
       if (!Number.isInteger(cfg.max_parallel) || cfg.max_parallel < 1 || cfg.max_parallel > names.size || !Number.isInteger(cfg.max_rounds) || cfg.max_rounds < 1 || cfg.max_rounds > 3) deny('invalid grader limits');
@@ -136,6 +138,12 @@ export class Harness {
     return { workflow, review, roster, maxParallel, maxRounds, specs, goalText };
   }
 
+  agentSteps(name) {
+    const file = contained(this.root, `.kilo/agent/${name}.md`, true);
+    if (!fs.existsSync(file)) return null;
+    const steps = Number(/^steps:\s*(\d+)\s*$/m.exec(fs.readFileSync(file, 'utf8'))?.[1]);
+    return Number.isInteger(steps) ? steps : null;
+  }
   workerConfig() {
     const file = contained(this.root, 'config.json', true);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
@@ -148,11 +156,8 @@ export class Harness {
       || !Number.isInteger(cfg.max_failed_attempts) || ![1, 2].includes(cfg.max_failed_attempts) || cfg.max_parallel !== 1) {
       deny('invalid worker limits; max_parallel must be 1');
     }
-    const agent = contained(this.root, '.kilo/agent/blender-worker.md', true);
-    if (fs.existsSync(agent)) {
-      const steps = Number(/^steps:\s*(\d+)\s*$/m.exec(fs.readFileSync(agent, 'utf8'))?.[1]);
-      if (Number.isInteger(steps) && cfg.max_steps > steps) deny('worker max_steps exceeds agent steps ceiling');
-    }
+    const steps = this.agentSteps('blender-worker');
+    if (steps && cfg.max_steps > steps) deny('worker max_steps exceeds agent steps ceiling');
     return { ...cfg };
   }
   owner(state, session) {
