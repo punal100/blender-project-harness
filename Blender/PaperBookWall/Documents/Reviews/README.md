@@ -45,3 +45,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   state when grading is enabled, with no genuine unresolved blocker or major finding.
 - Commit each completed round's `REVIEW.md`, manifest, reports, and index entry atomically; only
   `_evidence/` and `tmp/` remain ignored.
+
+- R01-20261031T190358Z: Build the full minimal book-wall scene: white room, pale-oak floating shelves, curated paper-neutral books, plant and book-stack props, frontal camera, bright daylight lighting; evidence 5f6d6b8856af1029ff78ffee0239db85b86af5c7f16ea0654075b2f7e871d687

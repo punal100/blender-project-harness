@@ -1,0 +1,80 @@
+{
+  "round": "R01-20261031T190358Z",
+  "created": "2026-10-31T19:03:59.704Z",
+  "previous_round": null,
+  "active_goal": "Blender/PaperBookWall/Documents/Goals/01-project-brief.md",
+  "base_commit": "1d5b4743e30521fbb8f0ab0456bca6833083d42b",
+  "dirty": "M Blender/PaperBookWall/paperbookwall.blend\n?? Blender/PaperBookWall/renders/final/R01-20261031T190358Z.png",
+  "scene": {
+    "path": "Blender/PaperBookWall/paperbookwall.blend",
+    "sha256": "0ad883c845e8d029e6e9603f3b8f694633e0f7021e300fb1988e647e6376083e"
+  },
+  "specs": {
+    "Blender/PaperBookWall/Documents/REQUIREMENTS.md": "3f2eaa5ad9c0a395c90aee50003300442d477bf0318f65b08247fd61637eb480",
+    "Blender/PaperBookWall/Documents/WORKFLOW.md": "1bc2de12d6ef485e445d80a78600da22d2e4d01094b3cd5bf53c28d01d6c94fa",
+    "Blender/PaperBookWall/Documents/REVIEW.md": "7566e9939fa62e87685692cfbc4528dea2ea4e266f8dcb3a69599a1d48e645cf",
+    "Blender/PaperBookWall/Documents/Goals/01-project-brief.md": "29594c51f1095d90212aa207df2e9221d4e875f050df94c6cd660609a6e56dd6"
+  },
+  "evidence": {
+    "Blender/PaperBookWall/renders/final/R01-20261031T190358Z.png": "16c873ad79b54872b16477d9a1a9ac659d665db24a036c5082dda9f294e15dc5",
+    "Blender/PaperBookWall/Documents/Reviews/R01-20261031T190358Z/_evidence/camera.png": "16c873ad79b54872b16477d9a1a9ac659d665db24a036c5082dda9f294e15dc5",
+    "Blender/PaperBookWall/Documents/Reviews/R01-20261031T190358Z/_evidence/scene.txt": "055a18444da35b5107d395c5574bc1953bed956de6cdec3bed65833b87faa336"
+  },
+  "evidence_key": "5f6d6b8856af1029ff78ffee0239db85b86af5c7f16ea0654075b2f7e871d687",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "e88c0509-c28d-47a2-83ca-b242e6bd8e6e",
+      "report": "Blender/PaperBookWall/Documents/Reviews/R01-20261031T190358Z/visual/REPORT.md",
+      "deadline": 1793473764550,
+      "steps": 6,
+      "child": "ses_e6ca682b1ffeUlsxbqvVtHwc0C",
+      "verdict": "BLOCKED"
+    },
+    "technical": {
+      "token": "9a1e042d-0481-4a6c-a9e6-c1c61e5927e6",
+      "report": "Blender/PaperBookWall/Documents/Reviews/R01-20261031T190358Z/technical/REPORT.md",
+      "deadline": 1793473764817,
+      "steps": 10,
+      "child": "ses_e6ca68166ffec1ZkMHb6IIlHgU",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    "spec": {
+      "token": "3428e809-a0fe-4277-984c-c714b13403c0",
+      "report": "Blender/PaperBookWall/Documents/Reviews/R01-20261031T190358Z/spec/REPORT.md",
+      "deadline": 1793473764839,
+      "steps": 9,
+      "child": "ses_e6ca68045ffeUoS26YXg59DYoG",
+      "verdict": "BLOCKED"
+    }
+  },
+  "verdict": "BLOCKED"
+}
