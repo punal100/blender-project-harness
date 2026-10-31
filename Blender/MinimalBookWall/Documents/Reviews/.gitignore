@@ -1,0 +1,3 @@
+# Review previews and temporary data stay local; reports and manifests are tracked.
+**/_evidence/
+**/tmp/
