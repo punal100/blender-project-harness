@@ -45,9 +45,11 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
     README.md
     REQUIREMENTS.md
     WORKFLOW.md
+    REVIEW.md
     ASSETS.md
     DECISIONS.md
     Goals/
+    Reviews/
     References/
   assets/
     external/
@@ -70,6 +72,8 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
 - Workflow mode: [`Documents/WORKFLOW.md`](Documents/WORKFLOW.md), selected before launch and
   re-confirmed only when returning to a paused project.
+- Review mode: [`Documents/REVIEW.md`](Documents/REVIEW.md), `Off`, `All`, or `Single`; grader
+  rounds live in [`Documents/Reviews/`](Documents/Reviews/README.md).
 - Launch from the workspace root with the validated launcher:
   `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`
 - The launcher requires confirmed requirements and selected workflow records, keeps the `.blend`

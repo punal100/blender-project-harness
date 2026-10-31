@@ -16,6 +16,7 @@ folder and do not use coding plan/check/verifier gates.
 - Project README: `../../README.md`
 - Confirmed requirements: `../REQUIREMENTS.md`
 - Workflow mode: `../WORKFLOW.md`
+- Review mode: `../REVIEW.md`
 - Asset register: `../ASSETS.md`
 - Decisions: `../DECISIONS.md`
 - References: `../References/README.md`
@@ -52,8 +53,10 @@ colour, scale, and mood. Name the review image or render that will prove it.
    open question is answered. Call `goal(action="start", objective=<this entire filled prompt>)`; a
    one-line summary is not an objective. A successful goal call ends the turn; continue when the goal
    resumes. Do not repeat start/resume on automatic goal turns or after compaction.
-2. Read the README, `REQUIREMENTS.md`, `WORKFLOW.md`, asset register, decisions, and references.
-3. Stop if requirements are unconfirmed or the workflow mode is `Unset`; resolve both before editing.
+2. Read the README, `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`, asset register, decisions, and
+   references.
+3. Stop if requirements are unconfirmed, the workflow mode is `Unset`, or the review mode is `Unset`;
+   resolve all three before editing.
 4. From the workspace root, launch this project with
    `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`. The launcher validates project records,
    path containment, the workspace port, and one-instance rules.
@@ -65,6 +68,8 @@ colour, scale, and mood. Name the review image or render that will prove it.
    meaningful change. Kilo removes `question` during an active goal: ask the user to run `/goal pause`,
    ask, wait for the answer, then resume with `goal(action="resume")`. If the user modifies the scene
    manually, wait, inspect, and confirm afterward.
+8. When review mode is `All` or `Single`, run `blender-project-grading` after each meaningful saved
+   change and before the approval question. Fix blockers first; record dispositions in `REVIEW.md`.
 8. Save, render a review image, and inspect it before calling the goal complete.
 9. Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `DECISIONS.md`, and `ASSETS.md`. Review git changes
    at milestones and commit atomically after each verified change: one logical change per commit. Once

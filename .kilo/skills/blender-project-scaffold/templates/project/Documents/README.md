@@ -7,7 +7,9 @@ deliverable.
 |---|---|
 | `REQUIREMENTS.md` | Confirmed scope, acceptance criteria, research notes, and requirement change log. |
 | `WORKFLOW.md` | Current autonomy mode and workflow switch history. |
+| `REVIEW.md` | Review mode (`Off`, `All`, `Single`) and grader selection. |
 | `Goals/` | `/goal` prompts for design work. One file per goal; multiple goals per project. |
+| `Reviews/` | Timestamped grader rounds: manifests, verdicts, findings, ignored evidence. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
 | `References/` | Moodboards, screenshots, links, and visual references. |
@@ -18,12 +20,15 @@ deliverable.
 - Do not scaffold or launch Blender until requirements are confirmed.
 - Confirmation means `Status: Confirmed`, a `Confirmed: YYYY-MM-DD` date, and the exact
   `Confirmation:` response and scope in `REQUIREMENTS.md`.
-- Before Blender work, ensure a goal is active and a workflow mode is selected.
+- Before Blender work, ensure a goal is active, a workflow mode is selected, and the review mode is
+  not `Unset`.
 - Requirements may be added or changed at any time only after user confirmation; append the change
   log in `REQUIREMENTS.md`.
 - Record sources used during requirements in `REQUIREMENTS.md`; user confirmation, not research,
   decides scope.
 - In Partially Autonomous mode, ask for approval after every meaningful change or addition.
+- Grade saved work with the configured graders when review mode is `All` or `Single`; commit each
+  round's reports and manifest. Only preview evidence under `Reviews/**/_evidence/` is ignored.
 - A goal prompt is a design brief, not a coding plan. Do not create `PLAN/` or planning records.
 - Record every external asset in `ASSETS.md` before or when it is added.
 - Use relative paths from the `.blend` file; never commit machine-specific absolute paths. Packed or
