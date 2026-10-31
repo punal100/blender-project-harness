@@ -2,7 +2,6 @@
 /config.json
 
 # Workspace runtime and local state
-**/.kilo/blender.lock.json
 **/.kilo/*.log
 **/logs/**
 **/__pycache__/

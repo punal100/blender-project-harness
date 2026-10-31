@@ -1,13 +1,17 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { findBlender, instanceStatus } from './blender.mjs';
+import { scaffold } from './scaffold.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 
 function fail(message) {
-  throw new Error(`Doctor: ${message}`);
+  throw new Error(`Harness: ${message}`);
 }
 
 function commandAvailable(command, args = ['--version']) {
@@ -19,6 +23,11 @@ function commandAvailable(command, args = ['--version']) {
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
   catch (error) { fail(`invalid JSON ${path.relative(root, file)}: ${error.message}`); }
+}
+
+function stateHome() {
+  const key = crypto.createHash('sha256').update(root.toLowerCase()).digest('hex');
+  return path.join(os.homedir(), '.local', 'state', 'blender-workflow-harness', key);
 }
 
 function checkPackage() {
@@ -51,9 +60,53 @@ function doctor() {
   commandAvailable('git');
   commandAvailable('uvx');
   checkUpstream();
-  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6' }, null, 2) + '\n');
+  const blender = findBlender();
+  const instance = instanceStatus(stateHome());
+  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6', blender, instance }, null, 2) + '\n');
 }
 
-if (process.argv[2] !== 'doctor') fail('usage: node tools/harness/cli.mjs doctor');
-try { doctor(); }
+function parseOptions(args) {
+  const options = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index];
+    if (!token.startsWith('--')) fail(`unexpected argument: ${token}`);
+    const key = token.slice(2).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (key === 'dryRun') { options.dryRun = true; continue; }
+    const value = args[index + 1];
+    if (value === undefined || value.startsWith('--')) fail(`missing value for ${token}`);
+    options[key] = value;
+    index += 1;
+  }
+  return options;
+}
+
+async function main() {
+  const command = process.argv[2];
+  if (command === 'doctor') return doctor();
+  if (command === 'scaffold') {
+    const options = parseOptions(process.argv.slice(3));
+    if (!options.name) fail('usage: node tools/harness/cli.mjs scaffold --name "Project Name" [--description "..."] [--goal "..."] [--goal-title "..."] [--dry-run]');
+    const result = scaffold(root, {
+      name: options.name,
+      description: options.description,
+      goal: options.goal,
+      goalTitle: options.goalTitle,
+      dryRun: Boolean(options.dryRun),
+    });
+    if (result.dryRun) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    else {
+      process.stdout.write(`Created Blender project: ${result.destination}\n\n`);
+      process.stdout.write('Next:\n');
+      process.stdout.write('1. Write confirmed requirements and confirmation evidence to Documents/REQUIREMENTS.md.\n');
+      process.stdout.write('2. Record the selected workflow mode and exact response in Documents/WORKFLOW.md.\n');
+      process.stdout.write('3. Record the selected review mode in Documents/REVIEW.md; name the grader for Single mode.\n');
+      process.stdout.write('4. Fill README.md and the goal file, commit them, then call blender_workflow prepare.\n');
+      process.stdout.write(`5. After registration and goal start, launch with blender_workflow {action:"launch"}.\n`);
+    }
+    return undefined;
+  }
+  fail('usage: node tools/harness/cli.mjs doctor | scaffold --name "Project Name"');
+}
+
+try { await main(); }
 catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }
