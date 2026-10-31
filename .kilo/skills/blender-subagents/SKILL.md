@@ -63,7 +63,7 @@ Independent review uses `blender-grader`, configured separately from the worker:
   "blender_graders": {
     "agent": "blender-grader",
     "enabled": true,
-    "max_parallel": 3,
+    "max_parallel": 1,
     "max_rounds": 2,
     "graders": [
       {
@@ -87,14 +87,22 @@ Independent review uses `blender-grader`, configured separately from the worker:
   integer limits, `max_steps` at or below the grader agent's `steps`, `max_parallel` at most the
   grader count, `max_rounds` 1-3. Never drop a grader or substitute a model silently.
 - Resolve each grader's model, provider, and variant with `agent_manager_models` before dispatch.
-- Graders are read-only and may run in parallel. Dispatch all selected graders in one message with
-  multiple `task` calls, each writing only its own `Documents/Reviews/<round>/<grader>/REPORT.md`.
+- Per-task model, provider, and variant overrides require the user's explicit request. If absent,
+  verify supported inheritance matches the configured roster or stop grading; never silently use
+  a different model. Apply this same restriction to resumed tasks.
+- Graders are read-only and may run in parallel. Dispatch selected graders in batches no larger than
+  `max_parallel`, using multiple `task` calls per batch. Each writes only its own
+  `Documents/Reviews/<round>/<grader>/REPORT.md`.
 - Store each returned `task_id` in the round manifest and resume the same session for a re-review
   when model and focus are unchanged.
 - One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
   missing spec/evidence. Graders never loop or ask the user.
 - A single blocker fails the round regardless of other PASS verdicts. The controller, not a vote
   count, records the final verdict and every finding's disposition.
+
+Workspace-maintenance tasks may use `general`, or read-only `explore`, without the Blender worker/grader
+roster. Assign bounded, non-overlapping scopes; forbid Blender access and commits. Do not treat this
+exception as permission to substitute these agents for production workers or graders.
 
 ## Design authority
 
