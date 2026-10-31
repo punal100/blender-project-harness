@@ -368,6 +368,26 @@ class IgnoreTests(unittest.TestCase):
                                             capture_output=True)
                     self.assertEqual(result.returncode, int(not ignored), name)
 
+    def test_review_evidence_ignored_reports_tracked(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reviews = root / "Documents/Reviews"
+            reviews.mkdir(parents=True)
+            shutil.copy2(ROOT / TEMPLATE / ".gitignore", root / ".gitignore")
+            shutil.copy2(ROOT / TEMPLATE / "Documents/Reviews/.gitignore", reviews / ".gitignore")
+            subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+            for name, ignored in (
+                ("Documents/Reviews/R01-20261031T081500Z/_evidence/camera.png", True),
+                ("Documents/Reviews/R01-20261031T081500Z/_evidence/scene.txt", True),
+                ("Documents/Reviews/R01-20261031T081500Z/visual/tmp/notes.md", True),
+                ("Documents/Reviews/R01-20261031T081500Z/manifest.json", False),
+                ("Documents/Reviews/R01-20261031T081500Z/REVIEW.md", False),
+                ("Documents/Reviews/R01-20261031T081500Z/visual/REPORT.md", False),
+            ):
+                result = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", "--", name],
+                                        capture_output=True)
+                self.assertEqual(result.returncode, int(not ignored), name)
+
 
 class WorkspaceContractTests(unittest.TestCase):
     def test_python_tools_parse_without_creating_bytecode(self):
@@ -433,6 +453,79 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertLessEqual(config["max_steps"], metadata["steps"])
                 self.assertIn(config["max_failed_attempts"], (1, 2))
                 self.assertEqual(config["max_parallel"], 1)
+
+    @unittest.skipUnless(yaml, "PyYAML required for grader validation")
+    def test_grader_agent_is_read_only_and_bounded(self):
+        agent = yaml.safe_load(
+            (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8").split("---", 2)[1]
+        )
+        self.assertEqual(agent["mode"], "subagent")
+        self.assertIs(agent["hidden"], True)
+        self.assertIs(type(agent["steps"]), int)
+        self.assertGreater(agent["steps"], 0)
+        permissions = agent["permission"]
+        for tool in ("task", "agent_manager", "goal", "goal_report", "question", "bash",
+                     "external_directory", "blender_execute_blender_code", "blender_import_asset",
+                     "blender_generate_3d", "mediamcp_*", "generate_image"):
+            self.assertEqual(permissions[tool], "deny", tool)
+        edit_rules = list(permissions["edit"].items())
+        self.assertEqual(edit_rules[0], ("*", "deny"))
+        allow_index = edit_rules.index(("Blender/**/Documents/Reviews/**", "allow"))
+        self.assertGreater(allow_index, edit_rules.index(("*", "deny")))
+        for pattern in ("Blender/**/Documents/Reviews/**/_evidence/**",
+                        "Blender/**/Documents/Reviews/**/tmp/**"):
+            self.assertIn((pattern, "deny"), edit_rules)
+            self.assertGreater(edit_rules.index((pattern, "deny")), allow_index)
+        body = (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8")
+        for expected in ("REPORT.md", "PASS", "CHANGES_REQUIRED", "BLOCKED"):
+            self.assertIn(expected, body)
+
+    @unittest.skipUnless(yaml, "PyYAML required for grader validation")
+    def test_grader_config_example_is_valid(self):
+        agent = yaml.safe_load(
+            (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8").split("---", 2)[1]
+        )
+        graders = json.loads(
+            (ROOT / "config.example.json").read_text(encoding="utf-8-sig")
+        )["blender_graders"]
+        self.assertEqual(graders["agent"], "blender-grader")
+        self.assertIs(type(graders["enabled"]), bool)
+        roster = graders["graders"]
+        self.assertTrue(1 <= len(roster) <= 7)
+        self.assertIs(type(graders["max_parallel"]), int)
+        self.assertTrue(1 <= graders["max_parallel"] <= len(roster))
+        self.assertIs(type(graders["max_rounds"]), int)
+        self.assertTrue(1 <= graders["max_rounds"] <= 3)
+        names = [item["name"] for item in roster]
+        self.assertEqual(len(names), len(set(names)))
+        for item in roster:
+            with self.subTest(grader=item["name"]):
+                self.assertRegex(item["name"], r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+                self.assertTrue(item["focus"].strip())
+                for field in ("provider", "model", "variant"):
+                    self.assertIsInstance(item[field], str)
+                    self.assertTrue(item[field].strip(), field)
+                for field in ("max_minutes", "max_steps"):
+                    self.assertIs(type(item[field]), int, field)
+                    self.assertGreater(item[field], 0, field)
+                self.assertLessEqual(item["max_steps"], agent["steps"])
+
+    def test_review_mode_and_round_templates(self):
+        review = (ROOT / TEMPLATE / "Documents/REVIEW.md").read_text(encoding="utf-8")
+        for expected in ("Mode: Unset", "Single grader:", "`Off`", "`All`", "`Single`"):
+            self.assertIn(expected, review)
+        rounds = (ROOT / TEMPLATE / "Documents/Reviews/README.md").read_text(encoding="utf-8")
+        for expected in ("manifest.json", "REVIEW.md", "REPORT.md", "_evidence/"):
+            self.assertIn(expected, rounds)
+        ignore = (ROOT / TEMPLATE / "Documents/Reviews/.gitignore").read_text(encoding="utf-8")
+        self.assertIn("**/_evidence/", ignore)
+        self.assertIn("**/tmp/", ignore)
+        brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")
+        self.assertIn("`../REVIEW.md`", brief)
+        self.assertIn("review mode is `Unset`", brief)
+        scaffold = (ROOT / ".kilo/skills/blender-project-scaffold/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Documents/REVIEW.md", scaffold)
+        self.assertIn("Reviews/", scaffold)
 
     def test_atomic_commit_policy_is_mandatory(self):
         policy_files = [ROOT / "AGENTS.md", ROOT / "README.md",
