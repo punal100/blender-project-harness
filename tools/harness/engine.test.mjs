@@ -646,14 +646,18 @@ test('registration rejects takeover of project owned by another active orchestra
   }));
 });
 
-test('two registered projects cannot open concurrent logical changes', (t) => {
+test('registered projects open independent logical changes', (t) => {
   const f = useFixture(t);
   const other = { ...f, ...createProject(f.root, { name: 'Other' }) };
   commit(f.root, 'second scaffold', [other.project]);
   activate(f);
   activate(other, 'other-orchestrator');
-  begin(f);
-  gate(() => begin(other, 'other-orchestrator'));
+  const first = begin(f);
+  const second = begin(other, 'other-orchestrator');
+  assert.notEqual(first.change.id, second.change.id);
+  assert.equal(f.harness.command('orchestrator', 'status').change.id, first.change.id);
+  assert.equal(f.harness.command('other-orchestrator', 'status').change.id, second.change.id);
+  gate(() => begin(f));
 });
 
 test('contained and project methods reject traversal and symlink paths', (t) => {

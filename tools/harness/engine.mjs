@@ -246,7 +246,7 @@ export class Harness {
         if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
         p.escalation = { requested: Date.now(), reason: args.reason };
       } else if (action === 'begin') {
-         if (c || p.complete || p.escalation || !p.goalActive || Object.values(s.projects).some((other) => other.change)) deny('one open logical change allowed; prior checkpoint and active goal required');
+         if (c || p.complete || p.escalation || !p.goalActive) deny('one open logical change per project; prior checkpoint and active goal required');
         if (typeof args.outcome !== 'string' || !args.outcome.trim() || args.outcome.length > 1000 || !Array.isArray(args.objects) || args.objects.length > 200 || args.objects.some((n) => typeof n !== 'string' || !/^[\x20-\x7e]{1,100}$/.test(n))) deny('bounded outcome and exact object names required');
         if (!Array.isArray(args.paths) || !args.paths.length || args.paths.length > 100) deny('exact project-relative file paths required');
         const paths = [...new Set(args.paths.map((name) => {
