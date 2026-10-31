@@ -70,9 +70,9 @@ colour, scale, and mood. Name the review image or render that will prove it.
 3. Stop if requirements are unconfirmed, either mode is `Unset`, or required grader configuration is
    missing or disabled for `All` or `Single`. Resolve the mismatch before editing. Inspect harness
    `status` before launch and after compaction/restart; never recreate or manually edit external state.
-4. From the workspace root, launch this project with
-   `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`. The launcher validates project records,
-   path containment, the workspace port, and one-instance rules.
+4. Launch this project with `blender_workflow` `{action:"launch"}` and stop it with `{action:"stop"}`.
+   The harness validates project records, path containment, the workspace port, and one-instance
+   rules; never invoke Blender from the shell.
 5. Call `blender_get_addon_status` and `blender_get_scene_info(fields=["settings"])`. Stop on
    connection, addon, or file mismatch. For a new unsaved scene, save to this project's declared
    `.blend` through a bounded `begin` and ticketed `save` first, then verify that exact path before

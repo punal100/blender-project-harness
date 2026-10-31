@@ -17,7 +17,7 @@ at `Blender/<Project>/README.md`.
 - Visual direction: style, references, colour, lighting, camera, scale.
 - Deliverables: main `.blend`, final renders, exports, documents.
 - Project structure: the actual folders and the authoritative `.blend`.
-- Blender: workspace MCP port from the root config, launch command, live log terminal and ignored
+- Blender: workspace MCP port from the root config, harness launch/stop, run log and ignored
   `logs/` folder, main file, relative-path rule, and the one-active-instance rule.
 - Workflow: link to `Documents/WORKFLOW.md` and `Documents/REVIEW.md`; state the selected autonomy
   and review modes and link to the review-round index.

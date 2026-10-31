@@ -70,12 +70,12 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 ## Blender
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
-- Launch from the workspace root with the validated launcher:
-  `.\tools\start-blender.cmd "Blender\{{PROJECT_NAME}}"`
+- Launch and stop with `blender_workflow` `launch`/`stop`; never invoke Blender from the shell.
 - Before launch, require confirmed requirements, selected workflow and review records, and an active
-  filled goal. The launcher validates project records, keeps the `.blend`
-  inside this project, reads the workspace MCP port, and rejects conflicting workspace instances.
-- Each launch opens a log terminal and writes to `logs/blender-<timestamp>.log`; `logs/` is ignored.
+  filled goal. The harness validates project records, keeps the `.blend` inside this project, reads
+  the workspace MCP port, records the instance outside the repository, and rejects conflicting
+  workspace instances.
+- Each launch writes `logs/blender-<timestamp>.log`; `logs/` is ignored.
 - Main file: save the first scene as `{{PROJECT_SLUG}}.blend` in the project root. Before production
   edits, verify MCP scene settings report that exact path; then replace the planned status above.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.

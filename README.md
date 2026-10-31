@@ -2,7 +2,7 @@
 
 This workspace takes you from an idea to a finished Blender scene, with Kilo and MCP for Blender
 handling the building and checking along the way. Each project lives in its own folder under
-`Blender/<ProjectName>/`, and the shared launchers and checks live in `tools/`.
+`Blender/<ProjectName>/`, and the shared MCP harness and checks live in `tools/harness/`.
 
 `AGENTS.md` holds the internal rules the agent follows. You bring the creative brief, constraints,
 answers, feedback, and approvals. The agent turns those into project documents and goals, runs the
@@ -72,7 +72,7 @@ Open Blender and enable **Interface: MCP for Blender** under **Edit > Preference
 (search for `MCP for Blender`). Restart Blender once it is enabled.
 
 This workspace routes MCP through `.kilo/kilo.jsonc`, which sets `BLENDER_PORT` (default `9877`).
-The launcher and the addon both use that value, so you can change it to any free port as long as it
+The harness and the addon both use that value, so you can change it to any free port as long as it
 stays in one place. Please don't create a project-local Kilo config or run a second MCP server. If
 you installed `uvx` or the addon while Kilo was open, fully reload Kilo so it picks up the new PATH
 and workspace configuration.
@@ -96,7 +96,7 @@ From there, the agent takes over:
 
 - it asks only for the requirements and decisions it genuinely needs from you;
 - creates the project, goal files, requirements, workflow, and review records;
-- starts Blender through the validated workspace launcher;
+- launches and stops Blender through the guarded harness, tracking one instance per workspace;
 - builds and checks the scene through the guarded MCP workflow;
 - saves renders and review evidence, keeps the project documents current, and tells you about any
   blockers or corrections.
@@ -108,8 +108,8 @@ goals as the work changes.
 ## House rules
 
 - Keep every Blender project under `Blender/<ProjectName>/`.
-- Let the agent start Blender with `tools/start-blender.cmd`; don't launch `blender.exe` directly
-  for workspace work.
+- Let the agent launch and stop Blender through `blender_workflow`; don't run `blender.exe` or any
+  script directly for workspace work.
 - Run only one Blender instance from this workspace at a time.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.
@@ -132,9 +132,9 @@ Common fixes:
 - **Harness dependency missing:** run `npm ci --prefix tools/harness` again.
 - **Addon or port error:** reinstall with
   `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and reload
-  Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc` in sync with the launcher.
-- **Blender not found:** point `BLENDER_EXE` at your installed Blender executable, then let the
-  workspace launcher start Blender.
+  Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc`; the harness reads it for launch and addon startup.
+- **Blender not found:** point `BLENDER_EXE` at your installed Blender executable, then relaunch
+  with `blender_workflow`.
 
 ## What's in the repo
 
@@ -143,7 +143,7 @@ AGENTS.md                 Internal agent contract
 README.md                 This human setup guide
 .kilo/                    Workspace Kilo config, skills, agents, and plugin
 Blender/                  Blender project collection
-tools/                    Project scaffold, launcher, MCP bootstrap, and tests
+tools/                    Workspace checks and the guarded harness
 tools/harness/             Guarded Node.js workflow and MCP bridge
 ```
 

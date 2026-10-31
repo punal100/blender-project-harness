@@ -21,10 +21,10 @@ but must never launch Blender.
 From the workspace root:
 
 ```powershell
-.\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request" -GoalTitle "Initial Brief"
+node tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request" --goal-title "Initial Brief"
 ```
 
-The script:
+The command:
 
 - validates the folder name and builds a slug;
 - creates `Blender/<ProjectName>/`;
@@ -99,8 +99,8 @@ temp-file copies.
    turn. Continue on the next goal turn and inspect harness `status` before launch. Register confirmed
    asset metadata with `blender-assets`; imports/generation stay blocked until reviewed tooling
    supports them, even when launch preflight passes.
-7. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
-8. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
+7. Launch with `blender_workflow` `{action:"launch"}`; stop with `{action:"stop"}`. Never run Blender or a script from the shell.
+8. The harness writes the run log to the project's ignored `logs/` folder; inspect it on startup failure.
 9. Verify addon and scene settings. For a new unsaved scene, open a bounded harness `begin`, use
    ticketed `save` as `<slug>.blend` at the project root, verify that exact path, commit the scene
    with its declared paths, and close the change with `checkpoint`; the runtime records it as

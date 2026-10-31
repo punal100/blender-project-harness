@@ -119,7 +119,7 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
 - Scope: in, out, and external dependencies.
 - Deliverables: scene, review render, exports, documents.
 - Acceptance checks that can be seen in a render or read from a file.
-- Workflow: launch from the workspace root and verify the open file. The initial unsaved scene is
+- Workflow: launch with `blender_workflow` `launch` and verify the open file. The initial unsaved scene is
   one bounded change: ticketed `save`, scoped commit, then `checkpoint` recorded as `BOOTSTRAP`; never
   seal or grade that empty state. After that, save after every meaningful change and before risky work
   through ticketed harness operations, seal, inspect the returned final PNG with `blender_look`, and

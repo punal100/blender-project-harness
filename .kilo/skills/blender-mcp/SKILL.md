@@ -31,13 +31,11 @@ project/goal/review gates and must not launch or modify Blender unless separatel
    libraries/generators from the actual response; do not assume a particular response field exists.
 2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative
    file path. Use `query`, `root`, `fields`, and `limit` for later targeted checks.
-3. On a connection failure, stop scene work. The orchestrator may launch the declared project through:
-   ```powershell
-   .\tools\start-blender.cmd "Blender\<project-folder>"
-   ```
-   Do not launch `blender.exe` directly. The launcher discovers Blender, reads the workspace port,
-   sets the addon port, opens a live log terminal, writes the log to the project's ignored `logs/`
-   folder, and allows only one Blender instance from this workspace at a time.
+3. On a connection failure, stop scene work. The orchestrator relaunches with `blender_workflow`
+   `{action:"launch"}` or stops with `{action:"stop"}`. Do not invoke `blender.exe` or any script
+   from the shell. The harness discovers Blender, reads the workspace port, sets the addon port,
+   writes the run log to the project's ignored `logs/` folder, records instance metadata outside the
+   repository, and allows only one Blender instance from this workspace at a time.
 4. Retry preflight after launch. Stop on addon or file mismatch; never edit the wrong scene. For a
    new unsaved startup scene, open a bounded `begin` and use ticketed `save` to the declared project
    `.blend` first, then verify that path
@@ -150,8 +148,8 @@ Do not disable safe mode or add credentials, tokens, or private data to scripts 
 
 ## Troubleshooting
 
-- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. The orchestrator must use `.\tools\start-blender.cmd "Blender\<project-folder>"` and confirm the workspace `BLENDER_PORT`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
-- **Addon outdated**: run `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender through the launcher.
+- **Connection refused**: the addon server is stopped, on another port, or the MCP server started before Blender. Stop with `blender_workflow` `{action:"stop"}`, confirm the workspace `BLENDER_PORT`, then `{action:"launch"}`; workers must return `BLOCKED`. Reload the Kilo window if the MCP server was already running against the wrong port.
+- **Addon outdated**: run `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, then stop and relaunch with `blender_workflow`.
 - **Asset source unavailable**: the library toggle is off in the addon sidebar. Ask the user before enabling it.
 - **Generator unavailable**: no API key or premium access is configured. Report the missing provider; do not retry blindly.
 - **`look` fails**: inspect harness `status` and retry the exact sealed render path when safe. A viewport
