@@ -38,7 +38,8 @@ manage goal commands or copy goal prompts.
    its phase; changed registration facts require explicit re-registration while paused.
 5. For new work, write the filled goal prompt and start the production goal only after requirements,
    workflow, and review records are complete, scaffold documents and goal are committed, and runtime
-   registration is granted. Follow the canonical harness contract in `AGENTS.md`.
+   registration is granted. Follow the hard invariants in `AGENTS.md` and the runtime contract in
+   `blender-workflow-harness`.
 6. Successful goal start/resume ends the current turn. Give a short response and continue when the
    goal resumes; do not call more tools or perform more work in that turn.
 7. If a goal tool is unavailable or fails, report the exact error and stop production; a written
@@ -141,7 +142,7 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
   orchestrator resume only after required answers permit continuation. Do not reselect modes for
   routine approval handoffs within the same active task.
 - Never invent user confirmation or a session directive to bypass these gates.
-- Production uses orchestrator-only harness operations under `AGENTS.md`; raw Python, imports, and
+- Production uses orchestrator-only harness operations under `blender-workflow-harness`; raw Python, imports, and
   generation are blocked. Unsupported operations stop until tooling is reviewed and extended.
   Maintenance remains exempt, without Blender access.
 - This is a design goal, not a coding plan. Do not create `PLAN/` or plan-check/verifier records.

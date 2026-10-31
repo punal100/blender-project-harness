@@ -10,8 +10,9 @@ Use the `blender` MCP server to operate the user's open Blender. The server is `
 
 This skill is required before any Blender scene operation. Do not rely on general Blender knowledge instead.
 
-`AGENTS.md` defines the canonical runtime harness contract. Workspace maintenance is exempt from
-project/goal/review gates and must not launch or modify Blender unless separately requested.
+`AGENTS.md` defines hard invariants; `blender-workflow-harness` defines the runtime contract.
+Workspace maintenance is exempt from project/goal/review gates and must not launch or modify Blender
+unless separately requested.
 
 ## Preflight
 

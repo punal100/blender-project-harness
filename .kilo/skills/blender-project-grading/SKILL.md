@@ -9,8 +9,9 @@ Independent graders review saved work against confirmed requirements. They do no
 orchestrator's own `look` inspection, and they never edit the scene. The orchestrator owns design,
 acceptance, fixes, approvals, and commits.
 
-`AGENTS.md` defines the canonical harness contract. Workspace maintenance and read-only questions
-need no project goal or Blender review; do not launch Blender for those checks.
+`AGENTS.md` defines hard invariants; `blender-workflow-harness` defines the runtime contract.
+Workspace maintenance and read-only questions need no project goal or Blender review; do not launch
+Blender for those checks.
 
 ## When to grade
 

@@ -15,7 +15,7 @@ exempt from this project gate.
 - Follow `blender-project-goal` for goal recording and its turn boundary. Do not start the goal
   before requirements, workflow, and review records are complete.
 - If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
-- Follow `AGENTS.md` for the canonical runtime harness contract. Before launch, commit completed
+- Follow `AGENTS.md` for hard invariants and `blender-workflow-harness` for the runtime contract. Before launch, commit completed
   scaffold/goal records, call `blender_workflow` `prepare`, and ask its exact registration question
   with exact labels as one single-select question; omit `custom`/`multiple` or set them false where
   the tool exposes them. Only runtime answers grant registration.

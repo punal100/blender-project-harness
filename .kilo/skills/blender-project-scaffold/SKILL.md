@@ -105,7 +105,7 @@ temp-file copies.
    ticketed `save` as `<slug>.blend` at the project root, verify that exact path, commit the scene
    with its declared paths, and close the change with `checkpoint`; the runtime records it as
    `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty scene. Update README
-   from planned to saved. Stop on connection, addon, or file mismatch. Follow `AGENTS.md`: each
+   from planned to saved. Stop on connection, addon, or file mismatch. Follow `blender-workflow-harness`: each
    later change seals immutable evidence, inspects its returned final PNG, completes review/approval,
    and commits exact scoped paths before `checkpoint` and the next `begin`. Failed rounds commit
    before fixes; no late mega-commit.

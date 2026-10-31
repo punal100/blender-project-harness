@@ -8,7 +8,7 @@ description: Use when the orchestrator session delegates Blender work to bounded
 The current session is the orchestrator. It owns requirements, design, scope, acceptance, user
 communication, and commits. A `blender-worker` subagent executes one specific task and returns.
 
-Current harness operations are orchestrator-only under `AGENTS.md`. Workers perform read-only
+Current harness operations are orchestrator-only under `AGENTS.md` and `blender-workflow-harness`. Workers perform read-only
 inspection; `blender_execute_blender_code`, `blender_workflow`, and `blender_harness_execute` stay
 denied. Delegated writes require explicit assignment plus reviewed tooling and narrowly scoped
 permissions, not an ad hoc allow rule. Unsupported work returns `BLOCKED`; no arbitrary Python fallback.
