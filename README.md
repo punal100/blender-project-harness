@@ -1,218 +1,146 @@
-# Blender Project Harness
+# Blender Project Workspace
 
-Workspace template for building Blender projects with Kilo AI agents and
-[MCP for Blender](https://github.com/ahujasid/mcp-for-blender). Projects live under
-`Blender/<ProjectName>/`; shared launcher, scaffolding, and regression tests live under `tools/`.
+Human-facing workspace for creating Blender projects with Kilo and MCP for Blender.
+Projects live under `Blender/<ProjectName>/`. Shared launchers and checks live under `tools/`.
 
-Not affiliated with the Blender Foundation or the mcp-for-blender project.
+`AGENTS.md` contains internal agent rules. Humans provide the creative brief, constraints, answers,
+feedback, and approvals. The agent creates project documents and goals, runs the workflow, updates
+records, operates Blender, and reports progress.
 
-## Requirements
+## Quick Start: Fresh Windows PC
 
-- Windows with Blender installed. The launcher auto-discovers it; set `BLENDER_EXE` only to override.
-- PowerShell 7 or Windows PowerShell. The validated PowerShell launcher is required; unsupported
-  `--batch` and `KILO_BLENDER_FORCE_CMD` paths fail instead of bypassing project checks.
-- Kilo with the workspace Blender MCP configured in `.kilo/kilo.jsonc`.
-- Node.js 22 or newer and npm for `tools/harness/` and the auto-loaded
-  `.kilo/plugins/blender-workflow.js` plugin.
-- `uvx` on `PATH` for the configured `mcp-for-blender` server, plus the matching Blender addon.
+Install these once on a new PC:
 
-The enabled-only `mediamcp` entry inherits its full server definition from user-level Kilo config;
-this repository does not contain its command or credentials. Configure that optional integration
-globally before using it, or disable its workspace entry when unavailable. Never copy credentials
-into tracked config. The disabled Playwright entry overrides any inherited server.
+1. **Git** — install from [git-scm.com/download/win](https://git-scm.com/download/win).
+2. **Blender** — install the current stable or LTS Windows build from
+   [blender.org/download](https://www.blender.org/download/). Use the Windows installer. Blender
+   3.0 or newer is required by MCP for Blender.
+3. **Node.js and npm** — install the current LTS Windows installer from
+   [nodejs.org/download](https://nodejs.org/en/download). This repository requires Node.js 22 or
+   newer; npm is included with Node.js.
+4. **uv and uvx** — install the Windows package manager with PowerShell:
 
-## Quick start
+   ```powershell
+   winget install --id=astral-sh.uv -e
+   ```
 
-Install harness dependencies from the workspace root, then reload Kilo to load the plugin, custom
-`blender_workflow` tool, and `blender_harness_execute` MCP bridge:
+   Close and reopen PowerShell after installation. Confirm both commands work:
+
+   ```powershell
+   git --version
+   node --version
+   npm --version
+   uvx --version
+   ```
+
+5. **Kilo** — choose one client:
+
+   - Install [VS Code](https://code.visualstudio.com/download), then install the **Kilo Code**
+     extension from [kilo.ai/install](https://kilo.ai/install).
+   - Or install the CLI from PowerShell:
+
+     ```powershell
+     npm install -g @kilocode/cli
+     kilo --version
+     ```
+
+   Sign in or configure a model provider through Kilo. Keep provider credentials in Kilo's user
+   configuration; never put them in this repository.
+
+## Install This Workspace
+
+Clone the repository, open PowerShell in its root, and install the locked local Node dependencies:
 
 ```powershell
+git clone <repository-url>
+Set-Location <repository-folder>
 npm ci --prefix tools/harness
 npm run doctor --prefix tools/harness
 ```
 
-Setup instructions do not prove installation or runtime validation. Verify tool availability after
-reload; stop production if the plugin or bridge is unavailable.
+The doctor command checks Node.js, npm-installed harness packages, Git, uvx, the workspace config,
+and pinned `mcp-for-blender==2.2.6`. It does not open Blender.
 
-`npm run doctor --prefix tools/harness` checks Node, locked harness dependencies, workspace routing,
-Git, `uvx`, and the pinned `mcp-for-blender==2.2.6` command. It does not start Blender or prove that
-the live addon is listening; perform that check only through the validated launcher after registration.
+## Install MCP for Blender
 
-Confirm project requirements with the agent first, then select workflow and review modes. Keep the
-exact answers until scaffolding exists. After creating the project, persist all three records before
-opening Blender: requirements need `Status: Confirmed`, `Confirmed: YYYY-MM-DD`, and the exact
-`Confirmation:` response; mode records need their selected mode and date.
-
-Create a project:
+Install the addon into Blender:
 
 ```powershell
-.\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
+uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon
 ```
 
-Fill the goal and project documents. Inspect `git status`, `git diff`, and `git log --oneline -10`,
-then commit exact scaffold paths before launch. Call `blender_workflow` `prepare` with only
-`{project:"Blender/ProjectName",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
-payload. Use the actual goal and scene paths. Pass its exact registration question and labels to
-`question` (`custom:false,multiple:false`). Only genuine runtime answers register the project, never
-approved JSON. Start/resume the registered goal, end that turn, then inspect harness `status` before
-opening Blender:
+Open Blender, then enable **MCP for Blender** in **Edit > Preferences > Add-ons**. Search for
+`MCP for Blender` and enable **Interface: MCP for Blender**. Restart Blender after enabling it.
 
-```powershell
-.\tools\start-blender.cmd "Blender\ProjectName"
-```
+This workspace routes MCP through `.kilo/kilo.jsonc` and expects port `9877`. Do not create a
+project-local Kilo config or run a second MCP server. If `uvx` or the addon was installed while Kilo
+was open, fully reload Kilo so it sees the new PATH and workspace configuration.
 
-The launcher validates project containment, confirmation records, workflow/review selection, `.blend` paths,
-the workspace MCP port, reparse points, active ports, and existing workspace Blender processes before
-opening a live log terminal. It writes the session log to the project's ignored
-`logs/blender-<timestamp>.log` and allows only one Blender instance spawned by this workspace at a time.
+## Start Working
 
-## Layout
+Open this repository folder in Kilo and reload the workspace after installing dependencies. Describe
+what you want to build. Include the subject, style, important objects, camera or lighting
+preferences, dimensions, and required deliverables when known.
+
+Example:
 
 ```text
-.
-  AGENTS.md
-  README.md
-  .gitignore
-  .kilo/
-    kilo.jsonc
-    agent/
-      blender-worker.md
-      blender-grader.md
-    skills/
-    plugins/
-      blender-workflow.js
-  Blender/
-    README.md
-    <Project>/
-  tools/
-    harness/
-    new-blender-project.cmd
-    new-blender-project.ps1
-    start-blender.cmd
-    start-blender.ps1
-    start-blender-log.ps1
-    start_blender_mcp.py
+Create a small cozy retro computer room. Use warm lamp light, a cool window accent, a desk with a
+CRT monitor, keyboard, mug, chair, rug, and wall decor. Make one hero camera view and save the scene
+inside a new Blender project.
 ```
 
-Keep the workspace root for documentation and configuration. Project files, renders, exports, and
-logs belong inside their project folder.
+The agent handles the rest:
 
-## Documentation
+- asks only for requirements or decisions that need your input;
+- creates the project, goal files, requirements, workflow, and review records;
+- starts Blender through the validated workspace launcher;
+- builds and checks the scene through the guarded MCP workflow;
+- saves renders and review evidence, updates project documents, and reports blockers or corrections.
 
-- [`AGENTS.md`](AGENTS.md): binding agent rules and skill routing.
-- [`.kilo/skills/`](.kilo/skills/): workspace skills for goals, subagents, grading, requirements, workflow, scaffolding, READMEs, assets, and MCP.
-- [`.kilo/agent/blender-worker.md`](.kilo/agent/blender-worker.md): bounded worker definition.
-- [`.kilo/agent/blender-grader.md`](.kilo/agent/blender-grader.md): independent read-only grader rubric.
-- [`config.example.json`](config.example.json): worker and grader model and budget template; copy to gitignored `config.json`.
-- [`Blender/README.md`](Blender/README.md): project collection and quick start.
-- Each project has its own `README.md`, `Documents/`, and asset register.
+The agent owns goals and project records end to end. You only provide normal-language requirements,
+answers, feedback, and approvals through the conversation. It creates and updates goals as work
+changes.
 
-Skill files must follow the [Agent Skills specification](https://agentskills.io/specification):
-YAML frontmatter with directory-matching `name` and non-empty `description`, followed by Markdown.
-Agent files use [Kilo's custom-agent format](https://kilo.ai/docs/customize/custom-subagents), with
-`mode: subagent`, positive `steps`, and ordered permissions. [Permission rules](https://kilo.ai/docs/customize/agent-permissions)
-use last-match-wins; broad defaults precede specific exceptions. Static checks do not prove runtime
-registration or a configured model's availability.
+## Project Rules For Humans
 
-## Workflow
+- Keep each Blender project under `Blender/<ProjectName>/`.
+- Let the agent launch Blender with `tools/start-blender.cmd`; do not launch `blender.exe` directly
+  for workspace work.
+- Only one Blender instance from this workspace may run at a time.
+- Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
+- Use relative paths inside Blender projects so scenes remain portable.
+- Review project-specific requirements and deliverables in each project's `README.md` and `Documents/`.
 
-Read `AGENTS.md` and the matching skill before work. Production requires runtime registration and an
-active goal; workspace maintenance and read-only questions are exempt. Maintenance needs no project,
-goal, or review render and must not launch or modify Blender unless separately requested.
+## Useful Checks
 
-`AGENTS.md` defines the canonical harness contract. `blender_workflow` takes
-`{action: string, payload: JSON string}`. Each production change follows these checkpoints:
-
-1. Inspect `status`; `begin` declares one outcome, exact object names, and exact project-relative
-   files. One open change is bounded by 40 operations and 15 minutes.
-2. Request `ticket` for `apply`, `save`, or `seal`; next call `blender_harness_execute` with the token,
-   matching operation/payload, and verbatim user goal. Save after meaningful changes and before
-   handoff; recovery save/seal remain available after the apply budget.
-3. `seal` saves the scene and captures immutable evidence, final PNG, and manifest. Call mandatory
-   `blender_look(image=<returned absolute render path>)`; the hook records successful inspection.
-4. `Off`: `self-review` with notes. `All`/`Single`: `grader-ticket` per grader, normal grader task with
-   `HARNESS_GRADER:<token>` and exact report path, aggregate findings, then `review` with notes.
-   Report receipts, aggregate hash, verdict, and finding dispositions must match.
-5. Partially Autonomous: pause the goal, call `approval`, then pass its exact question and labels
-   `Approve change`, `Request revision`, `Pause` to `question`. Only runtime answers count.
-6. Inspect status/diff/log, stage only scoped paths, commit atomically, then `checkpoint`. Exactly one
-   scoped commit, clean project, and matching hashes are required before next `begin`. Failed rounds
-    commit before fixes; corrections use `revision:true` within the round cap. After the cap, call
-    `escalate` with a bounded reason and complete the exact registration question before continuing.
-    No late mega-commit.
-
-Supported mutations are schema-validated `create_mesh` (`cube`, `uv_sphere`, `plane`, `cylinder`),
-`transform`, `material`, `create_light`, `create_camera`, `set_camera`, `render_settings`, and
-`delete_object`. Raw `execute_blender_code`, `import_asset`, and `generate_3d` are blocked. Unsupported
-work stops until reviewed tooling supports it; arbitrary Python is not a fallback.
-
-After compaction/restart, recover through `status`. Completion requires a clean checkpoint and final
-applicable `PASS` with inspected sealed render. Runtime uses a conservative two-round cap; a third
-needs explicit user escalation and re-registration handling, never a silent override.
-
-State lives outside Git at `~/.local/state/blender-workflow-harness/<workspace-hash>`; agents must not
-edit it. This is a same-user guard, not an OS sandbox. Manual Blender or external-shell edits invalidate
-evidence; unrestricted same-user execution can bypass controls.
-
-New projects start with a requirements discussion and explicit confirmation in ordinary chat. Then
-choose Fully Autonomous or Partially Autonomous mode, choose a review mode (`Off`, `All`, `Single`),
-and scaffold. Kilo disables `question` during an active goal, so initial clarification must happen
-before the goal starts; later required questions need a paused goal. On a return to a paused project,
-confirm whether to continue or switch workflow and review modes. Routine approval pauses within
-the same active task do not restart mode selection.
-Partially Autonomous asks for approval after every meaningful change: pause the goal, ask, then resume.
-
-Use web search during requirements for ambiguous or open-ended questions; cite sources and confirm
-findings with the user before they become requirements. If a Blender or library API is undocumented
-or unclear, use Context7, official docs, and web search, then test against the live version.
-
-## Subagents
-
-The main session is the orchestrator and owns all design decisions. Copy `config.example.json` to the
-gitignored `config.json`, set the `blender_subagents.workers` model, provider, variant, and limits, then load
-`blender-subagents`. Current workers perform bounded read-only inspection through `task`; orchestrator
-owns harness operations. Raw execution and harness mutation tools remain denied until explicit
-delegated-write assignment and reviewed tooling support exist. Workers stop at their budget and
-return `BLOCKED` instead of deciding scope or design. Graders need no `blender_workflow` permission;
-the plugin binds actual children by parent/task token and runtime model metadata.
-
-## Reviews
-
-Graders are independent, read-only subagents that check saved work against confirmed requirements.
-Configure models and reasoning variants in `blender_subagents.graders.graders[]`; each project records `Off`,
-`All`, or `Single` in `Documents/REVIEW.md`. Load `blender-project-grading` for evidence capture,
-timestamped round folders under `Documents/Reviews/`, dispositions, re-review, and bounds. Review
-reports and manifests are committed; only preview evidence and temp files are ignored. The orchestrator
-still inspects every change with `look` and owns the final verdict.
-
-Round names must be generated at creation: `R<NN>-<yyyyMMddTHHmmssZ>`, using the next project-wide
-sequence and current UTC time. Never copy an example timestamp or reuse a round folder. Missing or
-disabled grader config blocks production when the project selected `All` or `Single`; `Off` remains
-orchestrator self-review. Model/provider/variant overrides still require an explicit user request.
-
-Both roles belong under `blender_subagents`: `workers` holds the writer configuration and `graders`
-holds the review switch, limits, and roster. For older local configs, move the worker fields into
-`blender_subagents.workers` and the former top-level grader section into `blender_subagents.graders`.
-Preserve all existing values; leave an absent role unconfigured. Mixed legacy and nested layouts are
-invalid and must be resolved before delegation.
-
-## Tooling checks
-
-Run the maintenance regression suite from the workspace root:
+Run these from the workspace root when troubleshooting or contributing to the tooling:
 
 ```powershell
+npm run doctor --prefix tools/harness
 python -B -m unittest discover -s tools -p "test_*.py" -v
 npm test --prefix tools/harness
 ```
 
-Launcher and scaffold checks use isolated temporary workspaces and PowerShell. Bootstrap checks mock
-`bpy`; no test launches Blender. Frontmatter and worker-config checks require PyYAML and report a skip
-when it is unavailable. Live addon behavior, Kilo registration, and actual Blender startup need a
-separate runtime check after Kilo reload. Passing static or mocked tests does not establish installed
-runtime validation.
+Common fixes:
 
-## Licence
+- **`uvx` unavailable:** reopen PowerShell after installing uv, then reload Kilo.
+- **Harness dependency missing:** run `npm ci --prefix tools/harness` again.
+- **Addon or port error:** reinstall with `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and
+  reload Kilo. Keep the workspace port at `9877`.
+- **Blender discovery error:** set `BLENDER_EXE` to the installed Blender executable path, then let
+  the workspace launcher start Blender.
 
-MIT. See [`LICENSE`](LICENSE). The Blender MCP workflow guides under
-`.kilo/skills/blender-mcp/references/` are adapted from `ahujasid/mcp-for-blender`; attribution and
-the upstream MIT notice are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+## Repository Layout
+
+```text
+AGENTS.md                 Internal agent contract
+README.md                 This human setup guide
+.kilo/                    Workspace Kilo config, skills, agents, and plugin
+Blender/                  Blender project collection
+tools/                    Project scaffold, launcher, MCP bootstrap, and tests
+tools/harness/             Guarded Node.js workflow and MCP bridge
+```
+
+See [`Blender/README.md`](Blender/README.md) for project-collection conventions. See
+[`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for licensing.
