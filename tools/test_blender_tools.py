@@ -644,7 +644,11 @@ class WorkspaceContractTests(unittest.TestCase):
             if not path.exists():
                 continue
             with self.subTest(config=path.name):
-                config = json.loads(path.read_text(encoding="utf-8-sig"))["blender_subagents"]
+                roles = json.loads(path.read_text(encoding="utf-8-sig"))["blender_subagents"]
+                if "workers" not in roles:
+                    self.assertNotEqual(path.name, "config.example.json")
+                    continue
+                config = roles["workers"]
                 self.assertEqual(config["agent"], "blender-worker")
                 for field in ("provider", "model", "variant"):
                     self.assertIsInstance(config[field], str)
@@ -655,6 +659,21 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertLessEqual(config["max_steps"], metadata["steps"])
                 self.assertIn(config["max_failed_attempts"], (1, 2))
                 self.assertEqual(config["max_parallel"], 1)
+
+    def test_subagent_roles_share_namespace(self):
+        for path in (ROOT / "config.example.json", ROOT / "config.json"):
+            if not path.exists():
+                continue
+            with self.subTest(config=path.name):
+                config = json.loads(path.read_text(encoding="utf-8-sig"))
+                self.assertNotIn("blender_graders", config)
+                roles = config["blender_subagents"]
+                self.assertIsInstance(roles, dict)
+                self.assertLessEqual(set(roles), {"workers", "graders"})
+                if path.name == "config.example.json":
+                    self.assertEqual(set(roles), {"workers", "graders"})
+                for role in roles.values():
+                    self.assertIsInstance(role, dict)
 
     @unittest.skipUnless(yaml, "PyYAML required for grader validation")
     def test_grader_agent_is_read_only_and_bounded(self):
@@ -696,11 +715,18 @@ class WorkspaceContractTests(unittest.TestCase):
     def test_embedded_roster_examples_obey_parallel_budget(self):
         for name in ("blender-subagents", "blender-project-grading"):
             text = (ROOT / f".kilo/skills/{name}/SKILL.md").read_text(encoding="utf-8")
+            grader_examples = 0
             for snippet in re.findall(r"```json\n(.*?)\n```", text, flags=re.DOTALL):
                 config = json.loads(snippet)
-                if "blender_graders" in config:
-                    graders = config["blender_graders"]
+                self.assertEqual(set(config), {"blender_subagents"}, name)
+                roles = config["blender_subagents"]
+                self.assertTrue(roles, name)
+                self.assertLessEqual(set(roles), {"workers", "graders"}, name)
+                if "graders" in roles:
+                    grader_examples += 1
+                    graders = roles["graders"]
                     self.assertLessEqual(graders["max_parallel"], len(graders["graders"]), name)
+            self.assertGreater(grader_examples, 0, name)
 
     def test_review_round_names_and_approval_gates_are_dynamic(self):
         paths = [ROOT / ".kilo/skills/blender-project-grading/SKILL.md",
@@ -725,7 +751,7 @@ class WorkspaceContractTests(unittest.TestCase):
         )
         graders = json.loads(
             (ROOT / "config.example.json").read_text(encoding="utf-8-sig")
-        )["blender_graders"]
+        )["blender_subagents"]["graders"]
         self.assertEqual(graders["agent"], "blender-grader")
         self.assertIs(type(graders["enabled"]), bool)
         roster = graders["graders"]

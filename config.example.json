@@ -1,47 +1,49 @@
 {
   "blender_subagents": {
-    "agent": "blender-worker",
-    "provider": "kilo",
-    "model": "anthropic/claude-sonnet-4.6",
-    "variant": "max",
-    "max_minutes": 10,
-    "max_steps": 18,
-    "max_failed_attempts": 2,
-    "max_parallel": 1
-  },
-  "blender_graders": {
-    "agent": "blender-grader",
-    "enabled": true,
-    "max_parallel": 3,
-    "max_rounds": 2,
-    "graders": [
-      {
-        "name": "visual",
-        "focus": "composition, camera, lighting, colour, materials, mood",
-        "provider": "kilo",
-        "model": "anthropic/claude-sonnet-4.6",
-        "variant": "high",
-        "max_minutes": 5,
-        "max_steps": 10
-      },
-      {
-        "name": "technical",
-        "focus": "scale, geometry, topology, render settings, missing files, scene health",
-        "provider": "kilo",
-        "model": "anthropic/claude-sonnet-4.6",
-        "variant": "max",
-        "max_minutes": 5,
-        "max_steps": 10
-      },
-      {
-        "name": "spec",
-        "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
-        "provider": "kilo",
-        "model": "anthropic/claude-sonnet-4.6",
-        "variant": "max",
-        "max_minutes": 5,
-        "max_steps": 10
-      }
-    ]
+    "workers": {
+      "agent": "blender-worker",
+      "provider": "kilo",
+      "model": "anthropic/claude-sonnet-4.6",
+      "variant": "max",
+      "max_minutes": 10,
+      "max_steps": 18,
+      "max_failed_attempts": 2,
+      "max_parallel": 1
+    },
+    "graders": {
+      "agent": "blender-grader",
+      "enabled": true,
+      "max_parallel": 3,
+      "max_rounds": 2,
+      "graders": [
+        {
+          "name": "visual",
+          "focus": "composition, camera, lighting, colour, materials, mood",
+          "provider": "kilo",
+          "model": "anthropic/claude-sonnet-4.6",
+          "variant": "high",
+          "max_minutes": 5,
+          "max_steps": 10
+        },
+        {
+          "name": "technical",
+          "focus": "scale, geometry, topology, render settings, missing files, scene health",
+          "provider": "kilo",
+          "model": "anthropic/claude-sonnet-4.6",
+          "variant": "max",
+          "max_minutes": 5,
+          "max_steps": 10
+        },
+        {
+          "name": "spec",
+          "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+          "provider": "kilo",
+          "model": "anthropic/claude-sonnet-4.6",
+          "variant": "max",
+          "max_minutes": 5,
+          "max_steps": 10
+        }
+      ]
+    }
   }
 }

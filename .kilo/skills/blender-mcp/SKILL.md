@@ -14,7 +14,7 @@ This skill is required before any Blender scene operation. Do not rely on genera
 
 1. Before launching or editing, MUST verify confirmed project requirements, selected workflow, an
    active goal, and `Documents/REVIEW.md` with review mode `Off`, `All`, or `Single`; `Unset` is invalid.
-   For `All` or `Single`, MUST verify `blender_graders.enabled` is true and validate the required
+   For `All` or `Single`, MUST verify `blender_subagents.graders.enabled` is true and validate the required
    grader configuration using
    [`blender-project-grading`](../blender-project-grading/SKILL.md). Missing or disabled required
    configuration MUST stop production. The controller validates the roster; a worker MUST verify the

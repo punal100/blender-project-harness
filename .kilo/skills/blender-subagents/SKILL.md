@@ -14,25 +14,33 @@ worktrees for this work.
 ## Config
 
 Read `config.json` at the workspace root before spawning. It is gitignored;
-`config.example.json` is the tracked template.
+`config.example.json` is the tracked template. Both roles live under `blender_subagents`;
+read worker settings from `blender_subagents.workers`:
 
 ```json
 {
   "blender_subagents": {
-    "agent": "blender-worker",
-    "provider": "provider-id",
-    "model": "model-name",
-    "variant": "reasoning-variant",
-    "max_minutes": 10,
-    "max_steps": 18,
-    "max_failed_attempts": 2,
-    "max_parallel": 1
+    "workers": {
+      "agent": "blender-worker",
+      "provider": "provider-id",
+      "model": "model-name",
+      "variant": "reasoning-variant",
+      "max_minutes": 10,
+      "max_steps": 18,
+      "max_failed_attempts": 2,
+      "max_parallel": 1
+    }
   }
 }
 ```
 
 - If `config.json` is missing, copy `config.example.json` without overwriting any local settings and
   stop delegation until the user confirms the values. Controller work may continue without delegation.
+- The examples show separate role sections of the same object. An absent `workers` section means
+  worker delegation is unconfigured; do not infer defaults or borrow grader settings. Reject legacy
+  flat or mixed layouts before delegation. When migrating an older local config, move its existing
+  worker fields into `blender_subagents.workers` and its former top-level grader section into
+  `blender_subagents.graders`, preserving values and leaving absent roles unconfigured.
 - Validate `agent` is exactly `blender-worker`; provider, model, and variant must be non-empty
   strings. Limits must be positive integers; `max_parallel` must be `1` and
   `max_failed_attempts` must be `1` or `2`. Reject invalid values; do not silently rewrite them.
@@ -56,32 +64,34 @@ Read `config.json` at the workspace root before spawning. It is gitignored;
 
 ## Graders
 
-Independent review uses `blender-grader`, configured separately from the worker:
+Independent review uses `blender-grader`, configured at `blender_subagents.graders` alongside workers:
 
 ```json
 {
-  "blender_graders": {
-    "agent": "blender-grader",
-    "enabled": true,
-    "max_parallel": 1,
-    "max_rounds": 2,
-    "graders": [
-      {
-        "name": "visual",
-        "focus": "composition, camera, lighting",
-        "provider": "provider-id",
-        "model": "model-name",
-        "variant": "reasoning-variant",
-        "max_minutes": 5,
-        "max_steps": 10
-      }
-    ]
+  "blender_subagents": {
+    "graders": {
+      "agent": "blender-grader",
+      "enabled": true,
+      "max_parallel": 1,
+      "max_rounds": 2,
+      "graders": [
+        {
+          "name": "visual",
+          "focus": "composition, camera, lighting",
+          "provider": "provider-id",
+          "model": "model-name",
+          "variant": "reasoning-variant",
+          "max_minutes": 5,
+          "max_steps": 10
+        }
+      ]
+    }
   }
 }
 ```
 
 - Load `blender-project-grading` for modes, evidence, round folders, aggregation, and re-review.
-- `blender_graders.enabled` is the machine kill switch; project `Documents/REVIEW.md` selects `Off`,
+- `blender_subagents.graders.enabled` is the machine kill switch; project `Documents/REVIEW.md` selects `Off`,
   `All`, or `Single`. Grade only when both allow it.
 - Validate the array: unique slugs, non-empty focus, non-empty provider/model/variant, positive
   integer limits, `max_steps` at or below the grader agent's `steps`, `max_parallel` at most the

@@ -34,7 +34,7 @@ Record the mode in `Blender/<Project>/Documents/REVIEW.md`:
 - `Single` — only the grader named in `Single grader`.
 
 `Mode: Unset` is invalid once production starts. The user may switch modes at any pause; update the
-record and change log. The machine-level `blender_graders.enabled` flag is a kill switch: grading runs
+record and change log. The machine-level `blender_subagents.graders.enabled` flag is a kill switch: grading runs
 only when it is true and the project mode is not `Off`. If `All` or `Single` is selected but grading
 is disabled, missing, invalid, or unavailable, stop production and resolve the mismatch. Do not
 silently downgrade to self-review. In `Single`, the named grader must exist in the configured roster.
@@ -42,26 +42,29 @@ The controller must assess acceptance criteria outside that grader's focus.
 
 ## Config
 
-Read the gitignored `config.json` at the workspace root. `config.example.json` is the template.
+Read `blender_subagents.graders` in the gitignored `config.json` at the workspace root.
+`config.example.json` is the template. Worker settings live alongside it in `blender_subagents.workers`.
 
 ```json
 {
-  "blender_graders": {
-    "agent": "blender-grader",
-    "enabled": true,
-    "max_parallel": 1,
-    "max_rounds": 2,
-    "graders": [
-      {
-        "name": "visual",
-        "focus": "composition, camera, lighting, colour, materials",
-        "provider": "provider-id",
-        "model": "model-name",
-        "variant": "reasoning-variant",
-        "max_minutes": 5,
-        "max_steps": 10
-      }
-    ]
+  "blender_subagents": {
+    "graders": {
+      "agent": "blender-grader",
+      "enabled": true,
+      "max_parallel": 1,
+      "max_rounds": 2,
+      "graders": [
+        {
+          "name": "visual",
+          "focus": "composition, camera, lighting, colour, materials",
+          "provider": "provider-id",
+          "model": "model-name",
+          "variant": "reasoning-variant",
+          "max_minutes": 5,
+          "max_steps": 10
+        }
+      ]
+    }
   }
 }
 ```
@@ -77,8 +80,11 @@ Read the gitignored `config.json` at the workspace root. `config.example.json` i
 - Validate names and budgets before dispatching. Never silently substitute a model, lower a budget,
   or drop a grader because it is unavailable.
 - If `config.json` is missing, copy `config.example.json` without overwriting local settings and stop
-  grading until the user confirms. A local file without `blender_graders` means grading is
+  grading until the user confirms. A local file without `blender_subagents.graders` means grading is
   unconfigured: report that and do not fabricate a roster.
+- Reject legacy flat or mixed layouts before dispatch. For an older local config, move the existing
+  worker fields into `blender_subagents.workers` and the former top-level grader section into
+  `blender_subagents.graders`. Preserve every value and leave absent roles unconfigured.
 - Resolve model, provider, and variant with `agent_manager_models` before dispatch. Runtime tool
   restrictions still apply; a configured model is not permission to bypass them. Pass per-task
   model/provider/variant overrides only when explicitly requested by the user. Otherwise verify
