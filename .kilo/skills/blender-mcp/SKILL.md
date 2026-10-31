@@ -157,6 +157,10 @@ Do not disable safe mode or add credentials, tokens, or private data to scripts 
   fallback does not satisfy required render inspection; unresolved failure stops production.
 - **Harness unavailable or stale**: reload Kilo and inspect `status`; never fabricate registration,
   tokens, report receipts, approval JSON, or external state. Stop if reviewed recovery cannot proceed.
+- **`production files require a registered project`**: expected before registration. Only scaffold
+  documentation writes are allowed at that point. Finish and commit the scaffold documents and the
+  filled goal, call `blender_workflow` `prepare`, and complete its registration question. Never route
+  the write through bash, redirection, or a temp copy; the denial means the lifecycle step is missing.
 - **API or docs missing**: follow "API and documentation gaps"; do not invent a property, operator, or signature.
 
 ## References

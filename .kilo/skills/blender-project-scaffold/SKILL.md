@@ -76,6 +76,11 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
 
 ## After scaffold
 
+Steps 1-5 run inside the bootstrap write window: the scaffold documents below are the only
+`Blender/<Name>/` writes allowed before registration. Scene, asset, render, and evidence paths stay
+blocked. A denial means a lifecycle step is missing; never work around it with shell redirection or
+temp-file copies.
+
 1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed` and
    record `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`.
 2. Persist the already collected exact workflow answer in `Documents/WORKFLOW.md` and its change log.

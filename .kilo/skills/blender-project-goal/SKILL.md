@@ -21,9 +21,12 @@ manage goal commands or copy goal prompts.
    `blender-project-requirements`, collect workflow and review answers with
    `blender-project-workflow` and `blender-project-grading`, scaffold with
    `blender-project-scaffold`, then persist all three exact confirmation records. Fill the goal only
-   after those records are complete. Inspect status/diff/log and commit exact scaffold documents and
-   the filled goal before `blender_workflow` `prepare`; finish its registration question in ordinary
-   chat before starting the goal or launching Blender. Never use a discovery goal.
+   after those records are complete. Those scaffold documents are the only `Blender/<Name>/` writes
+   allowed before registration; scene, asset, render, and evidence paths stay blocked, so a write
+   denial names a missing lifecycle step, not a reason to use shell redirection or temp-file copies.
+   Inspect status/diff/log and commit exact scaffold documents and the filled goal before
+   `blender_workflow` `prepare`; finish its registration question in ordinary chat before starting the
+   goal or launching Blender. Never use a discovery goal.
 3. On a genuine later return to a paused project, read `Documents/WORKFLOW.md` and
    `Documents/REVIEW.md`, ask both selection questions in ordinary chat, and record the exact answers
    before resuming. Routine approval, clarification, and manual-edit pauses, automatic goal turns,
