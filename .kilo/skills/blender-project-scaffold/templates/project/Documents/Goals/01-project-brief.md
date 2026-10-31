@@ -107,7 +107,7 @@ colour, scale, and mood. Name the review image or render that will prove it.
    count; forged JSON is ignored. Inspect status/diff/log, stage exact scoped paths, commit scene and
    round artifacts, then `checkpoint` before next `begin`. Exactly one scoped commit, clean project,
    and matching hashes are required. Failed rounds commit before fixes; `revision:true` stays within
-   runtime's conservative two-round cap. A third requires explicit user escalation and re-registration
+   the configured `max_rounds` cap. Exhausting it requires explicit user escalation and re-registration
    handling. Fully Autonomous follows the same commit checkpoint without change-approval questions.
    Never defer work into a late mega-commit.
    Resume only after an answer permits the next action. Pause, cancellation, no answer, and manual

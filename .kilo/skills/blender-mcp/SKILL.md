@@ -78,8 +78,8 @@ client. Pass `user_prompt` with the user's exact words when the tool accepts it.
 5. Complete `self-review` `{notes}` in `Off`, or ticketed grader tasks and `review` `{notes}` in
    `All`/`Single`. Complete required paused-goal runtime approval, inspect status/diff/log, stage exact
    scoped paths, commit, then `checkpoint` before next `begin`. Failed rounds commit before fixes;
-   revisions use `revision:true` within the conservative two-round cap; a third round needs explicit user
-   escalation and re-registration handling. Exactly one scoped commit, clean project state, and
+   revisions use `revision:true` within the configured `max_rounds` cap; exhausting it needs explicit
+   user escalation and re-registration handling. Exactly one scoped commit, clean project state, and
    matching hashes are required. Never defer changes into a late mega-commit.
 
 ## Save and visual checks

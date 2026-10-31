@@ -67,8 +67,8 @@ Handle answers explicitly:
   does not waive genuine unresolved blockers or major findings or satisfy a required `PASS`.
 - `Request revision`: obtain concrete direction while paused; commit the failed round and checkpoint
   before fixes. Resume only for a bounded `begin` with `revision:true`; save, seal, inspect, complete
-  review, and ask again. Runtime caps the chain at two rounds; a third needs explicit user escalation
-  and re-registration handling, never a silent override.
+  review, and ask again. Runtime caps the chain at the configured `max_rounds`; exhausting it needs
+  explicit user escalation and re-registration handling, never a silent override.
 - `Pause`, cancellation, or no answer: keep the goal paused and make no further scene changes.
 - For a separate request to modify manually, keep the goal paused. Do not use raw Python to prepare
   the scene or silently edit sealed work. Manual Blender or external-shell edits invalidate evidence;

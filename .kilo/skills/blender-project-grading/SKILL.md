@@ -78,10 +78,9 @@ Read `blender_subagents.graders` in the gitignored `config.json` at the workspac
   non-empty. Reject invalid types, duplicate names, and unknown `Single grader` names before dispatch.
 - Limits are positive integers. `max_steps` must not exceed `steps` in
   `.kilo/agent/blender-grader.md`. `max_parallel` must not exceed the number of graders.
-- `max_rounds` is 1-3. Two rounds means the initial review plus one re-review; a third needs an
-  explicit user request and re-registration handling. Runtime uses a conservative two-round cap;
-  a configured value of 3 does not authorize or silently unlock that third round. After the cap,
-  call `blender_workflow` `escalate` with a bounded reason and complete the exact registration question
+- `max_rounds` is 1-3. A value of 2 means the initial review plus one re-review; a value of 3 adds a
+  second re-review. Runtime enforces exactly the configured value. Once the cap is exhausted, call
+  `blender_workflow` `escalate` with a bounded reason and complete the exact registration question
   again; history remains preserved.
 - Validate names and budgets before dispatching. Never silently substitute a model, lower a budget,
   or drop a grader because it is unavailable.

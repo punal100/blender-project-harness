@@ -124,7 +124,7 @@ export class Harness {
         names.add(g.name);
       }
       if (!Number.isInteger(cfg.max_parallel) || cfg.max_parallel < 1 || cfg.max_parallel > names.size || !Number.isInteger(cfg.max_rounds) || cfg.max_rounds < 1 || cfg.max_rounds > 3) deny('invalid grader limits');
-      roster = cfg.graders; maxParallel = cfg.max_parallel; maxRounds = Math.min(2, cfg.max_rounds);
+      roster = cfg.graders; maxParallel = cfg.max_parallel; maxRounds = cfg.max_rounds;
       if (review === 'Single') {
         roster = roster.filter((g) => g.name === field(docs['Documents/REVIEW.md'], 'Single grader'));
         if (roster.length !== 1) deny('unknown Single grader');
