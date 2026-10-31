@@ -25,16 +25,35 @@ shows the edges.
 
 ## Clean up
 
+MUST verify mesh type and mode before editing. This standalone BMesh example requires Object Mode;
+MUST NOT use it against Edit Mode's separate mesh data. Thresholds below are examples, not defaults
+for every asset. MUST free an owned standalone BMesh in `finally`, including on failure.
+
 ```python
 import bmesh
-bm = bmesh.new(); bm.from_mesh(obj.data)
-bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
-bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=0.0001)
-loose = [v for v in bm.verts if not v.link_edges]
-bmesh.ops.delete(bm, geom=loose, context="VERTS")
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-bm.to_mesh(obj.data); bm.free()
+if obj.type != "MESH" or obj.mode != "OBJECT" or obj.data.is_editmode:
+    raise RuntimeError("Standalone BMesh cleanup requires an Object Mode mesh")
+if not obj.data.is_editable or obj.data.users != 1:
+    raise RuntimeError("Cleanup requires an editable single-user mesh copy")
+bm = bmesh.new()
+try:
+    bm.from_mesh(obj.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=0.0001)
+    loose = [v for v in bm.verts if not v.link_edges]
+    bmesh.ops.delete(bm, geom=loose, context="VERTS")
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(obj.data)
+finally:
+    bm.free()
 ```
+
+For authorized Edit Mode cleanup instead, MUST verify `obj.mode == "EDIT"` and
+`obj.data.is_editmode`, use `bm = bmesh.from_edit_mesh(obj.data)`, and update with
+`bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=True)` after topology changes.
+This BMesh is owned by Blender: MUST NOT call `to_mesh()` or `free()` on it. Reacquire it after mode
+changes; do not reuse stale references. MUST apply the operator context rules in `bpy.md` to remesh,
+UV, and bake operators below, including exact selection, mode, `poll()`, and restoration.
 
 ## Reduce
 
@@ -81,3 +100,5 @@ Switching the engine to Cycles for the bake: read the current engine first and r
 
 - https://docs.blender.org/manual/en/5.0/modeling/modifiers/generate/decimate.html
 - https://docs.blender.org/manual/en/5.0/modeling/meshes/retopology.html
+- https://docs.blender.org/api/current/info_gotchas_meshes.html
+- https://docs.blender.org/api/current/bmesh.html

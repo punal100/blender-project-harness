@@ -13,8 +13,8 @@ Scripts run in the user's live Blender, whose version, language and add-ons you 
 Introspect with RNA before indexing sockets or setting enums:
 
 ```python
-# Valid values of any enum property
-[i.identifier for i in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items]
+# Values of a static enum property
+[i.identifier for i in bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items]
 # Properties of a type
 [p.identifier for p in bpy.types.ShaderNodeTexSky.bl_rna.properties]
 # Operator arguments
@@ -32,8 +32,9 @@ bpy.data.node_groups.remove(tree)
 - Address sockets by name only after checking they exist in this version (Principled BSDF renamed
   many inputs in 4.0: `Emission Color`, `Subsurface Weight`, `Specular IOR Level`, `Coat Weight`,
   `Sheen Weight`, `Transmission Weight`). `sock = node.inputs.get("Emission Color") or node.inputs.get("Emission")`.
-- Never hardcode enum identifiers; read them (above). `scene.render.engine` is a dynamic enum that
-  RNA under-reports; read the current value, and if you must switch, assign inside
+- Never guess enum identifiers; inspect them before assigning. Dynamic enum listings MUST NOT be
+  treated as complete. `scene.render.engine` is a dynamic enum that RNA under-reports; MUST read
+  the current value, and if switching is required, assign the requested engine inside
   `try/except TypeError` — the error lists every accepted value. EEVEE is `BLENDER_EEVEE_NEXT` in
   4.2–4.5 and `BLENDER_EEVEE` in 5.0; older releases also use `BLENDER_EEVEE`. Query later versions.
 - Material colors live on shader node inputs. `material.diffuse_color` only drives the solid
@@ -51,17 +52,29 @@ Prefer `bpy.data` and object properties over `bpy.ops`: they need no context and
 
 When you need an operator:
 
-- Code runs from a timer, not a UI area. Operators that need a viewport need an override:
+- MUST verify the required mode, editable targets, exact operator selection, and `poll()` before
+  execution. For example, this Object Mode shading operation overrides both selection members
+  without changing the user's actual selection:
   ```python
-  area = next(a for a in bpy.context.screen.areas if a.type == "VIEW_3D")
-  region = next(r for r in area.regions if r.type == "WINDOW")
-  with bpy.context.temp_override(area=area, region=region, active_object=obj, selected_objects=[obj]):
+  if bpy.context.mode != "OBJECT" or obj.type != "MESH":
+      raise RuntimeError("Shading requires Object Mode and a mesh")
+  if obj not in bpy.context.editable_objects or obj not in bpy.context.selectable_objects:
+      raise RuntimeError("Target must be editable and selectable in the current view layer")
+  with bpy.context.temp_override(object=obj, active_object=obj,
+                                 selected_objects=[obj], selected_editable_objects=[obj]):
+      if not bpy.ops.object.shade_smooth.poll():
+          raise RuntimeError("shade_smooth is unavailable in this context")
       bpy.ops.object.shade_smooth()
   ```
-- `mode_set` needs an active, visible, selectable object. Always return to OBJECT mode at the end
-  of a step, even on failure (`try/finally`).
-- `obj.select_set(True)` and `bpy.context.view_layer.objects.active = obj` before ops that act on
-  the selection.
+- Code runs from a timer, not a UI area. Operators that require a viewport MUST use a verified
+  `VIEW_3D` area and its `WINDOW` region in a matching window override; shading above needs neither.
+- `selected_objects` and `selected_editable_objects` are distinct context members; overriding only
+  one does not isolate an operator that reads the other. Some operators read actual selection too.
+  If actual selection must change, MUST save selection and active object, select only intended
+  targets, and restore both in `finally`. Adding `obj.select_set(True)` alone is insufficient.
+- `mode_set` needs an active, visible, selectable object. MUST check its `poll()` before each mode
+  switch and return to OBJECT mode in `finally` after a temporary Edit Mode step. If the starting
+  mode is unexpected, stop before mutating data rather than silently leaving the user's mode.
 
 ## Working style
 
@@ -79,4 +92,6 @@ When you need an operator:
 ## Sources
 
 - https://docs.blender.org/api/current/info_gotchas_operators.html
+- https://docs.blender.org/api/current/bpy.types.Context.html
+- https://raw.githubusercontent.com/blender/blender/v5.0.0/source/blender/editors/object/object_edit.cc
 - https://developer.blender.org/docs/release_notes/5.0/python_api/

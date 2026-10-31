@@ -17,6 +17,10 @@ summary: Armatures from Python, Rigify for characters, skinning with automatic w
 
 ## Humanoids: Rigify
 
+All operators below MUST follow `bpy.md`: verify required mode, exact targets, and `poll()`;
+use a viewport override only when required. Any actual selection/active-object changes MUST be
+saved and restored in `finally`. Edit bones MUST be accessed only in Edit Mode.
+
 ```python
 import addon_utils
 addon_utils.enable("rigify", default_set=False)  # when enabling it is authorized
@@ -32,16 +36,38 @@ metarig = bpy.context.active_object
 
 ## Simple or non-humanoid rigs
 
-Build bones directly in edit mode:
+Build bones directly in Edit Mode, starting from Object Mode. This example temporarily changes
+actual selection, so restoration is mandatory even if bone creation fails:
 
 ```python
+if bpy.context.mode != "OBJECT":
+    raise RuntimeError("Rig creation requires Object Mode")
+view_layer = bpy.context.view_layer
+saved_selection = [o for o in view_layer.objects if o.select_get()]
+saved_active = view_layer.objects.active
 arm_data = bpy.data.armatures.new("Rig"); rig = bpy.data.objects.new("Rig", arm_data)
 bpy.context.scene.collection.objects.link(rig)
-bpy.context.view_layer.objects.active = rig
-bpy.ops.object.mode_set(mode="EDIT")
-root = arm_data.edit_bones.new("root"); root.head = (0, 0, 0); root.tail = (0, 0.3, 0)
-b = arm_data.edit_bones.new("arm"); b.head = (0, 0, 1); b.tail = (0, 0, 2); b.parent = root
-bpy.ops.object.mode_set(mode="OBJECT")
+try:
+    for selected in saved_selection:
+        selected.select_set(False)
+    rig.select_set(True)
+    view_layer.objects.active = rig
+    if not bpy.ops.object.mode_set.poll():
+        raise RuntimeError("Cannot enter Edit Mode for the new rig")
+    try:
+        bpy.ops.object.mode_set(mode="EDIT")
+        root = arm_data.edit_bones.new("root"); root.head = (0, 0, 0); root.tail = (0, 0.3, 0)
+        b = arm_data.edit_bones.new("arm"); b.head = (0, 0, 1); b.tail = (0, 0, 2); b.parent = root
+    finally:
+        if rig.mode != "OBJECT":
+            if not bpy.ops.object.mode_set.poll():
+                raise RuntimeError("Cannot leave Edit Mode; stop and report the current state")
+            bpy.ops.object.mode_set(mode="OBJECT")
+finally:
+    rig.select_set(False)
+    for selected in saved_selection:
+        selected.select_set(True)
+    view_layer.objects.active = saved_active
 ```
 
 Mechanical things (doors, wheels, robots) often suit rigid bone parenting. Set the parent, bone, and
@@ -49,10 +75,22 @@ parent inverse while preserving the intended world transform; direct parent assi
 
 ## Skinning
 
-Automatic weights: select the mesh, make the armature active, then
+For automatic weights, MUST isolate the intended mesh and armature, with the armature active.
+This override leaves actual user selection unchanged; selecting the mesh alone would retain
+unrelated selected objects and can reparent them:
 
 ```python
-bpy.ops.object.parent_set(type="ARMATURE_AUTO")   # needs selection + active set
+if bpy.context.mode != "OBJECT" or mesh.type != "MESH" or rig.type != "ARMATURE":
+    raise RuntimeError("Automatic weights require Object Mode, a mesh, and an armature")
+targets = [mesh, rig]
+if any(o not in bpy.context.editable_objects or o not in bpy.context.selectable_objects
+       for o in targets):
+    raise RuntimeError("Skinning targets must be editable and selectable")
+with bpy.context.temp_override(object=rig, active_object=rig,
+                               selected_objects=targets, selected_editable_objects=targets):
+    if not bpy.ops.object.parent_set.poll():
+        raise RuntimeError("parent_set is unavailable in this context")
+    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
 ```
 
 If Blender reports "Bone Heat Weighting: failed to find solution for one or more bones":
@@ -81,3 +119,5 @@ or stretching. Restore the saved pose transforms afterward; do not clear the use
 
 - https://docs.blender.org/manual/en/5.0/addons/rigging/rigify/introduction.html
 - https://docs.blender.org/manual/en/5.0/addons/rigging/rigify/basics.html
+- https://docs.blender.org/api/current/info_gotchas_armatures_and_bones.html
+- https://raw.githubusercontent.com/blender/blender/v5.0.0/source/blender/editors/object/object_relations.cc

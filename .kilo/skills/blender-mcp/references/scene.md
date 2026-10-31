@@ -17,6 +17,10 @@ summary: Building a believable scene - scale, grounding, composition, choosing b
 
 ## Getting assets
 
+MUST read [`blender-assets`](../../blender-assets/SKILL.md) before external asset work and follow
+the asset-type branches in `../SKILL.md`. Model size/support checks below do not apply to HDRI
+worlds or texture materials; those require lighting/material inspection instead.
+
 - **Generate** (`generate_3d`) is one option for approved hero objects or specific assets: "a rusted
   steampunk diving helmet". One object per generation — never a whole scene, the ground, or parts
   to assemble. Obtain spending authorization first; workers must not generate. Generate once and
@@ -31,7 +35,7 @@ summary: Building a believable scene - scale, grounding, composition, choosing b
 Match the confirmed style. Mixed low-poly and photoreal assets can be intentional; do not impose a
 style restriction that the user has not confirmed.
 
-## After every import
+## After every model import or generation
 
 Imported and generated models arrive at arbitrary scale, rotation and origin. The import result
 gives `world_bounding_box`; use it:

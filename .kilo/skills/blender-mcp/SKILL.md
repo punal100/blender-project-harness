@@ -12,7 +12,12 @@ This skill is required before any Blender scene operation. Do not rely on genera
 
 ## Preflight
 
-1. Verify confirmed project requirements, selected workflow, and an active goal before launching or editing.
+1. Before launching or editing, MUST verify confirmed project requirements, selected workflow, an
+   active goal, and `Documents/REVIEW.md` with review mode `Off`, `All`, or `Single`; `Unset` is invalid.
+   For `All` or `Single`, MUST verify `blender_graders.enabled` is true and validate the required
+   grader configuration using
+   [`blender-project-grading`](../blender-project-grading/SKILL.md). Missing or disabled required
+   configuration MUST stop production; workers MUST return `BLOCKED` to the controller.
    Call `get_addon_status` once at the start. Check addon compatibility, Blender version, and enabled
    libraries/generators from the actual response; do not assume a particular response field exists.
 2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative
@@ -37,7 +42,7 @@ This skill is required before any Blender scene operation. Do not rely on genera
 | `execute_blender_code` | Run Python with full `bpy`, `bmesh`, and `mathutils` access |
 | `look` | Inspect an image: viewport, camera, multi-angle, animation frames, render, or image file |
 | `search_assets` | Search Poly Haven, Sketchfab, or Poly Pizza assets |
-| `import_asset` | Import a searched asset at a target real-world size |
+| `import_asset` | Import a searched model, HDRI world, or texture material |
 | `generate_3d` | Generate and import one textured model from text or an image |
 | `disable_telemetry` | Disable telemetry |
 | `record_trajectory_feedback` | Record workflow feedback |
@@ -72,7 +77,24 @@ Use `look` after material, lighting, camera, or modeling changes:
 - `look(mode="angles", target=["Object"])` for a multi-view check.
 - `look(image="Render Result")` after rendering.
 
-For assets, search with `previews=3`, then import with an explicit `target_size`. Place the result on the ground and verify with `look`.
+Before adding, importing, linking, packing, or delivering external assets, MUST read and follow
+[`blender-assets`](../blender-assets/SKILL.md), including licence, attribution, registration, and
+relative-path requirements.
+
+- For Poly Haven and Sketchfab searches, previews can help choose an asset (`previews=3`).
+  Poly Pizza does not support previews.
+- For model imports, MUST choose the intended real-world size. `target_size` is required for
+  Sketchfab and recommended for Poly Pizza; for Poly Haven models, use `asset_type="models"`.
+  MUST inspect the returned bounds, correct model size and orientation, place it on its intended
+  support surface when applicable, and verify with `look`. Do not ground deliberately suspended,
+  wall-mounted, or otherwise positioned assets.
+- For Poly Haven HDRIs, MUST use `asset_type="hdris"`; this changes world lighting, not model
+  placement. MUST inspect the resulting lighting with `look`; for Cycles, render first and inspect
+  `look(image="Render Result")`.
+- For Poly Haven textures, MUST use `asset_type="textures"`. For a material intended for scene use,
+  MUST specify `apply_to` and verify its assignment and appearance; omitted `apply_to` creates an
+  unused material that is lost on save. Applying textures replaces target materials, so MUST inspect
+  existing slots and shared-data users first. `target_size` does not size HDRIs or texture materials.
 
 For `generate_3d`, one call creates one object. It can cost money or a generation credit: confirm with the user before spending, and resume with the returned `job` handle instead of submitting again.
 

@@ -7,7 +7,17 @@ summary: Node-based materials that survive version and language changes, applyin
 
 ## Creating materials
 
+Before assigning materials, MUST inspect existing slots, their object/data links, and mesh users.
+MUST preserve unrelated slots. The example replaces only the inspected active slot, or adds the
+first slot on an empty mesh; it does not replace every material on a multi-material object.
+For an object-only change to shared mesh data, MUST make the mesh single-user (as below), or use
+an explicit object-linked slot strategy. Changes intended for all users require that scope.
+
 ```python
+if obj.type != "MESH" or obj.mode != "OBJECT" or not obj.is_editable:
+    raise RuntimeError("Material assignment requires an editable mesh in Object Mode")
+if obj.data.users > 1 or not obj.data.is_editable:
+    obj.data = obj.data.copy()
 mat = bpy.data.materials.new("Brushed Steel")
 if bpy.app.version < (5, 0, 0):
     mat.use_nodes = True
@@ -15,7 +25,10 @@ bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
 bsdf.inputs["Base Color"].default_value = (0.6, 0.6, 0.62, 1)
 bsdf.inputs["Metallic"].default_value = 1.0
 bsdf.inputs["Roughness"].default_value = 0.35
-obj.data.materials.clear(); obj.data.materials.append(mat)
+if obj.material_slots:
+    obj.material_slots[obj.active_material_index].material = mat
+else:
+    obj.data.materials.append(mat)
 ```
 
 Sockets renamed in 4.0; resolve them defensively (`inputs.get("Emission Color") or inputs.get("Emission")`).
@@ -63,3 +76,5 @@ or `Render Result` for Cycles.
 
 - https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html
 - https://developer.blender.org/docs/release_notes/5.0/python_api/#shading
+- https://docs.blender.org/manual/en/latest/scene_layout/object/editing/duplicate_linked.html
+- https://docs.blender.org/api/current/bpy.types.MaterialSlot.html

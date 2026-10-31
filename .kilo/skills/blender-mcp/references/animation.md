@@ -26,7 +26,9 @@ Pose bones: `pb = arm.pose.bones["hand.L"]; pb.rotation_mode = "XYZ"`, then
 ## Reaching fcurves
 
 Blender 4.4 added slotted actions and 5.0 removed `Action.fcurves`. This helper returns the first
-channelbag for the assigned slot; inspect every layer/strip explicitly when handling complex actions:
+channelbag for the assigned slot; inspect every layer/strip explicitly when handling complex actions.
+MUST check for an assigned slot before calling the helper: Blender 4.4 does not accept `None` here.
+An assigned action can legitimately have no assigned slot; inspection MUST NOT guess or assign one:
 
 ```python
 def fcurves(obj):
@@ -34,6 +36,8 @@ def fcurves(obj):
     if not ad or not ad.action:
         return []
     if getattr(ad.action, "is_action_layered", False):
+        if ad.action_slot is None:
+            return []
         from bpy_extras import anim_utils
         cb = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
         return list(cb.fcurves) if cb else []
@@ -76,3 +80,4 @@ Check for popping, interpenetration, feet sliding on the ground, and the loop se
 - https://developer.blender.org/docs/release_notes/4.4/upgrading/slotted_actions/
 - https://developer.blender.org/docs/release_notes/5.0/python_api/#animation-rigging
 - https://docs.blender.org/api/current/bpy_extras.anim_utils.html
+- https://raw.githubusercontent.com/blender/blender/v4.4.0/scripts/modules/bpy_extras/anim_utils.py
