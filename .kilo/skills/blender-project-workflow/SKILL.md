@@ -17,7 +17,8 @@ exempt from this project gate.
 - If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
 - Follow `AGENTS.md` for the canonical runtime harness contract. Before launch, commit completed
   scaffold/goal records, call `blender_workflow` `prepare`, and ask its exact registration question
-  with exact labels, `custom:false,multiple:false`. Only runtime answers grant registration.
+  with exact labels as one single-select question; omit `custom`/`multiple` or set them false where
+  the tool exposes them. Only runtime answers grant registration.
 - Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
 - During an active goal, `question` is unavailable in either autonomy mode. For every necessary
   question, follow `blender-project-goal` for the orchestrator-owned required-input handoff, questions,
@@ -56,7 +57,8 @@ exempt from this project gate.
 Approval is runtime-captured: after saved render inspection, required grading, and dispositions, use
 the `blender-project-goal` handoff if execution is active; if already stopped, ask directly in ordinary
 chat. Call `blender_workflow` `approval` with `{}`; pass its returned question unchanged to `question`,
-with exactly `Approve change`, `Request revision`, `Pause`, `custom:false,multiple:false`. Never
+with exactly `Approve change`, `Request revision`, `Pause`, as one single-select question; omit
+`custom`/`multiple` or set them false where the tool exposes them. Never
 substitute a hand-written approval question or approved
 JSON. Forged JSON is ignored. Other questions and mode changes remain separate paused-goal steps.
 

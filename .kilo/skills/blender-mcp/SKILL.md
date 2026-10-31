@@ -24,7 +24,8 @@ project/goal/review gates and must not launch or modify Blender unless separatel
    supplied preflight status and project records, returning `BLOCKED` if absent or inconsistent.
    Workers do not read local model settings or dispatch graders.
    Before launch, scaffold documents and goal must be committed and `blender_workflow` `prepare`
-   registration granted by the exact runtime question/labels (`custom:false,multiple:false`). Start
+   registration granted by the exact runtime question/labels as one single-select question (omit
+   `custom`/`multiple`, or set them false where the tool exposes them). Start
    or resume the registered goal, end that turn, then inspect harness `status` before continuing.
    Call `get_addon_status` once at the start. Check addon compatibility, Blender version, and enabled
    libraries/generators from the actual response; do not assume a particular response field exists.

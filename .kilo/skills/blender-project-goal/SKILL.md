@@ -63,9 +63,9 @@ manage goal commands or copy goal prompts.
    The initial brief is a bootstrap template, not a fixed target for later goals. Before launch,
    inspect status/diff/log and commit exact scaffold/goal paths. Call `blender_workflow` `prepare` with
    only `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
-   payload. Pass the returned exact question and labels to `question` with
-   `custom:false,multiple:false`. Only genuine runtime answers grant registration; never create
-   approved JSON.
+   payload. Pass the returned exact question and labels to `question` as one single-select question;
+   omit `custom`/`multiple` or set them false where the tool exposes them. Only genuine runtime
+   answers grant registration; never create approved JSON.
 6. For a new goal, call `goal(action="start", objective=<the full prompt text>)` immediately. Writing
    the file without starting the goal is incomplete. For saved work, complete the return gates above
    and call `goal(action="resume")` for an unchanged objective; use the replacement procedure for a

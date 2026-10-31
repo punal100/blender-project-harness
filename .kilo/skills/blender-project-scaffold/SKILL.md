@@ -93,9 +93,9 @@ temp-file copies.
    documents and the filled goal before launch. Do not include unrelated files.
 6. Call `blender_workflow` `prepare` with only
    `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
-   payload. Pass its exact registration question and labels to `question` with
-   `custom:false,multiple:false`; only genuine runtime answers grant registration. Never create
-   approved JSON. Then start the goal with the entire filled prompt; a successful goal call ends the
+   payload. Pass its exact registration question and labels to `question` as one single-select
+   question; omit `custom`/`multiple` or set them false where the tool exposes them. Only genuine
+   runtime answers grant registration. Never create approved JSON. Then start the goal with the entire filled prompt; a successful goal call ends the
    turn. Continue on the next goal turn and inspect harness `status` before launch. Register confirmed
    asset metadata with `blender-assets`; imports/generation stay blocked until reviewed tooling
    supports them, even when launch preflight passes.
