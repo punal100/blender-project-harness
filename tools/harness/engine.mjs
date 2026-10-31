@@ -215,8 +215,8 @@ export class Harness {
   }
   status(p) {
     const c = p.change;
-    return { project: p.project, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
-       change: c ? { id: c.id, outcome: c.outcome, sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, approved: Boolean(c.approval), graders: c.graders } : null,
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
+       change: c ? { id: c.id, outcome: c.outcome, paths: c.paths, sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, approved: Boolean(c.approval), graders: c.graders } : null,
        next: p.escalation ? 'Explicit re-registration required after escalation' : !p.goalActive ? 'Start/resume registered goal' : !c ? 'Begin bounded change' : !c.sealed ? 'Edit; save and seal' : !c.inspected ? 'look(image=<sealed render>)' : !c.verdict ? 'Complete required review' : p.records.workflow === 'Partially Autonomous' && !c.approval ? 'Pause goal and ask approval question' : 'Checkpoint scoped commit' };
   }
   command(session, action, args = {}) {
@@ -229,7 +229,7 @@ export class Harness {
           ? 'Answer the pending registration question, then start or resume the goal'
           : s.challenge ? `Another session is registering ${s.challenge.project}; wait for it to finish or expire`
             : 'Complete and commit scaffold docs, then call prepare and answer its registration question';
-        return { project: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending };
+        return { project: null, scene: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending };
       }
       const p = this.owner(s, session);
       this.fresh(p);
@@ -288,9 +288,33 @@ export class Harness {
         fs.mkdirSync(path.dirname(contained(this.root, report, true)), { recursive: true });
         const full = contained(this.root, report, true);
         if (fs.existsSync(full)) fs.rmSync(full);
-        c.graders[g.name] = { token, report, attempt: (existing?.attempt ?? 0) + 1, deadline: Date.now() + g.max_minutes * 60000, steps: 0 };
+        const deadline = Date.now() + g.max_minutes * 60000;
+        c.graders[g.name] = { token, report, attempt: (existing?.attempt ?? 0) + 1, deadline, steps: 0 };
         this.updateManifest(p);
-        return { token, marker: `HARNESS_GRADER:${token}`, grader: g, report,
+        const absolute = (name) => path.join(this.root, ...name.split('/'));
+        const evidencePath = absolute(`${p.project}/Documents/Reviews/${c.round}/_evidence`);
+        const reportPath = absolute(report);
+        const dirty = gitText(this.root, ['status', '--porcelain', '--', p.project]) ? 'dirty' : 'clean';
+        const prompt = [
+          `HARNESS_GRADER:${token}`,
+          `Round: ${c.round}`,
+          `Project root: ${this.root}`,
+          `Grader name / focus: ${g.name} / ${g.focus}`,
+          `Spec: ${Object.keys(p.records.specs).map(absolute).join(', ')}`,
+          `Target: base ${c.base}, saved scene SHA-256 ${c.sceneHash}, project ${dirty}`,
+          `Evidence key: ${c.evidenceKey}`,
+          `Evidence: ${evidencePath}`,
+          `Report path: ${reportPath}`,
+          `Prior round: ${p.history.at(-1)?.round ?? 'none'}`,
+          'Live inspection: not allowed',
+          'User prompt: <verbatim user words for permitted live Blender calls>',
+          'Prior findings / dispositions: <orchestrator-supplied re-review context or none>',
+          `Budget: ${g.max_minutes} minutes, ${g.max_steps} steps`,
+          `Deadline UTC / rounds already used: ${new Date(deadline).toISOString()}`,
+          'Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached',
+          'Output: verdict, findings, <= 20 lines',
+        ].join('\n');
+        return { token, marker: `HARNESS_GRADER:${token}`, grader: g, report, reportPath, evidencePath, prompt,
           sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, evidence: c.evidence, round: c.round, goal: `${p.project}/${p.goal}` };
       } else if (action === 'review') {
         if (!c?.inspected || p.records.review === 'Off') deny('sealed inspection required before review');

@@ -22,6 +22,15 @@ test('plugin denies raw code and unsupported production escape routes', async (t
   }
 });
 
+test('capabilities expose the harness-owned operation and bootstrap lists', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'capabilities', payload: '{}' }, { sessionID: f.session }));
+  assert.ok(result.operations.includes('create_mesh'));
+  assert.ok(result.primitives.includes('cube'));
+  assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
+  assert.equal(result.limits.operationsPerChange, 40);
+});
+
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await before(h, f.session, 'read', { filePath: path.join(f.root, f.project, 'README.md') });

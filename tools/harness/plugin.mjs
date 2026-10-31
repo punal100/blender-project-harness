@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { z } from 'zod';
 import { Harness, contained, deny, git, stable } from './engine.mjs';
-import { operationCode } from './blender-operations.mjs';
+import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
@@ -9,7 +9,27 @@ const GRADER_BLENDER_READ = new Set(['blender_look']);
 const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'self-review', 'review', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
 const BLENDER_SHELL = /start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
+const BOOTSTRAP_DOCUMENTS = [
+  'README.md',
+  'Documents/README.md',
+  'Documents/REQUIREMENTS.md',
+  'Documents/WORKFLOW.md',
+  'Documents/REVIEW.md',
+  'Documents/ASSETS.md',
+  'Documents/DECISIONS.md',
+  'Documents/Goals/README.md',
+  'Documents/Goals/<NN>-<slug>.md',
+  'Documents/References/README.md',
+  'Documents/References/<name>.md',
+  'Documents/Reviews/README.md',
+];
 const BOOTSTRAP_DOC = /^(?:README\.md|Documents\/(?:README|REQUIREMENTS|WORKFLOW|REVIEW|ASSETS|DECISIONS|Goals\/README|References\/README|Reviews\/README)\.md|Documents\/Goals\/\d+-[a-z0-9-]+\.md|Documents\/References\/[A-Za-z0-9._-]+\.md)$/;
+const capabilities = () => ({
+  operations: [...OPERATION_NAMES],
+  primitives: [...PRIMITIVES],
+  bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
+  limits: { operationsPerChange: 40, minutesPerChange: 15, maxRounds: 'configured 1-3' },
+});
 
 export function createHooks(harness, client) {
   const questions = new Map();
@@ -74,7 +94,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. prepare, status, launch, stop, begin, ticket, grader-ticket, self-review, review, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
+        description: 'Mandatory Blender workflow gate. capabilities, prepare, status, launch, stop, begin, ticket, grader-ticket, self-review, review, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -82,7 +102,8 @@ export function createHooks(harness, client) {
           const payload = JSON.parse(args.payload);
           if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
           let result;
-          if (args.action === 'prepare') result = harness.prepare(context.sessionID, payload);
+          if (args.action === 'capabilities') result = capabilities();
+          else if (args.action === 'prepare') result = harness.prepare(context.sessionID, payload);
           else if (args.action === 'ticket') {
             const p = stateFor(context.sessionID);
             if (!p) deny('no registered project for this session; call blender_workflow prepare and complete its registration question first');

@@ -564,6 +564,9 @@ test('All review mode freezes grader evidence and rejects stale reports', (t) =>
   begin(f);
   const reviewed = reviewAll(f);
   assert.equal(reviewed.status.change.verdict, 'PASS');
+  assert.match(reviewed.grader.prompt, /HARNESS_GRADER:/);
+  assert.match(reviewed.grader.prompt, /Report path: .*REPORT\.md/);
+  assert.match(reviewed.grader.prompt, /Scene hash|saved scene SHA-256/);
   const report = path.join(f.root, reviewed.grader.report);
   fs.appendFileSync(report, 'tampered\n');
   gate(() => f.harness.command('orchestrator', 'review', { notes: 'retry' }));
@@ -742,6 +745,8 @@ test('registered projects open independent logical changes', (t) => {
   const first = begin(f);
   const second = begin(other, 'other-orchestrator');
   assert.notEqual(first.change.id, second.change.id);
+  assert.equal(first.scene, f.scene);
+  assert.deepEqual(first.change.paths, [`${f.project}/notes.txt`]);
   assert.equal(f.harness.command('orchestrator', 'status').change.id, first.change.id);
   assert.equal(f.harness.command('other-orchestrator', 'status').change.id, second.change.id);
   gate(() => begin(f));
