@@ -65,7 +65,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. prepare, status, begin, ticket, grader-ticket, self-review, review, approval, checkpoint. payload is JSON. Runtime owns approvals/evidence; never edit state.',
+        description: 'Mandatory Blender workflow gate. prepare, status, begin, ticket, grader-ticket, self-review, review, approval, checkpoint, recover, escalate. payload is JSON. Runtime owns approvals/evidence; never edit state.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
