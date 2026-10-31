@@ -8,6 +8,11 @@ description: Use when the controller session delegates Blender work to bounded s
 The current session is the controller. It owns requirements, design, scope, acceptance, user
 communication, and commits. A `blender-worker` subagent executes one specific task and returns.
 
+Current harness operations are controller-only under `AGENTS.md`. Workers perform read-only
+inspection; `blender_execute_blender_code`, `blender_workflow`, and `blender_harness_execute` stay
+denied. Delegated writes require explicit assignment plus reviewed tooling and narrowly scoped
+permissions, not an ad hoc allow rule. Unsupported work returns `BLOCKED`; no arbitrary Python fallback.
+
 Use `task` with `subagent_type="blender-worker"`. Do not create Agent Manager sessions or
 worktrees for this work.
 
@@ -59,8 +64,9 @@ read worker settings from `blender_subagents.workers`:
 - If `blender-worker` is not listed as a subagent, reload the Kilo window; do not silently
   substitute a general agent. Stop delegation until registration is verified. Static frontmatter
   validation does not prove runtime registration.
-- File permissions are not a sandbox for `execute_blender_code`. Task scope must also prohibit
-  out-of-scope filesystem, network, and process access through Blender Python or another MCP.
+- File permissions and harness checks are same-user guards, not an OS sandbox. Never bypass them
+  through Blender Python, another MCP, or external shell execution. Manual scene/shell edits invalidate
+  captured evidence; agents must not edit external harness state.
 
 ## Graders
 
@@ -103,8 +109,12 @@ Independent review uses `blender-grader`, configured at `blender_subagents.grade
 - Graders are read-only and may run in parallel. Dispatch selected graders in batches no larger than
   `max_parallel`, using multiple `task` calls per batch. Each writes only its own
   `Documents/Reviews/<round>/<grader>/REPORT.md`.
-- Store each returned `task_id` in the round manifest and resume the same session for a re-review
-  when model and focus are unchanged.
+- Retain each runtime-bound `task_id` without rewriting the sealed manifest; resume the same session
+  for a re-review when model and focus are unchanged, with a fresh ticket and exact assigned path.
+- Controller calls `blender_workflow` `grader-ticket` with `{name}` after sealed-render inspection,
+  then includes `HARNESS_GRADER:<token>` and the exact returned report path in the normal grader task.
+  Plugin hooks bind the actual child by parent/task token and runtime model metadata, restrict writes
+  to that report, and forbid peer report reads. Graders do not need `blender_workflow` permission.
 - One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
   missing spec/evidence. Graders never loop or ask the user.
 - A single blocker fails the round regardless of other PASS verdicts. The controller, not a vote
@@ -131,9 +141,9 @@ Never self-approve or continue because a question could not be asked.
 
 A worker may:
 
-- implement the exact assigned task with Blender MCP;
+- inspect the exact assigned scene task with read-only Blender MCP;
 - inspect with `get_scene_info` and `look`;
-- save the `.blend` when the task changed the scene;
+- return exact facts and bounded options to the controller without editing or saving;
 - choose only implementation mechanics that do not change the visible result, structure, scope, or
   acceptance.
 
@@ -160,7 +170,7 @@ Task ID:
 Project:
 Controller goal:
 User prompt: verbatim user words for Blender MCP user_prompt
-Outcome: one visible or technical result
+Outcome: one read-only inspection result; current worker harness does not support writes
 Allowed: exact objects, collections, files, paths
 Authoritative .blend: exact save path, already open and verified
 Inputs: project docs and references by path
@@ -189,7 +199,7 @@ The worker stops at the first of:
 - a required file or object outside the allowed set;
 - a missing input or an acceptance check that cannot be run.
 
-On stop, it saves if safe, leaves the scene consistent, and returns `PARTIAL` or `BLOCKED`. It does
+On stop, it leaves the scene unchanged and returns `PARTIAL` or `BLOCKED`. It does
 not start another task or continue exploring. The controller decides whether to resume, narrow,
 replace the worker, or take over.
 
@@ -211,8 +221,10 @@ Remaining work:
 The controller independently inspects `blender_get_scene_info`, runs `look`, and checks the working
 tree. The controller runs required grading; workers never dispatch graders or interpret the roster.
 In Partially Autonomous mode, the controller asks the user for approval after each meaningful
-worker task; the worker never asks. The controller must update the documents after acceptance and
-commit atomically after each accepted change; workers never commit.
+worker task that leads to a controller change; the worker never asks. The controller owns ticketed
+save/seal, returned-render `blender_look`, review receipts, and required runtime approval. Inspect
+status/diff/log, stage exact paths, commit atomically, and run `checkpoint` before another `begin`.
+Failed rounds commit before bounded `revision:true` fixes. Workers never commit or edit harness state.
 
 ## Format references
 

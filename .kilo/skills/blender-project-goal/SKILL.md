@@ -17,16 +17,20 @@ unless the user separately requested it.
    `blender-project-requirements`, collect workflow and review answers with
    `blender-project-workflow` and `blender-project-grading`, scaffold with
    `blender-project-scaffold`, then persist all three exact confirmation records. Fill the goal only
-   after those records are complete; start it before launching Blender. Never use a discovery goal.
+   after those records are complete. Inspect status/diff/log and commit exact scaffold documents and
+   the filled goal before `blender_workflow` `prepare`; finish its registration question in ordinary
+   chat before starting the goal or launching Blender. Never use a discovery goal.
 3. On a genuine later return to a paused project, read `Documents/WORKFLOW.md` and
    `Documents/REVIEW.md`, ask both selection questions in ordinary chat, and record the exact answers
    before resuming. Routine approval, clarification, and manual-edit pauses, automatic goal turns,
    and compaction within the same active task are continuations; do not reask modes for those pauses.
 4. Resume saved work with `goal(action="resume")` only when its requirements, workflow, review, and
    goal records are current and the pending answer permits continuation. Do not duplicate an active
-   goal or resume it again on automatic goal turns or after compaction.
+   goal or resume it again on automatic goal turns or after compaction. Use harness `status` to recover
+   its phase; changed registration facts require explicit re-registration while paused.
 5. For new work, write the filled goal prompt and start the production goal only after requirements,
-   workflow, and review records are complete and the project is scaffolded.
+   workflow, and review records are complete, scaffold documents and goal are committed, and runtime
+   registration is granted. Follow the canonical harness contract in `AGENTS.md`.
 6. Successful goal start/resume ends the current turn. Give a short response and continue when the
    goal resumes; do not call more tools or perform more work in that turn.
 7. If a goal tool is unavailable or fails, report the exact error and stop production; a written
@@ -48,7 +52,12 @@ unless the user separately requested it.
    The `goal` objective must be the entire filled prompt text, not the raw request or a one-line
    summary; Kilo accepts at most 10,000 characters.
 5. Identify the active goal's actual `Documents/Goals/NN-<slug>.md` path for production and grading.
-   The initial brief is a bootstrap template, not a fixed target for later goals.
+   The initial brief is a bootstrap template, not a fixed target for later goals. Before launch,
+   inspect status/diff/log and commit exact scaffold/goal paths. Call `blender_workflow` `prepare` with
+   only `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
+   payload. Pass the returned exact question and labels to `question` with
+   `custom:false,multiple:false`. Only genuine runtime answers grant registration; never create
+   approved JSON.
 6. For a new goal, call `goal(action="start", objective=<the full prompt text>)` immediately. Writing
    the file without starting the goal is incomplete. For saved work, complete the return gates above
    and call `goal(action="resume")` instead. After success, end the turn and wait for continuation.
@@ -76,9 +85,10 @@ Never self-confirm requirements or record a directive the user did not give.
 - Deliverables: scene, review render, exports, documents.
 - Acceptance checks that can be seen in a render or read from a file.
 - Workflow: launch from the workspace root, verify the open file, save after every meaningful
-  change and before risky work, inspect with `look`, render, and update docs. Review git changes at
-  major milestones and commit atomically after each verified change. Include the selected autonomy
-  mode and review mode, and run configured graders as defined in `blender-project-grading`.
+  change and before risky work through ticketed harness operations, seal, inspect the returned final
+  PNG with `blender_look`, and update docs. Each bounded change requires review, applicable approval,
+  scoped commit, and `checkpoint` before the next `begin`; failed rounds commit before fixes. Include
+  selected autonomy/review modes and configured graders under `blender-project-grading`.
 - Done: require the review artifact, current documentation including `REVIEW.md`, and a final
   applicable `PASS` when grading is enabled. No genuine unresolved blocker or major finding permits
   completion; declining a genuine finding is not a waiver.
@@ -93,6 +103,9 @@ Never self-confirm requirements or record a directive the user did not give.
 - In either autonomy mode, pause before necessary questions and resume only on an answer that permits
   continuation. Do not reselect modes for routine approval pauses within the same active task.
 - Never invent user confirmation or a session directive to bypass these gates.
+- Production uses controller-only harness operations under `AGENTS.md`; raw Python, imports, and
+  generation are blocked. Unsupported operations stop until tooling is reviewed and extended.
+  Maintenance remains exempt, without Blender access.
 - This is a design goal, not a coding plan. Do not create `PLAN/` or plan-check/verifier records.
 - Multiple goals per project are allowed; one file per goal.
 - Never claim production completion without a saved review render inspected with `look`. Viewport
@@ -104,4 +117,5 @@ Never self-confirm requirements or record a directive the user did not give.
   revision direction.
 - Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`, `DECISIONS.md`, and `ASSETS.md` before
   `goal_report(status="complete", reason=<evidence>)`. Report only after all checks pass, then give
-  the final response without further actions.
+  the final response without further actions. The completion hook requires a clean checkpoint,
+  final applicable `PASS`, and successful inspection of the sealed render; a claim is not a receipt.

@@ -12,6 +12,8 @@ Not affiliated with the Blender Foundation or the mcp-for-blender project.
 - PowerShell 7 or Windows PowerShell. The validated PowerShell launcher is required; unsupported
   `--batch` and `KILO_BLENDER_FORCE_CMD` paths fail instead of bypassing project checks.
 - Kilo with the workspace Blender MCP configured in `.kilo/kilo.jsonc`.
+- Node.js 22 or newer and npm for `tools/harness/` and the auto-loaded
+  `.kilo/plugins/blender-workflow.js` plugin.
 - `uvx` on `PATH` for the configured `mcp-for-blender` server, plus the matching Blender addon.
 
 The enabled-only `mediamcp` entry inherits its full server definition from user-level Kilo config;
@@ -20,6 +22,21 @@ globally before using it, or disable its workspace entry when unavailable. Never
 into tracked config. The disabled Playwright entry overrides any inherited server.
 
 ## Quick start
+
+Install harness dependencies from the workspace root, then reload Kilo to load the plugin, custom
+`blender_workflow` tool, and `blender_harness_execute` MCP bridge:
+
+```powershell
+npm ci --prefix tools/harness
+npm run doctor --prefix tools/harness
+```
+
+Setup instructions do not prove installation or runtime validation. Verify tool availability after
+reload; stop production if the plugin or bridge is unavailable.
+
+`npm run doctor --prefix tools/harness` checks Node, locked harness dependencies, workspace routing,
+Git, `uvx`, and the pinned `mcp-for-blender==2.2.6` command. It does not start Blender or prove that
+the live addon is listening; perform that check only through the validated launcher after registration.
 
 Confirm project requirements with the agent first, then select workflow and review modes. Keep the
 exact answers until scaffolding exists. After creating the project, persist all three records before
@@ -32,7 +49,13 @@ Create a project:
 .\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
 ```
 
-Open it:
+Fill the goal and project documents. Inspect `git status`, `git diff`, and `git log --oneline -10`,
+then commit exact scaffold paths before launch. Call `blender_workflow` `prepare` with only
+`{project:"Blender/ProjectName",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
+payload. Use the actual goal and scene paths. Pass its exact registration question and labels to
+`question` (`custom:false,multiple:false`). Only genuine runtime answers register the project, never
+approved JSON. Start/resume the registered goal, end that turn, then inspect harness `status` before
+opening Blender:
 
 ```powershell
 .\tools\start-blender.cmd "Blender\ProjectName"
@@ -56,10 +79,13 @@ opening a live log terminal. It writes the session log to the project's ignored
       blender-worker.md
       blender-grader.md
     skills/
+    plugins/
+      blender-workflow.js
   Blender/
     README.md
     <Project>/
   tools/
+    harness/
     new-blender-project.cmd
     new-blender-project.ps1
     start-blender.cmd
@@ -90,11 +116,43 @@ registration or a configured model's availability.
 
 ## Workflow
 
-Read `AGENTS.md` and the matching skill before work. Production work requires an active goal; workspace
-maintenance and read-only questions are exempt. Save the authoritative `.blend` after every meaningful
-scene change and before risky work or handoff. Review git changes at milestones and commit atomically:
-one logical, verified change per commit. Commits are mandatory; never batch a session into one
-end-of-task commit. Inspect every visual change with `look` before reporting done.
+Read `AGENTS.md` and the matching skill before work. Production requires runtime registration and an
+active goal; workspace maintenance and read-only questions are exempt. Maintenance needs no project,
+goal, or review render and must not launch or modify Blender unless separately requested.
+
+`AGENTS.md` defines the canonical harness contract. `blender_workflow` takes
+`{action: string, payload: JSON string}`. Each production change follows these checkpoints:
+
+1. Inspect `status`; `begin` declares one outcome, exact object names, and exact project-relative
+   files. One open change is bounded by 40 operations and 15 minutes.
+2. Request `ticket` for `apply`, `save`, or `seal`; next call `blender_harness_execute` with the token,
+   matching operation/payload, and verbatim user goal. Save after meaningful changes and before
+   handoff; recovery save/seal remain available after the apply budget.
+3. `seal` saves the scene and captures immutable evidence, final PNG, and manifest. Call mandatory
+   `blender_look(image=<returned absolute render path>)`; the hook records successful inspection.
+4. `Off`: `self-review` with notes. `All`/`Single`: `grader-ticket` per grader, normal grader task with
+   `HARNESS_GRADER:<token>` and exact report path, aggregate findings, then `review` with notes.
+   Report receipts, aggregate hash, verdict, and finding dispositions must match.
+5. Partially Autonomous: pause the goal, call `approval`, then pass its exact question and labels
+   `Approve change`, `Request revision`, `Pause` to `question`. Only runtime answers count.
+6. Inspect status/diff/log, stage only scoped paths, commit atomically, then `checkpoint`. Exactly one
+   scoped commit, clean project, and matching hashes are required before next `begin`. Failed rounds
+    commit before fixes; corrections use `revision:true` within the round cap. After the cap, call
+    `escalate` with a bounded reason and complete the exact registration question before continuing.
+    No late mega-commit.
+
+Supported mutations are schema-validated `create_mesh` (`cube`, `uv_sphere`, `plane`, `cylinder`),
+`transform`, `material`, `create_light`, `create_camera`, `set_camera`, `render_settings`, and
+`delete_object`. Raw `execute_blender_code`, `import_asset`, and `generate_3d` are blocked. Unsupported
+work stops until reviewed tooling supports it; arbitrary Python is not a fallback.
+
+After compaction/restart, recover through `status`. Completion requires a clean checkpoint and final
+applicable `PASS` with inspected sealed render. Runtime uses a conservative two-round cap; a third
+needs explicit user escalation and re-registration handling, never a silent override.
+
+State lives outside Git at `~/.local/state/blender-workflow-harness/<workspace-hash>`; agents must not
+edit it. This is a same-user guard, not an OS sandbox. Manual Blender or external-shell edits invalidate
+evidence; unrestricted same-user execution can bypass controls.
 
 New projects start with a requirements discussion and explicit confirmation in ordinary chat. Then
 choose Fully Autonomous or Partially Autonomous mode, choose a review mode (`Off`, `All`, `Single`),
@@ -112,8 +170,11 @@ or unclear, use Context7, official docs, and web search, then test against the l
 
 The main session is the controller and owns all design decisions. Copy `config.example.json` to the
 gitignored `config.json`, set the `blender_subagents.workers` model, provider, variant, and limits, then load
-`blender-subagents`. Spawn one `blender-worker` at a time with `task`; workers execute one specific
-task, stop at their budget, and return `BLOCKED` instead of deciding scope or design.
+`blender-subagents`. Current workers perform bounded read-only inspection through `task`; controller
+owns harness operations. Raw execution and harness mutation tools remain denied until explicit
+delegated-write assignment and reviewed tooling support exist. Workers stop at their budget and
+return `BLOCKED` instead of deciding scope or design. Graders need no `blender_workflow` permission;
+the plugin binds actual children by parent/task token and runtime model metadata.
 
 ## Reviews
 
@@ -141,12 +202,14 @@ Run the maintenance regression suite from the workspace root:
 
 ```powershell
 python -B -m unittest discover -s tools -p "test_*.py" -v
+npm test --prefix tools/harness
 ```
 
 Launcher and scaffold checks use isolated temporary workspaces and PowerShell. Bootstrap checks mock
 `bpy`; no test launches Blender. Frontmatter and worker-config checks require PyYAML and report a skip
 when it is unavailable. Live addon behavior, Kilo registration, and actual Blender startup need a
-separate runtime check.
+separate runtime check after Kilo reload. Passing static or mocked tests does not establish installed
+runtime validation.
 
 ## Licence
 

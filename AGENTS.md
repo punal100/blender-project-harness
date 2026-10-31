@@ -9,6 +9,7 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 - `.kilo/kilo.jsonc` owns the single MCP port. Do not create per-project Kilo configs.
 - Only one Blender instance spawned by this workspace may run at a time. One writer per instance; parallel read-only inspection is allowed.
 - Never launch `blender.exe` directly. Use `.\tools\start-blender.cmd "Blender\<Project>"`; it opens a log terminal and writes to the project's ignored `logs/` folder.
+- Workflow state lives outside the repository at `~/.local/state/blender-workflow-harness/<workspace-hash>` and is not editable through an agent. The harness is a same-user guard, not an OS sandbox; manual Blender or external-shell edits invalidate captured evidence, and unrestricted same-user execution can bypass these controls.
 
 ## Session and goal
 
@@ -29,27 +30,41 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 - In Partially Autonomous mode, after every meaningful change or addition, save, inspect with `look`, summarize and recommend, then ask approval via `question` before continuing. Pause the goal first, then ask, then resume. If the user wants to modify manually, prepare the scene and wait for them to finish; inspect and confirm afterward.
 - Never record a confirmation, directive, or approval that the user did not give. If a question cannot be asked, pause or stop instead of self-authorizing.
 
+## Workflow harness
+
+- Production controller uses custom tool `blender_workflow` with `{action: string, payload: JSON string}`. `prepare` accepts only `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` and requires scaffold documents committed first. It returns the exact registration question, labels, and details. Pass that question and labels unchanged to `question` with `custom:false` and `multiple:false`; genuine runtime answers grant registration. Never create approved JSON or self-confirm registration.
+- After registration and an active goal, use `begin` with `{outcome,objects:[exact names],paths:[exact project-relative files],revision?:bool}`. Keep one bounded logical change open, at most 40 operations and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
+- Issue `ticket` with `{operation:"apply"|"save"|"seal",payload:<operation JSON for apply or {} for save/seal>}`. Pass returned `token` to server tool `blender_harness_execute` (`harness_execute`) with `{token,operation,payload,user_prompt:<verbatim user goal>}`. Supported operations only: `create_mesh` (`cube`, `uv_sphere`, `plane`, `cylinder`), `transform`, `material`, `create_light`, `create_camera`, `set_camera`, `render_settings`, `delete_object`. Unsupported operations stop work until tooling is reviewed and extended. Raw `execute_blender_code`, `import_asset`, and `generate_3d` calls are blocked; no arbitrary Python loophole.
+- `seal` saves the authoritative scene, captures immutable review evidence, final PNG render, and manifest. Then call mandatory `blender_look(image=<returned absolute render path>)`; the hook records successful inspection.
+- `Off` uses `self-review` with `{notes}`. `All` or `Single` uses `grader-ticket` with `{name}`; pass its unique token, exact report path, and `HARNESS_GRADER:<token>` marker to the normal `blender-grader` task. The plugin binds the actual child by parent/task token and runtime model metadata. Grader writes only its assigned report and never reads peer reports. `review` validates all report receipts plus aggregate `REVIEW.md` hash, verdict, and finding dispositions.
+- Partially Autonomous mode requires goal pause before `approval`. Use the exact returned question and labels `Approve change`, `Request revision`, `Pause`; only the actual runtime answer counts. Forged approval JSON is ignored.
+- Before each next `begin`, inspect status, `git diff`, and recent log; stage only scoped paths; commit one exact scoped change; run `checkpoint`. Checkpoint verifies exactly one scoped commit, clean project state, and hash match. Failed rounds commit their review artifacts before fixes. `revision:true` stays within the round cap; runtime uses a conservative two-round cap, and a third round needs explicit user escalation and re-registration handling. Never silently override the cap.
+- After a capped review, call `escalate` with a bounded reason, then complete the exact registration question again. Escalation preserves prior history and does not silently reset review state.
+- `status` is the recovery entry point after compaction or restart. Goal completion hook blocks until a clean checkpoint and final applicable `PASS` with inspected render exist.
+
 ## Reviews
 
 - The controller's `look` inspection is mandatory. Independent graders supplement it; they never replace it and never make acceptance or design decisions.
 - Run graders only when review mode is `All` or `Single` and `blender_subagents.graders.enabled` is true. `Off` means controller self-review only. If `All` or `Single` is selected but config is missing or disabled, stop production and resolve the mismatch; never silently skip required grading.
 - In `All`/`Single`, grade every meaningful saved visual state. In Partially Autonomous mode, finish grading before asking approval or revision direction. Read reports and record every finding's disposition in `Documents/Reviews/<round>/REVIEW.md`. Prioritize blockers; grader-requested fixes still follow workflow approval gates before another meaningful change.
-- Graders are read-only. They may write only their own `Documents/Reviews/<round>/<grader>/REPORT.md`. Only `_evidence/` and `tmp/` inside review rounds are gitignored.
+- Graders are read-only. Runtime assignment permits each grader to write only its exact
+  `Documents/Reviews/<round>/<grader>/REPORT.md`; peer reports are forbidden. Only `_evidence/` and
+  `tmp/` inside review rounds are gitignored.
 - Dispatch graders in batches bounded by `max_parallel`, using the configured model, provider, variant, and budget per grader only when runtime override rules permit. Resume the same grader session with its `task_id` for a re-review when model and focus remain unchanged.
-- Bounds are mandatory: one pass per grader per round, `max_rounds` 1-3, and per-grader time/step limits. Two rounds without improvement on the same finding escalate to the user.
+- Bounds are mandatory: one pass per grader per round, configured `max_rounds` 1-3, and per-grader time/step limits. Runtime permits only two rounds; two rounds without improvement on the same finding require user escalation and re-registration handling.
 - Commit each review round's `REVIEW.md`, `manifest.json`, reports, and index entry atomically. Never leave a completed round uncommitted.
 
 ## Subagents
 
-- The current session is the controller. It owns requirements, design, scope, acceptance, user communication, and commits. Read `.kilo/skills/blender-subagents/SKILL.md` before delegating.
+- The current session is the controller. It owns requirements, design, scope, acceptance, user communication, harness operations, and commits. Read `.kilo/skills/blender-subagents/SKILL.md` before delegating.
 - Before production delegation, read and validate the gitignored `config.json` under `blender_subagents.workers` or `blender_subagents.graders` for the required providers, models, variants, and budgets. If missing, copy `config.example.json` without overwriting local settings and stop delegation until the user confirms it. Never guess or substitute a model; runtime tool restrictions still apply. Maintenance tasks may use `general`, or read-only `explore`, under bounded scopes without this roster; they must not access Blender or commit.
-- Spawn `blender-worker` with `task`; do not create Agent Manager sessions. Allow one Blender writer at a time. Graders are read-only and may run in parallel when configured.
+- Spawn `blender-worker` with `task`; do not create Agent Manager sessions. Current workers inspect only: raw execution, `blender_workflow`, and `blender_harness_execute` are denied. Delegated writes require an explicit assignment and reviewed harness support, not broader permissions alone. Allow one Blender writer at a time. Graders are read-only and may run in parallel when configured.
 - Each task is one specific outcome with allowed objects/paths, acceptance checks, budget, stop conditions, and output contract. The worker never makes design decisions; it returns `BLOCKED` with options when one is needed.
 - A worker must stop before starting more work at the configured time/step budget, configured failure limit (at most two), repeated API error, or scope/design/asset ambiguity. `steps` caps tool-call rounds; it does not interrupt running calls or enforce a wall-clock timeout. The controller independently inspects with `look`, decides, and obtains workflow approval when required.
 
 ## Working
 
-- Save the authoritative `.blend` after every meaningful scene change and before risky work or handoff. Review git changes at each major milestone. Commit atomically and continuously: one logical, verified change per commit, staging only intended files after inspecting status, diff, and recent history. Commits are mandatory; never defer completed work into an end-of-task mega-commit.
+- Save the authoritative `.blend` through ticketed `save` after every meaningful scene change and before risky work or handoff. Seal and review each bounded change, obtain required approval, then inspect status, diff, and recent history. Commit atomically and continuously: one exact scoped change per commit, followed by `checkpoint` before the next `begin`. Failed review artifacts commit before fixes; never defer work into an end-of-task mega-commit.
 - Visual verification is mandatory. After every scene, material, lighting, or camera change, inspect the result with `look`; code output alone is not proof. Do not report done until you have seen it.
 - Keep `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current.
 - For Blender or library APIs, check Context7 and official docs first. If docs are missing, version-mismatched, or unclear, web-search official docs, source, and community reports; verify against the live Blender version with a minimal test. Never invent API behavior.
@@ -58,7 +73,7 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 
 ## Launch
 
-- Verify with `blender_get_addon_status` and `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file mismatch. For a new unsaved scene, save it to the declared project `.blend` first, then verify that path before production edits.
+- Before launch, commit completed scaffold documents and goal, finish `prepare` registration in ordinary chat, start/resume the registered goal, and inspect harness `status`. Verify with `blender_get_addon_status` and `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file mismatch. For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`, then verify that path before production edits.
 - Never use `--background` or `--factory-startup`. Close the current Blender before switching projects.
 
 ## Skills
@@ -83,7 +98,8 @@ For Blender production work, a goal is not complete until its acceptance checks 
 saved, a review render exists and was inspected with `look`, requirements, workflow, and review mode
 are current, all required grading has a final applicable `PASS` (or controller self-review is recorded
 when mode is `Off`), no genuine blocker or major remains unresolved, docs are current, and the goal
-prompt is recorded.
+prompt is recorded. The completion hook also requires a clean `checkpoint`, final applicable `PASS`,
+and the sealed render's successful `blender_look` receipt.
 
 For workspace maintenance, run the relevant format, tooling, and diff checks. Report runtime checks
 that could not run; do not invent scene verification or require a Blender project to review tooling.

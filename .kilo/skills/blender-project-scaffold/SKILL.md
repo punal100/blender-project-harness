@@ -34,7 +34,8 @@ The script:
 - leaves the main `.blend` for the first Blender session.
 
 Use `-DryRun` to preview without writing. `-Start` must be rejected before creating files: a fresh
-scaffold cannot contain completed confirmation records. Launch separately after completing them.
+scaffold cannot contain completed confirmation records. Launch separately after completing them,
+committing scaffold documents and the filled goal, and finishing runtime harness registration.
 
 If the script cannot run, stop scaffolding and report the exact error. Fix the tooling before retrying;
 do not bypass its validation by copying the template manually.
@@ -82,16 +83,25 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
    `Off`, `All`, and `Single` are valid; `Unset` blocks production. Do not invent confirmation text.
 4. Fill `README.md` with `blender-project-readme`; mark the main `.blend` path explicitly planned
    until the first save. Do not require a live Blender connection during bootstrap.
-5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal` and start it. Start the goal
-   only after requirements, workflow, and review mode are recorded; the objective is the entire filled
-   prompt. A successful goal call ends the turn; continue the remaining steps on the next goal turn.
-   If a question is still open, ask it before starting the goal, never from inside it.
-6. Register confirmed external assets with `blender-assets`; do not import before launch preflight.
+5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal`. Inspect `git status`,
+   `git diff`, and `git log --oneline -10`; stage only exact scaffold paths and commit completed
+   documents and the filled goal before launch. Do not include unrelated files.
+6. Call `blender_workflow` `prepare` with only
+   `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
+   payload. Pass its exact registration question and labels to `question` with
+   `custom:false,multiple:false`; only genuine runtime answers grant registration. Never create
+   approved JSON. Then start the goal with the entire filled prompt; a successful goal call ends the
+   turn. Continue on the next goal turn and inspect harness `status` before launch. Register confirmed
+   asset metadata with `blender-assets`; imports/generation stay blocked until reviewed tooling
+   supports them, even when launch preflight passes.
 7. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
 8. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
-9. Verify addon and scene settings. For a new unsaved scene, save it as `<slug>.blend` at the project
-   root before production edits, then verify that exact path with scene settings and update README
-   from planned to saved. Stop on connection, addon, or file mismatch.
+9. Verify addon and scene settings. For a new unsaved scene, open a bounded harness `begin` and use
+   ticketed `save` as `<slug>.blend` at the project root before production edits, then verify that exact
+   path and update README from planned to saved. Stop on connection, addon, or file mismatch. Follow
+   `AGENTS.md`: each change seals immutable evidence, inspects its returned final PNG, completes
+   review/approval, and commits exact scoped paths before `checkpoint` and the next `begin`. Failed
+   rounds commit before fixes; no late mega-commit.
 
 ## Rules
 
