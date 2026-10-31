@@ -158,6 +158,9 @@ export function createHooks(harness, client) {
         if (args.status === 'complete') {
           if (p.change || p.history.at(-1)?.verdict !== 'PASS' || !p.lastRender || harness.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion blocked by missing checkpoint/PASS/render');
           harness.assertCommitted(p.project, harness.snapshot(p.project));
+        } else if (args.status === 'blocked') {
+          try { harness.assertCommitted(p.project, harness.snapshot(p.project)); }
+          catch { deny('commit the exact project files before ending a blocked turn: stage only the current change paths, scene, render, reports, manifest, and review index, then commit once'); }
         }
         return;
       }

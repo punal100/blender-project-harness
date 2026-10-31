@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import path from 'node:path';
 import { createHooks } from './plugin.mjs';
+import { git } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
 function hooks(f) {
@@ -58,6 +60,15 @@ test('plugin permits matching ticket once, blocks cross-session ticket', async (
   await assert.rejects(before(h, 'ses_other', 'blender_harness_execute', ticket), /forged/);
   await before(h, f.session, 'blender_harness_execute', ticket);
   await assert.rejects(before(h, f.session, 'blender_harness_execute', ticket), /replayed/);
+});
+
+test('blocked goal report requires committed project files', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'uncommitted work\n');
+  await assert.rejects(before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' }), /commit the exact project files/);
+  git(f.root, ['add', '--', '.']);
+  f.commit('test: commit pending readme');
+  await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
 });
 
 test('plugin blocks early completion, fake internal commands and wrong goal', async (t) => {
