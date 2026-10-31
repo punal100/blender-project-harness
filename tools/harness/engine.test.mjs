@@ -171,13 +171,40 @@ test('registration accepts question args without custom or multiple flags', (t) 
   assert.match(f.harness.command('orchestrator', 'status').next, /registered goal/);
 });
 
-test('registration rejects custom-answer questions', (t) => {
+test('custom-answer questions do not register', (t) => {
   const f = useFixture(t);
   const prepared = f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName });
   f.harness.question('orchestrator', {
     questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })), custom: true }],
   }, [['Confirm registration']]);
-  gate(() => f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName }), /registration is pending/);
+  assert.equal(f.harness.command('orchestrator', 'status').project, null);
+});
+
+test('status reports an unregistered phase instead of denying', (t) => {
+  const f = useFixture(t);
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.project, null);
+  assert.match(status.next, /prepare/);
+});
+
+test('prepare is idempotent and replaces its own expired challenge', (t) => {
+  const f = useFixture(t);
+  const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
+  const first = f.harness.prepare('orchestrator', args);
+  assert.equal(f.harness.prepare('orchestrator', args).question, first.question);
+  f.harness.transaction((s) => { s.challenge.created -= 600001; });
+  assert.notEqual(f.harness.prepare('orchestrator', args).question, first.question);
+});
+
+test('pending registration does not lock out another session forever', (t) => {
+  const f = useFixture(t);
+  const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
+  f.harness.prepare('first', args);
+  gate(() => f.harness.prepare('second', args), /pending in another session/);
+  f.harness.transaction((s) => { s.challenge.created -= 600001; });
+  const prepared = f.harness.prepare('second', args);
+  f.harness.question('second', { questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })) }] }, [['Confirm registration']]);
+  assert.match(f.harness.command('second', 'status').next, /registered goal/);
 });
 
 function register(f, session = 'orchestrator') {
@@ -335,6 +362,7 @@ test('records reject invalid modes and grader configurations before registration
 
 test('registration accepts only exact runtime question and goal prompt', (t) => {
   const f = useFixture(t);
+  const unregistered = (session = 'orchestrator') => assert.equal(f.harness.command(session, 'status').project, null);
   gate(() => f.harness.command('orchestrator', 'goal-active', { objective: f.prompt }));
   const prepared = f.harness.prepare('orchestrator', {
     project: f.project,
@@ -344,15 +372,15 @@ test('registration accepts only exact runtime question and goal prompt', (t) => 
   f.harness.question('orchestrator', {
     questions: [{ question: 'forged', options: [{ label: 'Confirm registration' }], custom: false, multiple: false }],
   }, [['Confirm registration']]);
-  gate(() => f.harness.command('orchestrator', 'status'));
+  unregistered();
   f.harness.question('orchestrator', registrationQuestion(prepared), [[{ label: 'Confirm registration' }]]);
-  gate(() => f.harness.command('orchestrator', 'status'));
+  unregistered();
   const custom = registrationQuestion(prepared);
   custom.questions[0].custom = true;
   f.harness.question('orchestrator', custom, [['Confirm registration']]);
-  gate(() => f.harness.command('orchestrator', 'status'));
+  unregistered();
   f.harness.question('other-orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
-  gate(() => f.harness.command('other-orchestrator', 'status'));
+  unregistered('other-orchestrator');
   f.harness.question('orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
   f.harness.command('orchestrator', 'goal-active', { objective: f.prompt });
   gate(() => f.harness.command('orchestrator', 'goal-active', { objective: 'forged goal' }));

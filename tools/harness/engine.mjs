@@ -166,7 +166,15 @@ export class Harness {
       contained(this.projectPath(args.project), args.scene, true);
       const prior = s.projects[args.project];
       const reRegister = Boolean(prior?.escalation?.requested && prior.orchestrator === session && !prior.change);
-      if ((prior && !reRegister) || s.challenge) deny('project already registered or registration is pending; finish or recover before re-registering');
+      if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
+      if (s.challenge) {
+        const c = s.challenge;
+        if (c.session !== session) deny(`registration for ${c.project} is pending in another session; finish it there or wait 10 minutes for it to expire before preparing again`);
+        const unchanged = c.project === args.project && c.goal === args.goal && c.scene === args.scene && this.head() === c.checkpoint && stable(this.snapshot(args.project)) === stable(c.snapshot) && stable(records) === stable(c.records);
+        if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal } };
+        s.challenge = null;
+      }
+      if (prior && !reRegister) deny('project already registered; use status to continue it, or escalate only after a capped review');
       if (Object.values(s.projects).some((p) => p.project === args.project && p.orchestrator !== session)) deny('project owned by another orchestrator');
       if (Object.values(s.projects).some((p) => p.orchestrator === session && p.project !== args.project)) deny('orchestrator already owns another project');
       const snapshot = this.snapshot(args.project);
@@ -212,8 +220,17 @@ export class Harness {
   }
   command(session, action, args = {}) {
     return this.transaction((s) => {
+      if (action === 'status') {
+        const projects = Object.values(s.projects).filter((p) => p.orchestrator === session);
+        if (projects.length === 1) return this.status(projects[0]);
+        if (projects.length > 1) deny('session owns multiple projects; inspect workspace state before continuing');
+        const pending = s.challenge?.session === session
+          ? 'Answer the pending registration question, then start or resume the goal'
+          : s.challenge ? `Another session is registering ${s.challenge.project}; wait for it to finish or expire`
+            : 'Complete and commit scaffold docs, then call prepare and answer its registration question';
+        return { project: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, next: pending };
+      }
       const p = this.owner(s, session);
-      if (action === 'status') return this.status(p);
       this.fresh(p);
       const c = p.change;
       if (action === 'goal-active') {
