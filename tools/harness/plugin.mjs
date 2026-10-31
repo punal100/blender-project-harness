@@ -60,10 +60,13 @@ export function createHooks(harness, client) {
     const match = /^Blender\/[^/]+\/(.+)$/.exec(name);
     return Boolean(match) && BOOTSTRAP_DOC.test(match[1]);
   }
+  function isBootstrap(c) {
+    return Boolean(c?.bootstrap && c.saved && !c.sealed && !c.operations);
+  }
   function canCommit(p) {
     harness.fresh(p);
     const c = p.change;
-    if (!c?.verdict || !c.inspected || (p.records.workflow === 'Partially Autonomous' && !c.approval)) deny('finish review and required approval before committing');
+    if (!isBootstrap(c) && (!c?.verdict || !c.inspected || (p.records.workflow === 'Partially Autonomous' && !c.approval))) deny('finish review and required approval before committing');
     const staged = git(harness.root, ['diff', '--cached', '--name-only', '-z']).split('\0').filter(Boolean);
     const allowed = new Set([...c.paths, p.scene, c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`]);
     if (!staged.length || staged.some((name) => !allowed.has(name))) deny('index empty or contains unrelated files');
@@ -190,7 +193,7 @@ export function createHooks(harness, client) {
         if (/[;&|`\r\n$<>]/.test(command)) deny('production shell accepts one literal command only');
         if (/^git status(?: --short)?(?: --branch)?$/.test(command) || /^git diff(?: --stat| --check| --cached| --name-only)*$/.test(command) || /^git log --oneline -10$/.test(command)) return;
         if (/^git add -- /.test(command)) {
-          if (!p.change?.verdict || (p.records.workflow === 'Partially Autonomous' && !p.change.approval)) deny('review/approval required before staging');
+          if (!isBootstrap(p.change) && (!p.change?.verdict || (p.records.workflow === 'Partially Autonomous' && !p.change.approval))) deny('review/approval required before staging');
           const tokens = [...command.slice('git add -- '.length).matchAll(/"([^"]+)"|'([^']+)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]);
           const c = p.change;
           const allowed = new Set([...c.paths, p.scene, c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`]);

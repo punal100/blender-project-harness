@@ -60,6 +60,23 @@ test('launch requires an active goal and shell Blender commands are retired', as
   await assert.rejects(before(h, f.session, 'bash', { command: 'blender.exe scene.blend' }), /retired/);
 });
 
+test('bootstrap save can be staged and committed without review', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  f.begin();
+  f.harness.transaction((s) => {
+    const change = s.projects[f.project].change;
+    change.bootstrap = true;
+    change.saved = true;
+    change.operations = 0;
+  });
+  fs.appendFileSync(path.join(f.root, f.scene), 'bootstrap save\n');
+  await before(h, f.session, 'bash', { command: `git add -- "${f.scene}"` });
+  git(f.root, ['add', '--', f.scene]);
+  await before(h, f.session, 'bash', { command: 'git commit -m "feat: bootstrap scene"' });
+  git(f.root, ['-c', 'user.name=Harness Test', '-c', 'user.email=harness-test@example.invalid', 'commit', '--quiet', '-m', 'feat: bootstrap scene']);
+  await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+});
+
 test('plugin permits matching ticket once, blocks cross-session ticket', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const ticket = f.harness.issue(f.session, 'save', {});
