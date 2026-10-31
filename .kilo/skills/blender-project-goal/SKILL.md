@@ -62,11 +62,8 @@ manage goal commands or copy goal prompts.
    summary; Kilo accepts at most 10,000 characters.
 5. Identify the active goal's actual `Documents/Goals/NN-<slug>.md` path for production and grading.
    The initial brief is a bootstrap template, not a fixed target for later goals. Before launch,
-   inspect status/diff/log and commit exact scaffold/goal paths. Call `blender_workflow` `prepare` with
-   only `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
-   payload. Pass the returned exact question and labels to `question` as one single-select question;
-   omit `custom`/`multiple` or set them false where the tool exposes them. Only genuine runtime
-   answers grant registration; never create approved JSON.
+   inspect status/diff/log and commit exact scaffold/goal paths. Register through
+   `blender-workflow-harness` with the exact returned question and labels. Never create approved JSON.
 6. For a new goal, call `goal(action="start", objective=<the full prompt text>)` immediately. Writing
    the file without starting the goal is incomplete. For saved work, complete the return gates above
    and call `goal(action="resume")` for an unchanged objective; use the replacement procedure for a
@@ -120,13 +117,9 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
 - Scope: in, out, and external dependencies.
 - Deliverables: scene, review render, exports, documents.
 - Acceptance checks that can be seen in a render or read from a file.
-- Workflow: launch with `blender_workflow` `launch` and verify the open file. The initial unsaved scene is
-  one bounded change: ticketed `save`, scoped commit, then `checkpoint` recorded as `BOOTSTRAP`; never
-  seal or grade that empty state. After that, save after every meaningful change and before risky work
-  through ticketed harness operations, seal, inspect the returned final PNG with `blender_look`, and
-  update docs. Each bounded change requires review, applicable approval, scoped commit, and
-  `checkpoint` before the next `begin`; failed rounds commit before fixes. Include selected
-  autonomy/review modes and configured graders under `blender-project-grading`.
+- Workflow: use `blender-workflow-harness` for launch, bootstrap save, ticketed changes, seal,
+  review, approval, commit, and checkpoint. Include selected autonomy/review modes and configured
+  graders under `blender-project-grading`.
 - Done: require the review artifact, current documentation including `REVIEW.md`, and a final
   applicable `PASS` when grading is enabled. No genuine unresolved blocker or major finding permits
   completion; declining a genuine finding is not a waiver.
@@ -142,9 +135,8 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
   orchestrator resume only after required answers permit continuation. Do not reselect modes for
   routine approval handoffs within the same active task.
 - Never invent user confirmation or a session directive to bypass these gates.
-- Production uses orchestrator-only harness operations under `blender-workflow-harness`; raw Python, imports, and
-  generation are blocked. Unsupported operations stop until tooling is reviewed and extended.
-  Maintenance remains exempt, without Blender access.
+- Production uses orchestrator-only harness operations under `blender-workflow-harness`; raw Python,
+  imports, and generation are blocked. Maintenance remains exempt, without Blender access.
 - This is a design goal, not a coding plan. Do not create `PLAN/` or plan-check/verifier records.
 - Multiple goals per project are allowed; one file per goal.
 - Never claim production completion without a saved review render inspected with `look`. Viewport

@@ -15,10 +15,8 @@ exempt from this project gate.
 - Follow `blender-project-goal` for goal recording and its turn boundary. Do not start the goal
   before requirements, workflow, and review records are complete.
 - If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
-- Follow `AGENTS.md` for hard invariants and `blender-workflow-harness` for the runtime contract. Before launch, commit completed
-  scaffold/goal records, call `blender_workflow` `prepare`, and ask its exact registration question
-  with exact labels as one single-select question; omit `custom`/`multiple` or set them false where
-  the tool exposes them. Only runtime answers grant registration.
+- Follow `AGENTS.md` for hard invariants and `blender-workflow-harness` for registration, launch,
+  bounded changes, review, and checkpointing.
 - Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
 - During an active goal, `question` is unavailable in either autonomy mode. For every necessary
   question, follow `blender-project-goal` for the orchestrator-owned required-input handoff, questions,
@@ -27,12 +25,8 @@ exempt from this project gate.
 
 ## Fully Autonomous
 
-- Work through the confirmed requirements without approval pauses.
-- Save the authoritative `.blend` after each meaningful change and before risky work or handoff;
-  use ticketed harness operations and inspect every visual change with `look`. Each `begin` has one
-  outcome, exact objects/paths, and a 40-operation/15-minute apply budget; recovery save/seal remain
-  available. Seal, inspect the returned final PNG, complete review, inspect status/diff/log, stage only
-  scoped paths, commit atomically, then `checkpoint` before another `begin`. Never one end-of-task dump.
+- Work through the confirmed requirements without approval pauses. Use `blender-workflow-harness`
+  for saves, seals, review, commits, and checkpoints; inspect every visual change with `look`.
 - Stop only for a requirements conflict, a destructive or irreversible choice, a missing asset or
   licence, or a technical blocker. Report the blocker and ask.
 
@@ -64,13 +58,12 @@ JSON. Forged JSON is ignored. Other questions and mode changes remain separate p
 
 Handle answers explicitly:
 
-- `Approve change`: record the runtime answer, inspect status/diff/log, stage exact scoped paths,
-  commit the change and review artifacts, then `checkpoint` before resuming authorized work. Approval
-  does not waive genuine unresolved blockers or major findings or satisfy a required `PASS`.
+- `Approve change`: record the runtime answer, then commit and `checkpoint` through
+  `blender-workflow-harness` before resuming authorized work. Approval does not waive genuine
+  unresolved blockers or major findings or satisfy a required `PASS`.
 - `Request revision`: obtain concrete direction while paused; commit the failed round and checkpoint
   before fixes. Resume only for a bounded `begin` with `revision:true`; save, seal, inspect, complete
-  review, and ask again. Runtime caps the chain at the configured `max_rounds`; exhausting it needs
-  explicit user escalation and re-registration handling, never a silent override.
+  review, and ask again. Never silently exceed the configured `max_rounds` cap.
 - `Pause`, cancellation, or no answer: keep the goal paused and make no further scene changes.
 - For a separate request to modify manually, keep the goal paused. Do not use raw Python to prepare
   the scene or silently edit sealed work. Manual Blender or external-shell edits invalidate evidence;
@@ -148,6 +141,5 @@ complete required grading before any change-review question.
 - If a question is cancelled or unanswered, keep work stopped; do not continue or ask for goal commands.
 - Fully Autonomous still stops for blockers and scope changes.
 - Requirements changes follow `blender-project-requirements`, not this skill.
-- `status` recovers phase after compaction/restart. `checkpoint` requires exactly one scoped commit,
-  clean project state, and matching hashes. Neither mode bypasses registration, sealed-render
-  inspection, review receipts, or the final clean-checkpoint/`PASS` completion hook.
+- `status` recovers phase after compaction/restart. Neither mode bypasses registration,
+  sealed-render inspection, review receipts, or the final clean-checkpoint/`PASS` completion hook.

@@ -91,24 +91,15 @@ temp-file copies.
 5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal`. Inspect `git status`,
    `git diff`, and `git log --oneline -10`; stage only exact scaffold paths and commit completed
    documents and the filled goal before launch. Do not include unrelated files.
-6. Call `blender_workflow` `prepare` with only
-   `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}` as its JSON-string
-   payload. Pass its exact registration question and labels to `question` as one single-select
-   question; omit `custom`/`multiple` or set them false where the tool exposes them. Only genuine
-   runtime answers grant registration. Never create approved JSON. Then start the goal with the entire filled prompt; a successful goal call ends the
-   turn. Continue on the next goal turn and inspect harness `status` before launch. Register confirmed
-   asset metadata with `blender-assets`; imports/generation stay blocked until reviewed tooling
-   supports them, even when launch preflight passes.
-7. Launch with `blender_workflow` `{action:"launch"}`; stop with `{action:"stop"}`. Never run Blender or a script from the shell.
-8. The harness writes the run log to the project's ignored `logs/` folder; inspect it on startup failure.
-9. Verify addon and scene settings. For a new unsaved scene, open a bounded harness `begin`, use
-   ticketed `save` as `<slug>.blend` at the project root, verify that exact path, commit the scene
-   with its declared paths, and close the change with `checkpoint`; the runtime records it as
-   `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty scene. Update README
-   from planned to saved. Stop on connection, addon, or file mismatch. Follow `blender-workflow-harness`: each
-   later change seals immutable evidence, inspects its returned final PNG, completes review/approval,
-   and commits exact scoped paths before `checkpoint` and the next `begin`. Failed rounds commit
-   before fixes; no late mega-commit.
+6. Follow `blender-workflow-harness` for `prepare`, registration, goal start, launch, bootstrap save,
+   commit, and checkpoint. Register confirmed asset metadata with `blender-assets`; imports and
+   generation stay blocked until reviewed tooling supports them, even when launch preflight passes.
+7. The harness writes the run log to the project's ignored `logs/` folder; inspect it on startup failure.
+8. Verify addon and scene settings after launch. Complete the bootstrap save as one bounded change:
+   ticketed `save` to `<slug>.blend` at the project root, verify that path, commit the declared paths,
+   and `checkpoint` as `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty
+   scene. Update README from planned to saved. Stop on connection, addon, or file mismatch.
+9. Run every later change through the harness gates; never use a late mega-commit.
 
 ## Rules
 

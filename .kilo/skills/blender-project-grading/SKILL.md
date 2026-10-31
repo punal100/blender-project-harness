@@ -76,28 +76,14 @@ Read `blender_subagents.graders` in the gitignored `config.json` at the workspac
 }
 ```
 
-- `graders` is an array. Each entry has a unique lowercase slug `name`, a non-empty `focus`, and a
-  provider, model, and reasoning variant. Different graders may use different models and variants.
-- `agent` must be exactly `blender-grader`, `enabled` must be a boolean, and the roster must be
-  non-empty. Reject invalid types, duplicate names, and unknown `Single grader` names before dispatch.
-- Limits are positive integers. `max_steps` must not exceed `steps` in
-  `.kilo/agent/blender-grader.md`. `max_parallel` must not exceed the number of graders.
-- `max_rounds` is 1-3. A value of 2 means the initial review plus one re-review; a value of 3 adds a
-  second re-review. Runtime enforces exactly the configured value. Once the cap is exhausted, call
-  `blender_workflow` `escalate` with a bounded reason and complete the exact registration question
-  again; history remains preserved.
-- Validate names and budgets before dispatching. Never silently substitute a model, lower a budget,
-  or drop a grader because it is unavailable.
-- If `config.json` is missing, copy `config.example.json` without overwriting local settings and stop
-  grading until the user confirms. A local file without `blender_subagents.graders` means grading is
-  unconfigured: report that and do not fabricate a roster.
-- Reject legacy flat or mixed layouts before dispatch. For an older local config, move the existing
-  worker fields into `blender_subagents.workers` and the former top-level grader section into
-  `blender_subagents.graders`. Preserve every value and leave absent roles unconfigured.
-- Resolve model, provider, and variant with `agent_manager_models` before dispatch. Runtime tool
-  restrictions still apply; a configured model is not permission to bypass them. Pass per-task
-  model/provider/variant overrides only when explicitly requested by the user. Otherwise verify
-  supported inheritance matches the configured roster or stop; never silently substitute.
+- The harness validates the roster at `prepare`/registration: unique slug, non-empty focus and model
+  fields, positive budgets, `max_steps` within the grader agent ceiling, `max_parallel` within the
+  roster, and `max_rounds` 1-3. Invalid or missing config stops production; never fabricate, drop, or
+  substitute a grader.
+- `max_rounds` 2 means the initial review plus one re-review; 3 adds one more. When exhausted, call
+  `escalate` with a bounded reason and complete the exact registration question again.
+- Resolve model, provider, and variant with `agent_manager_models`. Per-task overrides require the
+  user's explicit request; otherwise use supported inheritance or stop.
 
 ## Evidence
 
@@ -162,35 +148,15 @@ round. A base commit alone is insufficient evidence identity for an uncommitted 
 ## Dispatch
 
 After seal and successful orchestrator `blender_look`, call `blender_workflow` `grader-ticket` with
-`{name}` for each selected grader. Pass its unique token, exact report path, and literal marker
-`HARNESS_GRADER:<token>` to the normal task; do not fabricate a child session or report receipt.
-Graders need no custom-tool permission: plugin hooks bind and collect the actual task result.
-Dispatch selected graders in batches no larger than
-`max_parallel`, using multiple `task` calls per batch, each `subagent_type: "blender-grader"`. Use
-configured model/provider/variant only when runtime override rules permit. Every prompt must be
-self-contained:
+`{name}` for each selected grader. Pass its returned `prompt` to the normal `blender-grader` task,
+filling only the user-prompt and prior-findings placeholders; keep the literal marker, token, paths,
+hashes, and deadline unchanged. Do not fabricate a child session or report receipt. Graders need no
+custom-tool permission: plugin hooks bind and collect the actual task result.
 
-```text
-HARNESS_GRADER:<unique token returned by grader-ticket>
-Round: <full dynamically generated round folder name>
-Project root: <absolute path>
-Grader name / focus: <name> / <focus>
-Spec: <absolute confirmed requirements path>, <absolute active goal prompt path>
-Target: <base commit SHA, saved scene SHA-256, dirty state>
-Evidence key: <exact returned evidenceKey>
-Evidence: <round>/_evidence/
-Report path: <exact returned assigned path>
-Prior round: none
-Live inspection: not allowed
-User prompt: <verbatim user words for any permitted live Blender call>
-Budget: <max_minutes> minutes, <max_steps> steps
-Deadline UTC / rounds already used: <absolute deadline and cumulative tool-call rounds in this pass>
-Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached
-Output: verdict, findings, <= 20 lines
-```
-
-When `max_parallel` is lower than the grader count, dispatch in batches. One Blender writer rule is
-unchanged; graders are read-only and never open or save Blender files.
+Dispatch selected graders in batches no larger than `max_parallel`, using multiple `task` calls per
+batch, each `subagent_type: "blender-grader"`. Use configured model/provider/variant only when
+runtime override rules permit. One Blender writer rule is unchanged; graders are read-only and never
+open or save Blender files.
 
 Retain each runtime-bound `task_id` without rewriting the sealed manifest. Resume that same session for the next round when
 the model and focus are unchanged; otherwise start fresh and record why. Each new round receives a

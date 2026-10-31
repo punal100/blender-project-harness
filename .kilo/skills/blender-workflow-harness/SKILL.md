@@ -10,7 +10,8 @@ The orchestrator drives production through the custom `blender_workflow` tool wi
 permission to bypass the harness with shell commands, direct state edits, or raw Python.
 
 Read `AGENTS.md` for hard invariants and `blender-project-goal`, `blender-project-grading`, and
-`blender-subagents` for their respective phases.
+`blender-subagents` for their respective phases. Call `{action:"capabilities"}` for the supported
+operations, primitives, and bootstrap document paths; those runtime lists are authoritative.
 
 ## Registration and bootstrap
 
@@ -21,22 +22,10 @@ Read `AGENTS.md` for hard invariants and `blender-project-goal`, `blender-projec
    has no `custom` field. Only genuine runtime answers grant registration.
 4. Never create approved JSON, self-confirm registration, or answer the challenge for the user.
 
-Before registration, the write gate permits only these files for the new project under
-`Blender/<Name>/`:
-
-- `README.md`
-- `Documents/README.md`
-- `Documents/REQUIREMENTS.md`
-- `Documents/WORKFLOW.md`
-- `Documents/REVIEW.md`
-- `Documents/ASSETS.md`
-- `Documents/DECISIONS.md`
-- `Documents/Goals/<NN>-<slug>.md`
-- document `README.md` indexes
-
-Scene, asset, render, evidence, and manifest paths stay blocked. Documents of an already-registered
-project stay blocked. A denial means a lifecycle step is missing; never work around it with shell
-redirection, temp-file copies, or direct edits.
+Before registration, only the new project's `bootstrapDocuments` from `capabilities` may be written
+under `Blender/<Name>/`. Scene, asset, render, evidence, and manifest paths stay blocked; documents of
+an already-registered project stay blocked. A denial means a lifecycle step is missing; never work
+around it with shell redirection, temp-file copies, or direct edits.
 
 A bootstrap save change may be staged, committed, and closed with `checkpoint` before review. Never
 seal or grade the initial empty/default scene.
@@ -45,10 +34,8 @@ seal or grade the initial empty/default scene.
 
 1. Commit completed scaffold documents and the goal, finish `prepare` registration in ordinary chat,
    start or resume the registered goal, then inspect harness `status`.
-2. Call `blender_workflow` `{action:"launch"}`. It discovers Blender (`BLENDER_EXE` first), validates
-   the workspace `BLENDER_PORT`, refuses a second instance or busy port, spawns the process detached,
-   waits for the addon socket, and records pid/project/scene/port/session/start time in harness state
-   outside the repository.
+2. Call `blender_workflow` `{action:"launch"}`. It owns discovery, the workspace port, the single
+   instance guard, process spawn, socket wait, and instance metadata outside the repository.
 3. After launch, verify with `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file
    mismatch.
@@ -77,12 +64,10 @@ verify that path, stage and commit the scene with its declared paths, then close
    `{operation:"apply"|"save"|"seal",payload:<operation JSON for apply or {} for save/seal>}`.
 2. Pass the returned `token` to server tool `blender_harness_execute` (`harness_execute`) with
    `{token,operation,payload,user_prompt:<verbatim user goal>}`.
-3. Supported apply operations only: `create_mesh` (`cube`, `uv_sphere`, `plane`, `cylinder`),
-   `transform`, `material`, `create_light`, `create_camera`, `set_camera`, `render_settings`,
-   `delete_object`.
-4. Raw `execute_blender_code`, `import_asset`, and `generate_3d` calls are blocked. Unsupported
-   operations stop work until tooling is reviewed and extended. Do not add an arbitrary Python route.
-5. Tickets are one-shot, session-bound, and time-limited. Never reuse, forge, or forward a ticket.
+3. Use only operations and primitives returned by `capabilities`. Raw `execute_blender_code`,
+   `import_asset`, and `generate_3d` are blocked. Unsupported operations stop until tooling is
+   reviewed and extended; do not add an arbitrary Python route.
+4. Tickets are one-shot, session-bound, and time-limited. Never reuse, forge, or forward a ticket.
 
 ## Seal
 
@@ -93,8 +78,8 @@ records successful inspection. A bootstrap save with no operations cannot be sea
 ## Review handoff
 
 - `Off`: use `self-review` with `{notes}` after inspecting the sealed render.
-- `All` or `Single`: use `grader-ticket` with `{name}`. Pass its unique token, exact report path, and
-  `HARNESS_GRADER:<token>` marker to the normal `blender-grader` task.
+- `All` or `Single`: use `grader-ticket` with `{name}`. Pass its returned `prompt` to the normal
+  `blender-grader` task, filling only the user-prompt and prior-findings placeholders.
 - The plugin binds the actual child by parent/task token and runtime model metadata. A grader writes
   only its assigned report and never reads peer reports.
 - `review` validates all report receipts plus aggregate `REVIEW.md` hash, verdict, and finding

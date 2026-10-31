@@ -16,31 +16,20 @@ unless separately requested.
 
 ## Preflight
 
-1. Before launching or editing, MUST verify confirmed project requirements, selected workflow, an
-   active goal, and `Documents/REVIEW.md` with review mode `Off`, `All`, or `Single`; `Unset` is invalid.
-   For `All` or `Single`, MUST verify `blender_subagents.graders.enabled` is true and validate the required
-   grader configuration using
-   [`blender-project-grading`](../blender-project-grading/SKILL.md). Missing or disabled required
-   configuration MUST stop production. The orchestrator validates the roster; a worker MUST verify the
-   supplied preflight status and project records, returning `BLOCKED` if absent or inconsistent.
-   Workers do not read local model settings or dispatch graders.
-   Before launch, scaffold documents and goal must be committed and `blender_workflow` `prepare`
-   registration granted by the exact runtime question/labels as one single-select question (omit
-   `custom`/`multiple`, or set them false where the tool exposes them). Start
-   or resume the registered goal, end that turn, then inspect harness `status` before continuing.
-   Call `get_addon_status` once at the start. Check addon compatibility, Blender version, and enabled
-   libraries/generators from the actual response; do not assume a particular response field exists.
+1. Before launching or editing, verify confirmed requirements, selected workflow, an active goal, and
+   a valid `Documents/REVIEW.md`, plus grader readiness for `All`/`Single`
+   ([`blender-project-grading`](../blender-project-grading/SKILL.md)). Invalid configuration stops
+   production. The orchestrator owns registration and launch; a worker verifies the supplied
+   preflight and returns `BLOCKED` if absent or inconsistent.
+   Call `get_addon_status` once; check addon compatibility, Blender version, and enabled
+   libraries/generators from the actual response.
 2. Call `get_scene_info(fields=["settings"])` before changing anything. Verify the exact authoritative
    file path. Use `query`, `root`, `fields`, and `limit` for later targeted checks.
 3. On a connection failure, stop scene work. The orchestrator relaunches with `blender_workflow`
-   `{action:"launch"}` or stops with `{action:"stop"}`. Do not invoke `blender.exe` or any script
-   from the shell. The harness discovers Blender, reads the workspace port, sets the addon port,
-   writes the run log to the project's ignored `logs/` folder, records instance metadata outside the
-   repository, and allows only one Blender instance from this workspace at a time.
-4. Retry preflight after launch. Stop on addon or file mismatch; never edit the wrong scene. For a
-   new unsaved startup scene, open a bounded `begin` and use ticketed `save` to the declared project
-   `.blend` first, then verify that path
-   before production edits. Workers must return `BLOCKED` instead of launching or switching files.
+   `{action:"launch"}` or stops with `{action:"stop"}`; never invoke Blender from the shell. The
+   harness owns the port, run log, instance metadata, and one-instance guard.
+4. Retry preflight after launch. Stop on addon or file mismatch; never edit the wrong scene. Use the
+   harness bootstrap flow for a new unsaved scene. Workers never launch or switch files.
 
 ## Tools
 
@@ -61,34 +50,16 @@ unless separately requested.
 Tool names here are server-local names; use the exposed `blender_` prefix when required by the
 client. Pass `user_prompt` with the user's exact words when the tool accepts it. Do not paraphrase.
 
-## Workflow
+## Production workflow
 
-1. Recover through `blender_workflow` `status`; inspect `get_scene_info`. `begin` declares
-   `{outcome,objects:[exact names],paths:[exact project-relative files],revision?:bool}`. One logical
-   change may be open, at most 40 operations/15 minutes; recovery save/seal remain allowed afterward.
-2. Request `ticket` with `{operation:"apply"|"save"|"seal",payload:<operation JSON or {}>}`. Apply payload
-   is an operation object; save/seal payload is `{}`. Next call `blender_harness_execute` with
-   `{token,operation,payload,user_prompt:<verbatim user goal>}` matching the ticket. Never replay tokens.
-3. Apply only `create_mesh` (`cube`, `uv_sphere`, `plane`, `cylinder`), `transform`, `material`,
-   `create_light`, `create_camera`, `set_camera`, `render_settings`, or `delete_object`. Unsupported
-   operations stop production until reviewed tooling extension; no arbitrary Python loophole.
-4. Save after meaningful changes and before handoff. Seal saves the authoritative scene and captures
-   immutable review evidence, final PNG, and manifest. Call mandatory
-   `blender_look(image=<returned absolute render path>)`; the hook records successful inspection.
-5. Complete `self-review` `{notes}` in `Off`, or ticketed grader tasks and `review` `{notes}` in
-   `All`/`Single`. Complete required paused-goal runtime approval, inspect status/diff/log, stage exact
-   scoped paths, commit, then `checkpoint` before next `begin`. Failed rounds commit before fixes;
-   revisions use `revision:true` within the configured `max_rounds` cap; exhausting it needs explicit
-   user escalation and re-registration handling. Exactly one scoped commit, clean project state, and
-   matching hashes are required. Never defer changes into a late mega-commit.
+`blender-workflow-harness` owns registration, launch/stop, bounded changes, tickets, save/seal,
+review, approval, and checkpoints. Recover with `blender_workflow` `status`; call `capabilities` for
+the runtime operation and bootstrap lists. Do not infer supported operations from examples.
 
-## Save and visual checks
-
-Save the authoritative `.blend` after every meaningful change and before risky work or handoff.
-Use ticketed save/seal, mandatory returned-render inspection, and the review/commit checkpoints
-above. `checkpoint` must succeed before another `begin`; completion requires a clean checkpoint and
-final applicable `PASS` with inspected sealed render. Keep logs, backups, caches, and WIP renders out
-of commits. Apply the Partially Autonomous runtime approval gate before the next meaningful change.
+Use one ticketed `apply`, `save`, or `seal` at a time. Save after meaningful changes; seal before
+review; inspect the returned final PNG with `blender_look`. Complete `Off` self-review or the required
+graders, then commit and `checkpoint` before the next `begin`. `status.change.paths` is the exact
+staging scope; never stage unrelated files or defer work into a mega-commit.
 
 Visual verification is mandatory. Every scene, material, lighting, or camera change must be
 inspected with `look` before completion; code output alone is not proof.

@@ -39,31 +39,17 @@ read worker settings from `blender_subagents.workers`:
 }
 ```
 
-- If `config.json` is missing, copy `config.example.json` without overwriting any local settings and
-  stop delegation until the user confirms the values. Orchestrator work may continue without delegation.
-- The examples show separate role sections of the same object. An absent `workers` section means
-  worker delegation is unconfigured; do not infer defaults or borrow grader settings. Reject legacy
-  flat or mixed layouts before delegation. When migrating an older local config, move its existing
-  worker fields into `blender_subagents.workers` and its former top-level grader section into
-  `blender_subagents.graders`, preserving values and leaving absent roles unconfigured.
-- Validate `agent` is exactly `blender-worker`; provider, model, and variant must be non-empty
-  strings. Limits must be positive integers; `max_parallel` must be `1` and
-  `max_failed_attempts` must be `1` or `2`. Reject invalid values; do not silently rewrite them.
-- Resolve the configured model, provider, and variant with `agent_manager_models` before use.
-  A configured model is not permission to override tool-level model restrictions. Pass overrides
-  only when the user explicitly requested them; otherwise use supported inheritance or keep work
-  in the orchestrator. Never silently substitute a different model or worker.
-- `max_steps` must not exceed the `steps` ceiling in `.kilo/agent/blender-worker.md`. Reject an
-  oversized budget before spawning. Count steps as agentic tool-call rounds, including research,
-  inspection, retries, saves, and verification, not as individual calls inside a parallel round.
-- The agent `steps` ceiling forces a text-only response; it cannot interrupt a running tool or
-  enforce `max_minutes`. The worker must check elapsed time before each new round, reserve time for
-  saving/reporting, and report overruns. Do not describe this as an automatic wall-clock timeout.
-- `max_parallel` must be `1` for Blender writes. Only one Blender writer may exist.
-- Run the worker in the foreground and wait for it to return. Do not background a Blender writer.
-- If `blender-worker` is not listed as a subagent, reload the Kilo window; do not silently
-  substitute a general agent. Stop delegation until registration is verified. Static frontmatter
-  validation does not prove runtime registration.
+- The harness validates `blender_subagents.workers` before every worker task: exact agent, non-empty
+  model fields, positive budgets, `max_parallel: 1`, and `max_steps` within the agent ceiling.
+  Missing or invalid config stops delegation; copy `config.example.json` and stop until the user
+  confirms. Never silently rewrite, substitute, or borrow another role's settings.
+- Resolve the configured model, provider, and variant with `agent_manager_models`. Overrides require
+  the user's explicit request; otherwise use supported inheritance or keep work in the orchestrator.
+- Count `max_steps` as agentic tool-call rounds. The agent `steps` ceiling forces a text response; it
+  cannot interrupt a running tool or enforce `max_minutes`. Check elapsed time before each round,
+  reserve time for reporting, and report overruns.
+- Run the worker in the foreground and wait for it to return. Do not background a Blender writer or
+  create Agent Manager sessions. If `blender-worker` is not registered, reload Kilo and stop.
 - File permissions and harness checks are same-user guards, not an OS sandbox. Never bypass them
   through Blender Python, another MCP, or external shell execution. Manual scene/shell edits invalidate
   captured evidence; agents must not edit external harness state.
@@ -96,31 +82,21 @@ Independent review uses `blender-grader`, configured at `blender_subagents.grade
 }
 ```
 
-- Load `blender-project-grading` for modes, evidence, round folders, aggregation, and re-review.
-- `blender_subagents.graders.enabled` is the machine kill switch; project `Documents/REVIEW.md` selects `Off`,
-  `All`, or `Single`. Grade only when both allow it.
-- Validate the array: unique slugs, non-empty focus, non-empty provider/model/variant, positive
-  integer limits, `max_steps` at or below the grader agent's `steps`, `max_parallel` at most the
-  grader count, `max_rounds` 1-3. Never drop a grader or substitute a model silently.
-- Resolve each grader's model, provider, and variant with `agent_manager_models` before dispatch.
-- Per-task model, provider, and variant overrides require the user's explicit request. If absent,
-  verify supported inheritance matches the configured roster or stop grading; never silently use
-  a different model. Apply this same restriction to resumed tasks.
-- Graders are read-only and may run in parallel. Dispatch selected graders in batches no larger than
-  `max_parallel`, using multiple `task` calls per batch. Each writes only its own
-  `Documents/Reviews/<round>/<grader>/REPORT.md`.
-- Retain each runtime-bound `task_id` without rewriting the sealed manifest; resume the same session
-  for a re-review when model and focus are unchanged, with a fresh ticket and exact assigned path.
-- Orchestrator calls `blender_workflow` `grader-ticket` with `{name}` after sealed-render inspection,
-  then includes `HARNESS_GRADER:<token>` and the exact returned report path in the normal grader task.
-  Plugin hooks bind the actual child by parent/task token and runtime model metadata, restrict writes
-  to that report, and forbid peer report reads. Graders do not need `blender_workflow` permission.
-- One pass per grader per round. Stop at the grader's `max_minutes`/`max_steps`, the round cap, or a
-  missing spec/evidence. A failed or missing report records `BLOCKED` and permits one replacement
-  `grader-ticket` before `review`; a second failure aggregates as blocked. After aggregation, retry
-  only in a new round. Graders never loop or ask the user.
-- A single blocker fails the round regardless of other PASS verdicts. The orchestrator, not a vote
-  count, records the final verdict and every finding's disposition.
+- Load `blender-project-grading` for modes, validation, evidence, round folders, aggregation, and
+  re-review. The harness validates the roster at registration.
+- `blender_subagents.graders.enabled` is the machine kill switch; project `Documents/REVIEW.md` selects
+  `Off`, `All`, or `Single`. Grade only when both allow it.
+- Graders are read-only and may run in parallel. Dispatch batches within `max_parallel`, each task
+  writing only its assigned `REPORT.md`; peer reports stay forbidden.
+- Retain each runtime-bound `task_id`; resume the same session for re-review with a fresh ticket and
+  exact assigned path. Never rewrite the sealed manifest.
+- Call `grader-ticket` after sealed-render inspection and pass its returned `prompt`; plugin hooks
+  bind the actual child, restrict writes, and forbid peer reads. Graders need no `blender_workflow`
+  permission.
+- One pass per grader per round. A failed or missing report permits one replacement `grader-ticket`
+  before `review`; a second failure aggregates as blocked. Graders never loop or ask the user.
+- A single blocker fails the round regardless of other PASS verdicts. The orchestrator records the
+  final verdict and every finding's disposition.
 
 Workspace-maintenance tasks may use `general`, or read-only `explore`, without the Blender worker/grader
 roster. Assign bounded, non-overlapping scopes; forbid Blender access and commits. Do not treat this
