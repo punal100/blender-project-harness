@@ -179,7 +179,7 @@ export class Harness {
   question(session, args, answers) {
     return this.transaction((s) => {
       const q = args.questions?.length === 1 ? args.questions[0] : null;
-      if (!q || q.multiple !== false || q.custom !== false || !Array.isArray(answers) || answers.length !== 1 || !Array.isArray(answers[0]) || answers[0].length !== 1 || !q.options?.some((o) => o.label === answers[0][0])) return;
+      if (!q || q.multiple === true || q.custom === true || !Array.isArray(answers) || answers.length !== 1 || !Array.isArray(answers[0]) || answers[0].length !== 1 || !q.options?.some((o) => o.label === answers[0][0])) return;
       if (s.challenge?.session === session && q.question === s.challenge.question) {
         const c = s.challenge;
         if (stable(q.options.map((o) => o.label)) !== stable(['Confirm registration', 'Cancel'])) deny('registration options changed');

@@ -162,6 +162,24 @@ function registrationQuestion(prepared) {
   };
 }
 
+test('registration accepts question args without custom or multiple flags', (t) => {
+  const f = useFixture(t);
+  const prepared = f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName });
+  f.harness.question('orchestrator', {
+    questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })) }],
+  }, [['Confirm registration']]);
+  assert.match(f.harness.command('orchestrator', 'status').next, /registered goal/);
+});
+
+test('registration rejects custom-answer questions', (t) => {
+  const f = useFixture(t);
+  const prepared = f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName });
+  f.harness.question('orchestrator', {
+    questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })), custom: true }],
+  }, [['Confirm registration']]);
+  gate(() => f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName }), /registration is pending/);
+});
+
 function register(f, session = 'orchestrator') {
   const prepared = f.harness.prepare(session, {
     project: f.project,
