@@ -106,7 +106,7 @@ If Blender reports "Bone Heat Weighting: failed to find solution for one or more
 `get_scene_info(fields=["weights"], query="Body")` reports vertices no deform bone moves and deform
 bones with no vertex group. Investigate unweighted vertices and unused groups against the intended
 deformation; intentionally unused deform bones are possible. Save existing pose transforms before
-testing a controller whose actual name was inspected:
+testing a rig control whose actual name was inspected:
 
 ```python
 pb = rig.pose.bones["upper_arm_fk.L"]; pb.rotation_mode = "XYZ"; pb.rotation_euler.x = 1.2
