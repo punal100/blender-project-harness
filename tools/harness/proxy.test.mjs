@@ -82,6 +82,23 @@ test('proxy fails closed on addon mismatch and preserves recovery', async (t) =>
   assert.ok(f.harness.issue(f.session, 'save', {}).token);
 });
 
+test('failed seal removes incomplete round artifacts and reserves its sequence', async (t) => {
+  const f = fixture(t); f.begin();
+  const bad = upstream(f);
+  bad.callTool = async (call) => {
+    if (call.name === 'get_addon_status') return result(JSON.stringify({ up_to_date: true }));
+    if (call.name === 'get_scene_info') return { isError: true, content: [{ type: 'text', text: 'summary failed' }] };
+    return upstream(f).callTool(call);
+  };
+  const p = new BlenderProxy(f.harness, bad);
+  await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
+  const failed = f.harness.command(f.session, 'status').change;
+  assert.equal(failed.sealed, false);
+  assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Reviews')));
+  await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
+  assert.equal(f.harness.command(f.session, 'status').change.sealed, false);
+});
+
 test('JSON extraction handles escaped strings and denies incomplete objects', () => {
   assert.deepEqual(firstJson('prefix {"ok":true,"text":"} { \\""} suffix'), { ok: true, text: '} { "' });
   assert.throws(() => firstJson('{"ok":'), /receipt/);

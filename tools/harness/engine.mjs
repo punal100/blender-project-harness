@@ -338,9 +338,14 @@ export class Harness {
       if (!t || t.state !== 'running') deny('operation receipt has no running ticket');
       const p = s.projects[t.project], c = p.change;
       t.state = result.ok ? 'done' : 'failed'; delete c.pending;
-       if (!result.ok) { c.failure = result.error; if (t.operation === 'apply') c.deadline = 0; return; }
+       if (!result.ok) {
+         c.failure = result.error;
+         c.deadline = 0;
+         if (result.round) c.failedRounds = [...new Set([...(c.failedRounds ?? []), result.round])];
+         return;
+       }
        delete c.failure;
-       if (t.operation === 'apply') { c.operations++; c.saved = true; c.sceneHash = this.hash(p.scene); }
+        if (t.operation === 'apply') { c.operations++; c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'save') { c.saved = true; c.sceneHash = this.hash(p.scene); }
       else {
         c.sealed = true; c.saved = true; c.sceneHash = this.hash(p.scene);
