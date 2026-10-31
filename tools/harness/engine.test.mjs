@@ -207,6 +207,23 @@ test('pending registration does not lock out another session forever', (t) => {
   assert.match(f.harness.command('second', 'status').next, /registered goal/);
 });
 
+test('bootstrap save closes with checkpoint and cannot be sealed or graded', (t) => {
+  const f = useFixture(t);
+  fs.rmSync(path.join(f.root, f.scene));
+  commit(f.root, 'test: remove fixture scene', [f.project]);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/DECISIONS.md'] });
+  gate(() => f.harness.issue('orchestrator', 'seal', {}), /bootstrap save/);
+  fs.writeFileSync(path.join(f.root, f.scene), 'saved scene bytes\n');
+  finishSave(f);
+  fs.appendFileSync(path.join(f.root, f.project, 'Documents', 'DECISIONS.md'), 'Bootstrap save.\n');
+  commit(f.root, 'feat: bootstrap save fixture scene', [f.project]);
+  const status = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(status.change, null);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'BOOTSTRAP');
+  assert.doesNotThrow(() => begin(f));
+});
+
 function register(f, session = 'orchestrator') {
   const prepared = f.harness.prepare(session, {
     project: f.project,

@@ -242,7 +242,7 @@ export class Harness {
         this.assertCommitted(p.project, this.snapshot(p.project)); p.complete = true;
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
-        if (c || p.complete || p.escalation || !prior || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
+        if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
         p.escalation = { requested: Date.now(), reason: args.reason };
       } else if (action === 'begin') {
          if (c || p.complete || p.escalation || !p.goalActive || Object.values(s.projects).some((other) => other.change)) deny('one open logical change allowed; prior checkpoint and active goal required');
@@ -260,10 +260,11 @@ export class Harness {
         const prior = p.history.at(-1);
          if (args.revision && !prior) deny('revision requires a prior completed review');
          if (args.revision && prior?.verdict === 'PASS' && prior.approval !== 'Request revision') deny('revision requires a failed review or recorded revision request');
-         if (prior?.verdict !== undefined && prior.verdict !== 'PASS' && !args.revision) deny('failed review permits correction only');
+         if (prior?.verdict !== undefined && !['PASS', 'BOOTSTRAP'].includes(prior.verdict) && !args.revision) deny('failed review permits correction only');
         const chain = args.revision ? (prior?.chain ?? 0) + 1 : 1;
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
-        p.change = { id: crypto.randomUUID(), outcome: args.outcome, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0, deadline: Date.now() + 900000, sealed: false, inspected: false, graders: {}, reports: {}, sceneHash: fs.existsSync(path.join(this.root, p.scene)) ? this.hash(p.scene) : null };
+        const sceneExists = fs.existsSync(path.join(this.root, p.scene));
+        p.change = { id: crypto.randomUUID(), outcome: args.outcome, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0, deadline: Date.now() + 900000, sealed: false, inspected: false, graders: {}, reports: {}, bootstrap: !sceneExists, sceneHash: sceneExists ? this.hash(p.scene) : null };
       } else if (action === 'self-review') {
         if (!c?.inspected || p.records.review !== 'Off' || !args.notes?.trim()) deny('inspect sealed render before self-review');
         c.verdict = 'PASS'; c.notes = args.notes;
@@ -298,21 +299,23 @@ export class Harness {
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
         return { question: c.approvalQuestion, labels: ['Approve change', 'Request revision', 'Pause'], outcome: c.outcome, verdict: c.verdict };
       } else if (action === 'checkpoint') {
-         const failedReview = c?.verdict && c.verdict !== 'PASS';
-         const partialApprovalRequired = p.records.workflow === 'Partially Autonomous' && (!c.approval || c.approval.evidence !== c.evidenceKey);
-         if (!c?.verdict || !c.inspected || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired) deny('review and runtime-captured approval required before checkpoint');
+        const bootstrap = Boolean(c?.bootstrap && c.saved && !c.sealed && !c.operations);
+        const failedReview = c?.verdict && c.verdict !== 'PASS';
+        const partialApprovalRequired = p.records.workflow === 'Partially Autonomous' && (!c.approval || c.approval.evidence !== c.evidenceKey);
+        if (!bootstrap && (!c?.verdict || !c.inspected || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         if (gitText(this.root, ['rev-parse', 'HEAD^']) !== c.base) deny('checkpoint must be exactly one commit after change base');
         const changed = git(this.root, ['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', 'HEAD']).split('\0').filter(Boolean);
-        const allowed = new Set([...c.paths, p.scene, c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`]);
+        const reviewed = bootstrap ? [] : [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`];
+        const allowed = new Set([...c.paths, p.scene, ...reviewed]);
         if (!changed.length || changed.some((name) => !allowed.has(name))) deny('commit contains files outside bounded change');
-        for (const name of [p.scene, c.renderPath, `${p.project}/Documents/Reviews/${c.round}/manifest.json`, ...Object.keys(c.reports)]) {
+        for (const name of [p.scene, ...reviewed]) {
           if (!gitText(this.root, ['ls-files', '--error-unmatch', '--', name])) deny('required deliverable missing from checkpoint');
         }
         const snapshot = this.snapshot(p.project); this.assertCommitted(p.project, snapshot);
-        p.history.push({ id: c.id, round: c.round, verdict: c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, approval: c.approval?.label ?? null });
+        p.history.push({ id: c.id, round: c.round ?? null, verdict: bootstrap ? 'BOOTSTRAP' : c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, approval: c.approval?.label ?? null });
         p.checkpoint = this.head(); p.snapshot = snapshot;
-        if (c.verdict === 'PASS') p.lastRender = { path: c.renderPath, hash: this.hash(c.renderPath) };
+        if (!bootstrap && c.verdict === 'PASS') p.lastRender = { path: c.renderPath, hash: this.hash(c.renderPath) };
         p.change = null;
       } else deny(`unknown action: ${action}`);
       return this.status(p);
@@ -324,6 +327,7 @@ export class Harness {
       const p = this.owner(s, session); this.fresh(p);
       const c = p.change;
        if (!c || c.sealed || c.pending || !p.goalActive || (operation === 'apply' && (c.failure || Date.now() > c.deadline || c.operations >= 40))) deny('open bounded change required; save/seal remains available after budget or failure');
+      if (operation === 'seal' && c.bootstrap && c.operations === 0) deny('bootstrap save cannot be sealed or graded; commit the saved scene and call checkpoint, then begin a scene change');
       if (!['apply', 'save', 'seal'].includes(operation)) deny('unknown operation');
       const token = crypto.randomUUID();
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };

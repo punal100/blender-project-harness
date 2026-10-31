@@ -24,6 +24,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   write(`${project}/Documents/ASSETS.md`, '# No external assets\n');
   write(`${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
   write(`${project}/${goal}`, objective);
+  write(scene, 'fixture blend bytes\n');
   write(`${project}/Documents/Reviews/README.md`, '# Review Index\n');
   write('.gitignore', '**/_evidence/**\n/config.json\n');
   if (review !== 'Off') write('config.json', JSON.stringify({ blender_subagents: { graders: {

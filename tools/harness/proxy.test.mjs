@@ -91,6 +91,7 @@ test('failed seal removes incomplete round artifacts and reserves its sequence',
     return upstream(f).callTool(call);
   };
   const p = new BlenderProxy(f.harness, bad);
+  await execute(f, p, 'save');
   await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
   const failed = f.harness.command(f.session, 'status').change;
   assert.equal(failed.sealed, false);
