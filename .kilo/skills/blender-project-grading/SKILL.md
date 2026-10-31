@@ -15,6 +15,9 @@ need no project goal or Blender review; do not launch Blender for those checks.
 ## When to grade
 
 When mode is `All` or `Single`, grading is mandatory after every meaningful, saved visual change.
+The bootstrap save is not a meaningful visual state: never seal it, request `grader-ticket`, or
+dispatch a grader for the initial empty/default scene. Close that save with a scoped commit and
+`checkpoint` instead; grading starts with the first real scene change.
 In Partially Autonomous mode, complete required review before asking approval or revision direction.
 Re-review fixes after `CHANGES_REQUIRED` within the configured round cap. If the cap is exhausted
 with unresolved blockers or majors, stop production; never report completion or silently skip review.

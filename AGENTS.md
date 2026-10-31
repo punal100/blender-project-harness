@@ -53,7 +53,8 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
   `tmp/` inside review rounds are gitignored.
 - Dispatch graders in batches bounded by `max_parallel`, using the configured model, provider, variant, and budget per grader only when runtime override rules permit. Resume the same grader session with its `task_id` for a re-review when model and focus remain unchanged.
 - Bounds are mandatory: one pass per grader per round, configured `max_rounds` 1-3, and per-grader time/step limits. Runtime enforces the configured `max_rounds`; exhausting it without improvement on the same finding requires user escalation and re-registration handling.
-- Commit each review round's `REVIEW.md`, `manifest.json`, reports, and index entry atomically. Never leave a completed round uncommitted.
+- The bootstrap save is not a reviewable visual state: never seal it, never request `grader-ticket`, and never dispatch graders for the initial empty/default scene. Grade only meaningful saved scene changes.
+- Commit each review round's `REVIEW.md`, `manifest.json`, reports, and index entry atomically before ending the turn, including when the round fails or the goal reports blocked. Never leave a completed round uncommitted.
 
 ## Subagents
 
@@ -74,7 +75,7 @@ These rules are mandatory within their stated scope. Treat `must`, `required`, a
 
 ## Launch
 
-- Before launch, commit completed scaffold documents and goal, finish `prepare` registration in ordinary chat, start/resume the registered goal, and inspect harness `status`. Verify with `blender_get_addon_status` and `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file mismatch. For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`, then verify that path before production edits.
+- Before launch, commit completed scaffold documents and goal, finish `prepare` registration in ordinary chat, start/resume the registered goal, and inspect harness `status`. Verify with `blender_get_addon_status` and `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file mismatch. For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`, verify that path, commit the scene with its declared paths, and close the change with `checkpoint`; the runtime records that entry as `BOOTSTRAP`. Never `seal`, render, or dispatch graders for the initial empty/default scene — grading starts with the first meaningful scene change.
 - Never use `--background` or `--factory-startup`. Close the current Blender before switching projects.
 
 ## Skills

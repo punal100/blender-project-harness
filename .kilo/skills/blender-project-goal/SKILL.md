@@ -119,11 +119,13 @@ state or move lifecycle work to the user. Never self-confirm requirements or inv
 - Scope: in, out, and external dependencies.
 - Deliverables: scene, review render, exports, documents.
 - Acceptance checks that can be seen in a render or read from a file.
-- Workflow: launch from the workspace root, verify the open file, save after every meaningful
-  change and before risky work through ticketed harness operations, seal, inspect the returned final
-  PNG with `blender_look`, and update docs. Each bounded change requires review, applicable approval,
-  scoped commit, and `checkpoint` before the next `begin`; failed rounds commit before fixes. Include
-  selected autonomy/review modes and configured graders under `blender-project-grading`.
+- Workflow: launch from the workspace root and verify the open file. The initial unsaved scene is
+  one bounded change: ticketed `save`, scoped commit, then `checkpoint` recorded as `BOOTSTRAP`; never
+  seal or grade that empty state. After that, save after every meaningful change and before risky work
+  through ticketed harness operations, seal, inspect the returned final PNG with `blender_look`, and
+  update docs. Each bounded change requires review, applicable approval, scoped commit, and
+  `checkpoint` before the next `begin`; failed rounds commit before fixes. Include selected
+  autonomy/review modes and configured graders under `blender-project-grading`.
 - Done: require the review artifact, current documentation including `REVIEW.md`, and a final
   applicable `PASS` when grading is enabled. No genuine unresolved blocker or major finding permits
   completion; declining a genuine finding is not a waiver.

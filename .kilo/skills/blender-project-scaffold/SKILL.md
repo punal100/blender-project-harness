@@ -101,12 +101,14 @@ temp-file copies.
    supports them, even when launch preflight passes.
 7. From the workspace root run `.\tools\start-blender.cmd "Blender\<ProjectName>"`.
 8. Use the live log terminal; the launcher writes the same output to `logs/` (ignored).
-9. Verify addon and scene settings. For a new unsaved scene, open a bounded harness `begin` and use
-   ticketed `save` as `<slug>.blend` at the project root before production edits, then verify that exact
-   path and update README from planned to saved. Stop on connection, addon, or file mismatch. Follow
-   `AGENTS.md`: each change seals immutable evidence, inspects its returned final PNG, completes
-   review/approval, and commits exact scoped paths before `checkpoint` and the next `begin`. Failed
-   rounds commit before fixes; no late mega-commit.
+9. Verify addon and scene settings. For a new unsaved scene, open a bounded harness `begin`, use
+   ticketed `save` as `<slug>.blend` at the project root, verify that exact path, commit the scene
+   with its declared paths, and close the change with `checkpoint`; the runtime records it as
+   `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty scene. Update README
+   from planned to saved. Stop on connection, addon, or file mismatch. Follow `AGENTS.md`: each
+   later change seals immutable evidence, inspects its returned final PNG, completes review/approval,
+   and commits exact scoped paths before `checkpoint` and the next `begin`. Failed rounds commit
+   before fixes; no late mega-commit.
 
 ## Rules
 
