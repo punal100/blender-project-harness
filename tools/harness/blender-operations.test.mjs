@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { operationCode, preflightCode, renderCode, saveCode } from './blender-operations.mjs';
+import { MAX_BATCH, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode } from './blender-operations.mjs';
 
 const allowed = ['Cube', 'Camera', 'Lamp'];
 
@@ -142,6 +142,34 @@ test('render settings accepts empty allow-list', () => {
   assert.match(code, /HARNESS_JSON:/);
 });
 
+test('batched apply validates one to ten operations', () => {
+  const batch = operationBatchCode({ operations: [meshOperation(), { operation: 'transform', name: 'Cube', location: [0, 1, 0] }] }, allowed);
+  assert.equal(batch.length, 2);
+  assert.equal(MAX_BATCH, 10);
+  assert.throws(() => operationBatchCode({ operations: [] }, allowed), /1-10/);
+  assert.throws(() => operationBatchCode({ operations: Array.from({ length: 11 }, () => ({ operation: 'delete_object', name: 'Cube' })) }, allowed), /1-10/);
+  assert.throws(() => operationBatchCode({ operations: [meshOperation()], extra: true }, allowed), /extra key/);
+});
+
+test('camera DOF, light color/temperature, emission, shared materials, and duplicates generate guarded code', () => {
+  const camera = operationCode({ operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 50, dof: { aperture: 2.8, focus_distance: 3, focus_object: 'Cube' } }, allowed);
+  assert.match(camera, /use_dof = True/);
+  assert.match(camera, /aperture_fstop = 2.8/);
+  assert.match(camera, /focus_object/);
+  const light = operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 100, color: [1, 0.7, 0.5], temperature: 3200 }, allowed);
+  assert.match(light, /light_data\.color/);
+  assert.match(light, /light_data\.temperature = 3200/);
+  const material = operationCode({ operation: 'material', name: 'Cube', color: [0.2, 0.3, 0.4, 1], roughness: 0.4, metallic: 0.2, emission: { color: [1, 0.5, 0.2, 1], strength: 2 } }, allowed);
+  assert.match(material, /Emission Color/);
+  assert.match(material, /Emission Strength/);
+  const shared = operationCode({ operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 1, 1, 1], roughness: 0.5, metallic: 0 }, allowed);
+  assert.match(shared, /shared_material/);
+  assert.match(shared, /bpy\.data\.materials\.new/);
+  const duplicate = operationCode({ operation: 'duplicate', name: 'Cube', new_name: 'Copy', location: [1, 0, 0] }, [...allowed, 'Copy']);
+  assert.match(duplicate, /duplicate\.data = obj\.data\.copy\(\)/);
+  assert.match(duplicate, /duplicate\.location/);
+});
+
 test('preflight, save, and render code enforce explicit project paths', () => {
   const preflight = preflightCode('//project.blend');
   assert.match(preflight, /bpy\.utils\.blend_paths\(absolute=True, packed=False, local=True\)/);
@@ -156,6 +184,10 @@ test('preflight, save, and render code enforce explicit project paths', () => {
   assert.match(render, /finally:/);
   assert.match(render, /write_still=True/);
   assert.doesNotMatch(render, /save_as_mainfile/);
+  const camera = renderPreflightCode('//project.blend');
+  assert.match(camera, /scene camera is not set/);
+  assert.match(camera, /camera\.type != 'CAMERA'/);
+  assert.match(camera, /resolution is invalid/);
   assert.throws(() => renderCode('//project.blend', 'C:\\outside.png'), /project-relative/);
 });
 
@@ -163,15 +195,17 @@ test('every operation and lifecycle script compiles as Python without importing 
   const operations = [
     ...['cube', 'plane', 'uv_sphere', 'cylinder'].map(meshOperation),
     { operation: 'transform', name: 'Cube', location: [1, 2, 3], rotation: [0, 1, 2], scale: [1, 1, 1] },
-    { operation: 'material', name: 'Cube', color: [1, 0, 0, 1], roughness: 0.5, metallic: 0 },
-    { operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 100 },
-    { operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 50 },
+    { operation: 'material', name: 'Cube', color: [1, 0, 0, 1], roughness: 0.5, metallic: 0, emission: { color: [1, 0.4, 0.2, 1], strength: 1 } },
+    { operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 0, 0, 1], roughness: 0.5, metallic: 0 },
+    { operation: 'duplicate', name: 'Cube', new_name: 'Copy' },
+    { operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 100, color: [1, 0.7, 0.5], temperature: 3200 },
+    { operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 50, dof: { aperture: 2.8, focus_distance: 3, focus_object: 'Cube' } },
     { operation: 'set_camera', name: 'Camera' }, { operation: 'delete_object', name: 'Cube' },
     { operation: 'render_settings', width: 1920, height: 1080, samples: 64 },
     { ...meshOperation(), name: 'Floor "Lamp" \\ 1' },
   ];
-  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Floor "Lamp" \\ 1']));
-  scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'));
+  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1']));
+  scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'));
   const count = runPython(`import json, sys
 scripts = json.load(sys.stdin)
 for code in scripts:

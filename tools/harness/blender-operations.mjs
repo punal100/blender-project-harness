@@ -2,6 +2,8 @@ const OPERATION_NAMES = new Set([
   'create_mesh',
   'transform',
   'material',
+  'shared_material',
+  'duplicate',
   'create_light',
   'create_camera',
   'set_camera',
@@ -12,6 +14,7 @@ const OPERATION_NAMES = new Set([
 const PRIMITIVES = new Set(['cube', 'uv_sphere', 'plane', 'cylinder']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
 const NAME_RE = /^[\x20-\x7e]+(?![\s\S])/;
+const MAX_BATCH = 10;
 
 function fail(message) {
   throw new TypeError(message);
@@ -70,6 +73,22 @@ function validateAllowedObjects(allowedObjects) {
 function validateAllowedName(name, allowed, label = 'name') {
   validateString(name, label);
   if (!allowed.includes(name)) fail(`${label} is not allowed: ${name}`);
+}
+
+function validateEmission(value, label) {
+  if (value === undefined) return;
+  if (!isPlainObject(value)) fail(`${label} must be an object`);
+  strictObject(value, ['color', 'strength'], label);
+  requireKeys(value, ['color', 'strength'], label);
+  validateVector(value.color, `${label}.color`, 4, 0, 1);
+  validateFiniteNumber(value.strength, `${label}.strength`, 0, 1e6);
+}
+
+function validateMaterialValues(operation, kind) {
+  validateVector(operation.color, `${kind}.color`, 4, 0, 1);
+  validateFiniteNumber(operation.roughness, `${kind}.roughness`, 0, 1);
+  validateFiniteNumber(operation.metallic, `${kind}.metallic`, 0, 1);
+  validateEmission(operation.emission, `${kind}.emission`);
 }
 
 function quote(value) {
@@ -132,31 +151,66 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'material': {
-      strictObject(operation, ['operation', 'name', 'color', 'roughness', 'metallic'], kind);
+      strictObject(operation, ['operation', 'name', 'color', 'roughness', 'metallic', 'emission'], kind);
       requireKeys(operation, ['name', 'color', 'roughness', 'metallic'], kind);
       validateAllowedName(operation.name, allowed);
-      validateVector(operation.color, `${kind}.color`, 4, 0, 1);
-      validateFiniteNumber(operation.roughness, `${kind}.roughness`, 0, 1);
-      validateFiniteNumber(operation.metallic, `${kind}.metallic`, 0, 1);
+      validateMaterialValues(operation, kind);
+      break;
+    }
+    case 'shared_material': {
+      strictObject(operation, ['operation', 'name', 'objects', 'color', 'roughness', 'metallic', 'emission'], kind);
+      requireKeys(operation, ['name', 'objects', 'color', 'roughness', 'metallic'], kind);
+      validateString(operation.name, `${kind}.name`);
+      if (!Array.isArray(operation.objects) || operation.objects.length < 1 || operation.objects.length > 50) fail(`${kind}.objects must contain 1-50 object names`);
+      const objects = operation.objects.map((name, index) => validateString(name, `${kind}.objects[${index}]`));
+      if (new Set(objects).size !== objects.length) fail(`${kind}.objects must not contain duplicates`);
+      for (const name of objects) validateAllowedName(name, allowed, `${kind}.objects`);
+      validateMaterialValues(operation, kind);
+      break;
+    }
+    case 'duplicate': {
+      strictObject(operation, ['operation', 'name', 'new_name', 'location', 'rotation', 'scale'], kind);
+      requireKeys(operation, ['name', 'new_name'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateAllowedName(operation.new_name, allowed, `${kind}.new_name`);
+      if (Object.hasOwn(operation, 'location')) validateVector(operation.location, `${kind}.location`, 3);
+      if (Object.hasOwn(operation, 'rotation')) validateVector(operation.rotation, `${kind}.rotation`, 3);
+      if (Object.hasOwn(operation, 'scale')) {
+        validateVector(operation.scale, `${kind}.scale`, 3, 0, 1e4);
+        if (operation.scale.some((value) => value === 0)) fail(`${kind}.scale values must be positive`);
+      }
       break;
     }
     case 'create_light': {
-      strictObject(operation, ['operation', 'name', 'kind', 'location', 'energy'], kind);
+      strictObject(operation, ['operation', 'name', 'kind', 'location', 'energy', 'color', 'temperature'], kind);
       requireKeys(operation, ['name', 'kind', 'location', 'energy'], kind);
       validateAllowedName(operation.name, allowed);
       validateString(operation.kind, `${kind}.kind`);
       if (!LIGHT_KINDS.has(operation.kind)) fail(`${kind}.kind is invalid`);
       validateVector(operation.location, `${kind}.location`, 3);
       validateFiniteNumber(operation.energy, `${kind}.energy`, 0, 1e9);
+      if (Object.hasOwn(operation, 'color')) validateVector(operation.color, `${kind}.color`, 3, 0, 1);
+      if (Object.hasOwn(operation, 'temperature')) {
+        if (!Number.isInteger(operation.temperature)) fail(`${kind}.temperature must be an integer`);
+        validateFiniteNumber(operation.temperature, `${kind}.temperature`, 1000, 15000);
+      }
       break;
     }
     case 'create_camera': {
-      strictObject(operation, ['operation', 'name', 'location', 'rotation', 'lens'], kind);
+      strictObject(operation, ['operation', 'name', 'location', 'rotation', 'lens', 'dof'], kind);
       requireKeys(operation, ['name', 'location', 'rotation', 'lens'], kind);
       validateAllowedName(operation.name, allowed);
       validateVector(operation.location, `${kind}.location`, 3);
       validateVector(operation.rotation, `${kind}.rotation`, 3);
       validateFiniteNumber(operation.lens, `${kind}.lens`, 0, 1e4, true);
+      if (Object.hasOwn(operation, 'dof')) {
+        if (!isPlainObject(operation.dof)) fail(`${kind}.dof must be an object`);
+        strictObject(operation.dof, ['aperture', 'focus_distance', 'focus_object'], `${kind}.dof`);
+        requireKeys(operation.dof, ['aperture', 'focus_distance'], `${kind}.dof`);
+        validateFiniteNumber(operation.dof.aperture, `${kind}.dof.aperture`, 0.1, 64);
+        validateFiniteNumber(operation.dof.focus_distance, `${kind}.dof.focus_distance`, 0, 1e6);
+        if (Object.hasOwn(operation.dof, 'focus_object')) validateAllowedName(operation.dof.focus_object, allowed, `${kind}.dof.focus_object`);
+      }
       break;
     }
     case 'set_camera':
@@ -209,12 +263,31 @@ function operationBody(operation) {
       if (Object.hasOwn(operation, 'scale')) fields.push(`obj.scale = ${quote(operation.scale)}`);
       return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${fields.join('\n')}\n${jsonReceipt('transform', operation.name)}`;
     }
-    case 'material':
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'MESH':\n    raise RuntimeError("material requires mesh object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
-    case 'create_light':
-      return `${objectModeGuard()}\n${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\nbpy.context.collection.objects.link(light)\nlight.location = ${quote(operation.location)}\n${jsonReceipt('create_light', operation.name)}`;
-    case 'create_camera':
-      return `${objectModeGuard()}\n${creationGuard(operation.name)}\ncamera_data = bpy.data.cameras.new(${quote(operation.name)} + "_Camera")\ncamera_data.lens = ${operation.lens}\ncamera = bpy.data.objects.new(${quote(operation.name)}, camera_data)\nbpy.context.collection.objects.link(camera)\ncamera.location = ${quote(operation.location)}\ncamera.rotation_euler = ${quote(operation.rotation)}\n${jsonReceipt('create_camera', operation.name)}`;
+    case 'material': {
+      const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'MESH':\n    raise RuntimeError("material requires mesh object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
+    }
+    case 'shared_material': {
+      const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
+      const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type != 'MESH':\n    raise RuntimeError("shared_material requires mesh objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
+      return `${objectModeGuard()}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('shared_material', operation.name)}`;
+    }
+    case 'duplicate': {
+      const overrides = [];
+      if (Object.hasOwn(operation, 'location')) overrides.push(`duplicate.location = ${quote(operation.location)}`);
+      if (Object.hasOwn(operation, 'rotation')) overrides.push(`duplicate.rotation_euler = ${quote(operation.rotation)}`);
+      if (Object.hasOwn(operation, 'scale')) overrides.push(`duplicate.scale = ${quote(operation.scale)}`);
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${creationGuard(operation.new_name)}\nduplicate = obj.copy()\nduplicate.data = obj.data.copy()\nduplicate.name = ${quote(operation.new_name)}\nbpy.context.collection.objects.link(duplicate)\n${overrides.join('\n')}\n${jsonReceipt('duplicate', operation.new_name)}`;
+    }
+    case 'create_light': {
+      const color = Object.hasOwn(operation, 'color') ? `\nlight_data.color = ${quote(operation.color)}` : '';
+      const temperature = Object.hasOwn(operation, 'temperature') ? `\nif not hasattr(light_data, 'temperature'):\n    raise RuntimeError("light temperature unavailable")\nlight_data.temperature = ${operation.temperature}\nif hasattr(light_data, 'use_temperature'):\n    light_data.use_temperature = True` : '';
+      return `${objectModeGuard()}\n${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}${color}${temperature}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\nbpy.context.collection.objects.link(light)\nlight.location = ${quote(operation.location)}\n${jsonReceipt('create_light', operation.name)}`;
+    }
+    case 'create_camera': {
+      const dof = operation.dof ? `\ncamera_data.dof.use_dof = True\ncamera_data.dof.aperture_fstop = ${operation.dof.aperture}\ncamera_data.dof.focus_distance = ${operation.dof.focus_distance}${Object.hasOwn(operation.dof, 'focus_object') ? `\nfocus_object = bpy.data.objects.get(${quote(operation.dof.focus_object)})\nif focus_object is None:\n    raise RuntimeError("DOF focus object not found")\ncamera_data.dof.focus_object = focus_object` : ''}` : '';
+      return `${objectModeGuard()}\n${creationGuard(operation.name)}\ncamera_data = bpy.data.cameras.new(${quote(operation.name)} + "_Camera")\ncamera_data.lens = ${operation.lens}\ncamera = bpy.data.objects.new(${quote(operation.name)}, camera_data)\nbpy.context.collection.objects.link(camera)\ncamera.location = ${quote(operation.location)}\ncamera.rotation_euler = ${quote(operation.rotation)}${dof}\n${jsonReceipt('create_camera', operation.name)}`;
+    }
     case 'set_camera':
       return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'CAMERA':\n    raise RuntimeError("set_camera requires camera object")\nbpy.context.scene.camera = obj\n${jsonReceipt('set_camera', operation.name)}`;
     case 'render_settings':
@@ -230,6 +303,19 @@ function operationCode(operation, allowedObjects) {
   validateOperation(operation, allowedObjects);
   const body = operationBody(operation);
   return script(body);
+}
+
+function operationBatchCode(payload, allowedObjects) {
+  if (!isPlainObject(payload)) fail('apply payload must be an object');
+  if (!Object.hasOwn(payload, 'operations')) return [operationCode(payload, allowedObjects)];
+  strictObject(payload, ['operations'], 'apply payload');
+  if (!Array.isArray(payload.operations) || payload.operations.length < 1 || payload.operations.length > MAX_BATCH) {
+    fail(`apply payload.operations must contain 1-${MAX_BATCH} operations`);
+  }
+  return payload.operations.map((operation, index) => {
+    try { return operationCode(operation, allowedObjects); }
+    catch (error) { throw new TypeError(`apply payload.operations[${index}]: ${error.message}`); }
+  });
 }
 
 function validateProjectPath(value, label) {
@@ -259,6 +345,11 @@ function saveCode(scenePath) {
   return `import bpy\nimport json\nimport os\n\nexpected = ${pathLiteral}\ncurrent = bpy.data.filepath\nif current and os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("refusing mismatched existing scene filepath")\nbpy.ops.wm.save_as_mainfile(filepath=expected, check_existing=True)\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": bpy.data.filepath}, separators=(",", ":")))\n`;
 }
 
+function renderPreflightCode(scenePath) {
+  validateProjectPath(scenePath, 'scenePath');
+  return `import bpy\nimport json\nimport os\n\nexpected = ${quote(scenePath)}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\nscene = bpy.context.scene\ncamera = scene.camera\nif camera is None:\n    raise RuntimeError("scene camera is not set")\nif camera.type != 'CAMERA':\n    raise RuntimeError("scene camera is not a camera object")\nif not getattr(scene, 'render', None):\n    raise RuntimeError("scene render settings unavailable")\nif int(scene.render.resolution_x) < 16 or int(scene.render.resolution_y) < 16:\n    raise RuntimeError("render resolution is invalid")\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "camera": camera.name, "resolution": [scene.render.resolution_x, scene.render.resolution_y]}, separators=(",", ":")))\n`;
+}
+
 function renderCode(scenePath, renderPath) {
   validateProjectPath(scenePath, 'scenePath');
   validateRenderPath(renderPath);
@@ -267,4 +358,4 @@ function renderCode(scenePath, renderPath) {
   return `import bpy\nimport json\nimport os\n\nexpected = ${sceneLiteral}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\nscene = bpy.context.scene\nimage_settings = scene.render.image_settings\n${enumValues('bpy.types.ImageFormatSettings', 'file_format')}\nif 'PNG' not in valid_values:\n    raise RuntimeError("PNG render format is unavailable")\nold_filepath = scene.render.filepath\nold_resolution_percentage = scene.render.resolution_percentage\nold_file_format = image_settings.file_format\nold_color_mode = image_settings.color_mode\nold_color_depth = image_settings.color_depth\nold_use_file_extension = scene.render.use_file_extension\ntry:\n    image_settings.file_format = 'PNG'\n    scene.render.use_file_extension = True\n    scene.render.filepath = ${renderLiteral}\n    scene.render.resolution_percentage = 100\n    bpy.ops.render.render(write_still=True)\nfinally:\n    image_settings.file_format = old_file_format\n    image_settings.color_mode = old_color_mode\n    image_settings.color_depth = old_color_depth\n    scene.render.use_file_extension = old_use_file_extension\n    scene.render.filepath = old_filepath\n    scene.render.resolution_percentage = old_resolution_percentage\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": ${renderLiteral}}, separators=(",", ":")))\n`;
 }
 
-export { OPERATION_NAMES, PRIMITIVES, operationCode, preflightCode, renderCode, saveCode };
+export { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode };
