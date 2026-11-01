@@ -40,8 +40,9 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - Grade saved work, not intentions: capture evidence after saving the `.blend`.
 - Run required graders in bounded batches under `blender-project-grading` and complete every report
   and disposition before the Partially Autonomous change-review question. Findings do not authorize
-  another meaningful correction without the user's approval or revision direction.
+  another reviewable correction without the user's approval or revision direction.
 - Before production completion, require a final applicable `PASS` against the saved deliverable
   state when grading is enabled, with no genuine unresolved blocker or major finding.
-- Commit each completed round's `REVIEW.md`, manifest, reports, and index entry atomically; only
-  `_evidence/` and `tmp/` remain ignored.
+- The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
+  the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
+  are blocked.

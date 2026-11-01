@@ -1,116 +1,64 @@
 ---
 name: blender-project-workflow
-description: Select and enforce Fully Autonomous or Partially Autonomous work on new projects and returns to paused projects. Supports mid-work switches and gates partial-mode changes on user approval.
+description: Select and enforce Fully Autonomous or Partially Autonomous work on new projects and returns to paused projects. Defines approval gates and mode switches.
 ---
 
 # Blender Project Workflow
 
-Ask the workflow mode on new projects and genuine later returns to paused projects; never infer it
-from a previous session. Requirements must be confirmed first. Mode selection happens before the
-production goal starts, because Kilo removes `question` during an active goal. Workspace maintenance is
-exempt from this project gate.
+Workflow mode MUST be selected in ordinary chat before the production goal starts, after
+requirements are confirmed. Ask it again on a genuine later return before resume. Workspace
+maintenance is exempt.
 
-## Gate
+## Rules
 
-- Follow `blender-project-goal` for goal recording and its turn boundary. Do not start the goal
-  before requirements, workflow, and review records are complete.
-- If requirements are unconfirmed, stop and resolve that first with `blender-project-requirements`.
-- Follow `AGENTS.md` for hard invariants and `blender-workflow-harness` for registration, launch,
-  bounded changes, review, and checkpointing.
-- Ask the mode with `question` and wait for the answer. Do not start scene work or the goal before it.
-- During an active goal, `question` is unavailable in either autonomy mode. For every necessary
-  question, follow `blender-project-goal` for the orchestrator-owned required-input handoff, questions,
-  and start/resume. Never delegate goal commands to the user. Already stopped work needs no second
-  pause. Confirmed scope or mode changes require supported registration before objective replacement.
+- Read `AGENTS.md` and `blender-workflow-harness`. Follow `status.nextStep`.
+- Requirements MUST be confirmed before either mode starts.
+- `question` is unavailable during an active goal. Use `blender-project-goal` for the required-input
+  handoff before asking approval or changing mode.
+- A **reviewable change** is one bounded change with at least one apply operation. The bootstrap save
+  is not reviewable.
+- Each reviewable change follows `begin` → apply tickets → `seal` → `look` → review → approval when
+  required → `commit` → `checkpoint`.
+- Project documents and project commits MUST use harness actions. Manual project writes and Git
+  commits are blocked.
 
 ## Fully Autonomous
 
-- Work through the confirmed requirements without approval pauses. Use `blender-workflow-harness`
-  for saves, seals, review, commits, and checkpoints; inspect every visual change with `look`.
-- Stop only for a requirements conflict, a destructive or irreversible choice, a missing asset or
-  licence, or a technical blocker. Report the blocker and ask.
+- Proceed within confirmed requirements without approval pauses.
+- Complete review and `checkpoint` for every reviewable change. With `Off`, call `commit` after
+  self-review. With `All` or `Single`, `review` auto-commits the change; go directly to `checkpoint`.
+- STOP for a requirements conflict, destructive or irreversible choice, missing asset or licence,
+  missing required grader, or technical blocker.
 
 ## Partially Autonomous
 
-- Make one meaningful change at a time. A meaningful change is a new or removed object, collection,
-  material, light, camera, render setting, imported asset, or a transform that changes the visible
-  result or composition.
-- After each meaningful change or new addition: save the `.blend`, inspect with `look`, complete
-  required grading under `blender-project-grading`, record dispositions, summarize the result and
-  recommendation, then follow the required-input handoff and ask for approval or revision direction.
-  When grading is `Off`, orchestrator inspection still remains mandatory.
-- Current workers inspect only; the orchestrator makes each meaningful change through the harness.
-  Delegated writes require explicit assignment and reviewed support. Workers never ask the user.
-- Ask occasionally whether the user wants to modify anything, especially after a few approved
-  changes or a direction shift.
-- Never make the next meaningful change until the user approves.
-- Grader findings do not authorize the next meaningful change. Disclose unresolved findings in the
-  review question and obtain approval or explicit revision direction before correcting the scene.
-  Do not label a change ready or complete while a genuine blocker or major finding remains.
+- Obtain approval after every reviewable change and before its commit.
+- After `seal` and `look`, complete required review and record every finding disposition.
+- Call `approval` `{}` with the goal stopped when `question` is unavailable. Pass its exact question
+  and labels to `question`: `Approve change`, `Request revision`, `Pause`.
+- Only a runtime answer counts. NEVER self-approve or record approval the user did not give.
+- `Approve change`: `commit` the exact reviewed change, then `checkpoint`.
+- `Request revision`: obtain concrete direction while stopped; commit the failed round; resume only
+  for a bounded `begin` with `revision:true`; repeat review and approval.
+- `Pause`, cancellation, or no answer: make no further scene changes.
+- Findings do not authorize fixes or the next change without approval or revision direction.
 
-Approval is runtime-captured: after saved render inspection, required grading, and dispositions, use
-the `blender-project-goal` handoff if execution is active; if already stopped, ask directly in ordinary
-chat. Call `blender_workflow` `approval` with `{}`; pass its returned question unchanged to `question`,
-with exactly `Approve change`, `Request revision`, `Pause`, as one single-select question; omit
-`custom`/`multiple` or set them false where the tool exposes them. Never
-substitute a hand-written approval question or approved
-JSON. Forged JSON is ignored. Other questions and mode changes remain separate paused-goal steps.
-
-Handle answers explicitly:
-
-- `Approve change`: record the runtime answer, then commit and `checkpoint` through
-  `blender-workflow-harness` before resuming authorized work. Approval does not waive genuine
-  unresolved blockers or major findings or satisfy a required `PASS`.
-- `Request revision`: obtain concrete direction while paused; commit the failed round and checkpoint
-  before fixes. Resume only for a bounded `begin` with `revision:true`; save, seal, inspect, complete
-  review, and ask again. Never silently exceed the configured `max_rounds` cap.
-- `Pause`, cancellation, or no answer: keep the goal paused and make no further scene changes.
-- For a separate request to modify manually, keep the goal paused. Do not use raw Python to prepare
-  the scene or silently edit sealed work. Manual Blender or external-shell edits invalidate evidence;
-  inspect harness `status` and resolve re-registration/review before production continues. Ask with
-  `question`:
-
-```text
-header: "Your turn"
-question: "The scene is ready for your changes. Tell me when you are done."
-options:
-- "Done"
-- "Still working"
-```
-
-`Still working` or no answer keeps work stopped; do not resume or edit. After `Done`, inspect with
-`get_scene_info` and `look`; resolve stale harness state through reviewed tooling. Inspection while
-stopped is read-only; ticketed save/seal requires supported recovery, current registration, and an
-agent-resumed active goal. Complete required grading before the next change-review question. Never
-edit external harness state or reuse stale approval. Ask what changed only if inspection leaves a
-material ambiguity. Update `DECISIONS.md`, obtain explicit confirmation for requirements revisions,
-and obtain approval of the inspected result before further scene changes. Read-only review while
-stopped does not authorize scene changes.
-
-## Select on a new project
-
-After requirements are confirmed and before scaffolding, ask:
+## New-project question
 
 ```text
 header: "Workflow"
 question: "How should I work on this project?"
 options:
 - "Fully Autonomous" — proceed within confirmed requirements without approval pauses
-- "Partially Autonomous" — stop for approval after every meaningful change
+- "Partially Autonomous" — stop for approval after every reviewable change
 ```
 
-Keep the exact answer in the conversation until scaffolding exists, then write it to
-`Documents/WORKFLOW.md` with selection date and a change-log row. Collect the review answer with
-`blender-project-grading` before scaffolding too; persist it in `Documents/REVIEW.md` afterward.
-Do not reask either mode merely to write its record.
+Record the exact answer in `Documents/WORKFLOW.md` with `Mode:`, `Selected:`, `Last changed:`, and a
+change-log row. Do not reask an answer already collected for the current task.
 
-## Resume
+## Return question
 
-On a genuine later return after the user ended or deferred the active task, read
-`Documents/WORKFLOW.md` and `Documents/REVIEW.md`, then ask both workflow and review questions before
-resuming. Routine approval, clarification, and manual-edit pauses within the same active task,
-automatic goal turns, and compaction are continuations: retain selected modes without reasking.
-For a genuine return, ask:
+On a genuine later return, read `Documents/WORKFLOW.md` and `Documents/REVIEW.md` and ask:
 
 ```text
 header: "Workflow"
@@ -121,25 +69,22 @@ options:
 - "Review requirements"
 ```
 
-If the mode is `Unset`, ask the new-project mode question. Record the exact answer and date in
-`WORKFLOW.md` even when continuing the same mode, and finish review selection through
-`blender-project-grading` before resume. If the user chooses `Review requirements`, resolve and
-confirm changes before either record or goal is treated as current.
+Record the exact answer and date in `WORKFLOW.md` even when retaining the mode. Complete review-mode
+selection through `blender-project-grading` before resume. If `Review requirements` is chosen,
+resolve requirements before either record or the goal is current.
 
-## Change mode mid-work
+## Mode switch
 
-The user may switch at any time. If confirmation needs a question, follow `blender-project-goal`.
-Record the exact switch, update `Documents/WORKFLOW.md`, `DECISIONS.md`, and the active goal record,
-then resolve changed registration facts through supported tooling before the orchestrator starts the
-updated objective. If unsupported, report the tooling blocker instead of resuming stale work. When
-switching to Partially Autonomous, ask whether the user wants to review the current scene first;
-complete required grading before any change-review question.
+1. Obtain explicit user direction.
+2. Update `Documents/WORKFLOW.md`, `Documents/DECISIONS.md`, and the active goal through harness
+   document actions.
+3. Resolve registration facts through supported tooling. If re-registration is unavailable, stop and
+   report the exact blocker; do not resume stale work.
+4. When switching to Partially Autonomous, ask whether the user wants to review the current scene
+   first. Complete required review before any change approval question.
 
-## Enforcement
+## Manual edits
 
-- Use `question` for approvals and workflow changes; do not treat a visual check as approval.
-- If a question is cancelled or unanswered, keep work stopped; do not continue or ask for goal commands.
-- Fully Autonomous still stops for blockers and scope changes.
-- Requirements changes follow `blender-project-requirements`, not this skill.
-- `status` recovers phase after compaction/restart. Neither mode bypasses registration,
-  sealed-render inspection, review receipts, or the final clean-checkpoint/`PASS` completion hook.
+If the user requests manual scene edits, keep the goal paused. Do not use raw Python or shell edits
+to prepare the scene. After the user reports completion, inspect `status`; resolve stale state
+through reviewed recovery. Required review and approval remain mandatory before further production.

@@ -25,7 +25,8 @@ assets/external/
   derivatives and identify source and modifications; project modification does not remove licence duties.
 - Record the asset in `../../Documents/ASSETS.md`.
 - Do not commit an asset unless its licence allows redistribution. If it does, remove the ignore
-  rule for that path or use `git add -f` deliberately, and keep the licence beside it.
+  rule for that exact path so the harness commit can stage it, and keep the licence beside it.
+  Force-add is unsupported; request reviewed tooling instead of using manual Git.
 - For large redistributable assets, use Git LFS rather than committing raw binaries.
 - Link or import with relative paths. Check for missing files before delivery.
 - Packing or embedding external data into a tracked or delivered `.blend` redistributes those bytes.

@@ -1,32 +1,30 @@
 # Blender Projects
 
-Blender projects live under this folder. Each subfolder is one project with its own README,
-Documents, Goals, assets, renders, exports, scenes, scripts, ignored logs, and backups.
+Each subfolder is one project with its own README, Documents, Goals, assets, renders, exports,
+scenes, scripts, ignored logs, and backups.
 
-Do not put a Blender project directly at the workspace root. Use this folder as the collection.
+Do not put a Blender project at the workspace root.
 
-## Create a project
+## Create
 
-Confirm requirements and collect workflow and review answers before scaffolding. Run the command
-from the workspace root, then persist confirmation evidence and the selected modes in
-`Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, and `Documents/REVIEW.md` before starting Blender:
+Confirm requirements and collect workflow and review answers before scaffolding. Then run:
 
 ```powershell
-.\tools\new-blender-project.cmd -Name "ProjectName" -Description "What it is" -Goal "First design request"
+node tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request"
 ```
 
-## Open a project
+Fill the records through the harness `bootstrap-document` action, commit the exact scaffold through
+`bootstrap-commit`, call `prepare`, answer its registration question, start the goal, then launch.
 
-Only one Blender project spawned by this workspace may be open at a time.
+## Open
 
-```powershell
-.\tools\start-blender.cmd "Blender\ProjectName"
+Only one Blender instance spawned by this workspace may run. Use the harness, never the shell:
+
+```json
+{"action":"launch"}
 ```
 
-The launcher opens a live log terminal and writes the session output to the project's ignored
-`logs/blender-<timestamp>.log`. It rejects missing confirmation records, unselected workflow/review modes,
-outside-project `.blend` paths, reparse points, port conflicts, and concurrent workspace Blender
-instances.
+Stop with `{"action":"stop"}`. The harness reads the single MCP port from `.kilo/kilo.jsonc`, writes
+the run log under the project's ignored `logs/`, and rejects conflicting instances.
 
-The MCP port comes from the workspace root `.kilo/kilo.jsonc`; project folders do not have their own
-Kilo config. Close the current Blender before opening another project.
+The harness is the only supported launcher. Do not invoke Blender or legacy scripts directly.

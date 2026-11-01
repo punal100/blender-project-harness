@@ -1,44 +1,26 @@
 ---
 name: blender-project-scaffold
-description: Use when creating a new Blender project under the workspace Blender folder. Creates the standard README, requirements, workflow, review, Documents, Goals, asset folders, and .gitignore.
+description: Use when creating a new Blender project under the workspace Blender folder. Creates the standard project structure and harness bootstrap path.
 ---
 
 # Blender Project Scaffold
 
-Create new projects from `templates/project` inside this skill. Do not invent a different folder
-layout.
+Create projects only from `templates/project` through the scaffold command. Do not invent a layout.
 
-Requirements must be confirmed, the workflow mode selected, and the review mode chosen before you run
-this. If they are not, read `blender-project-requirements`, `blender-project-workflow`, and
-`blender-project-grading` and finish them in ordinary chat first; Kilo removes `question` during an
-active goal, so no goal may start yet. Collect exact answers before scaffolding, then persist all
-three records in the draft documents before filling and starting the goal or launching. Do not reask
-the modes after scaffolding. Maintenance tests may scaffold isolated fixtures without confirmation,
-but must never launch Blender.
+Requirements MUST be confirmed and workflow and review modes MUST be selected before scaffolding.
+Complete those in ordinary chat; no goal starts before the scaffold, records, commit, and
+registration are complete.
 
 ## Create
-
-From the workspace root:
 
 ```powershell
 node tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request" --goal-title "Initial Brief"
 ```
 
-The command:
+The command validates the name, builds a slug, copies the template, and replaces project tokens.
+Use `--dry-run` to preview. A fresh scaffold cannot start Blender.
 
-- validates the folder name and builds a slug;
-- creates `Blender/<ProjectName>/`;
-- copies `templates/project`;
-- replaces `{{PROJECT_NAME}}`, `{{PROJECT_SLUG}}`, `{{DATE}}`, `{{DESCRIPTION}}`, `{{GOAL}}`,
-  and `{{GOAL_TITLE}}`;
-- leaves the main `.blend` for the first Blender session.
-
-Use `-DryRun` to preview without writing. `-Start` must be rejected before creating files: a fresh
-scaffold cannot contain completed confirmation records. Launch separately after completing them,
-committing scaffold documents and the filled goal, and finishing runtime harness registration.
-
-If the script cannot run, stop scaffolding and report the exact error. Fix the tooling before retrying;
-do not bypass its validation by copying the template manually.
+If the command fails, stop and report the exact error. Do not copy the template manually.
 
 ## Project structure
 
@@ -68,48 +50,37 @@ Blender/<Project>/
   exports/
   scenes/
   scripts/
-  logs/        # ignored runtime logs
-  backups/     # ignored snapshots
+  logs/        # ignored
+  backups/     # ignored
 ```
 
 The template is authoritative. Do not add, rename, or omit top-level folders without updating it.
 
-## After scaffold
+## Bootstrap through the harness
 
-Steps 1-5 run inside the bootstrap write window: the scaffold documents below are the only
-`Blender/<Name>/` writes allowed before registration. Scene, asset, render, and evidence paths stay
-blocked. A denial means a lifecycle step is missing; never work around it with shell redirection or
-temp-file copies.
-
-1. Write the confirmed requirements to `Documents/REQUIREMENTS.md`; set `Status: Confirmed` and
-   record `Confirmed: YYYY-MM-DD` and `Confirmation: <exact response and scope>`.
-2. Persist the already collected exact workflow answer in `Documents/WORKFLOW.md` and its change log.
-3. Persist the already collected exact review answer in `Documents/REVIEW.md` and its change log.
-   `Off`, `All`, and `Single` are valid; `Unset` blocks production. Do not invent confirmation text.
-4. Fill `README.md` with `blender-project-readme`; mark the main `.blend` path explicitly planned
-   until the first save. Do not require a live Blender connection during bootstrap.
-5. Fill `Documents/Goals/01-project-brief.md` with `blender-project-goal`. Inspect `git status`,
-   `git diff`, and `git log --oneline -10`; stage only exact scaffold paths and commit completed
-   documents and the filled goal before launch. Do not include unrelated files.
-6. Follow `blender-workflow-harness` for `prepare`, registration, goal start, launch, bootstrap save,
-   commit, and checkpoint. Register confirmed asset metadata with `blender-assets`; imports and
-   generation stay blocked until reviewed tooling supports them, even when launch preflight passes.
-7. The harness writes the run log to the project's ignored `logs/` folder; inspect it on startup failure.
-8. Verify addon and scene settings after launch. Complete the bootstrap save as one bounded change:
-   ticketed `save` to `<slug>.blend` at the project root, verify that path, call harness `commit`,
-   and `checkpoint` as `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty
-   scene. Update README from planned to saved. Stop on connection, addon, or file mismatch.
-9. Run every later change through the harness gates; never use a late mega-commit.
+1. Create or update `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`,
+   `Documents/REVIEW.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and the filled goal with
+   `bootstrap-document` `{project,path,content}`. Use `capabilities.documentFormats`; malformed
+   documents are rejected.
+2. Commit the exact scaffold with `bootstrap-commit` `{project,message}`. It accepts only
+   documentation and metadata, never `.blend`, renders, evidence, or asset binaries.
+3. Call `prepare` `{project,goal,scene}`. Pass its exact question and labels to `question`; only the
+   runtime answer registers.
+4. Start or resume the goal with the entire filled prompt. End the turn.
+5. Launch with `blender_workflow` `launch` `{}`; stop with `stop` `{}`. NEVER invoke Blender from
+   the shell.
+6. Save the first scene through one bounded `begin` and ticketed `save` to the declared project-root
+   `.blend`. Verify the path, `commit`, and `checkpoint`. The bootstrap save is not reviewable: NEVER
+   seal, render, or grade it.
+7. Run every later change through `blender-workflow-harness`.
 
 ## Rules
 
-- Do not scaffold before requirements are confirmed and workflow and review answers are collected.
-- The workspace owns one MCP port in the root `.kilo/kilo.jsonc`.
-- Only one Blender project spawned by this workspace may be open at a time.
-- Do not create a project-local `.kilo/kilo.jsonc`; the root config owns the MCP.
-- Do not copy another project's `.blend`, assets, or Documents; start clean.
-- Do not create `PLAN/`, `PLAN/product/`, or coding plan-check/verifier records. Goals replace
-  planning for this workspace.
+- Do not scaffold before requirements are confirmed and both mode answers are collected.
+- `.kilo/kilo.jsonc` owns the single MCP port.
+- Do not create a project-local Kilo config.
+- Do not copy another project's `.blend`, assets, or documents; start clean.
+- Do not create `PLAN/`, plan-check, or verifier records. Goals replace planning.
 - Keep project documents under `Documents/`.
-- Never edit the skill template directly for a specific project; create a named copy with the
-  script.
+- Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
+- Never edit the skill template for a specific project; create a named copy with the command.

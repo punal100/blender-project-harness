@@ -1,60 +1,63 @@
 ---
 name: blender-assets
-description: Use when adding, importing, linking, packing, or delivering external Blender assets. Enforces asset registration, licences, relative paths, missing-file checks, and git policy.
+description: Use when adding, importing, linking, packing, or delivering external Blender assets. Enforces registration, licences, relative paths, and delivery checks.
 ---
 
 # Blender Assets
 
-Project paths below are relative to `Blender/<Project>/`; the template reference is relative to this
-skill's directory.
+Project paths are relative to `Blender/<Project>/`. External assets and derivatives MUST be
+registered before use.
 
 ## Folder policy
 
-- Store project-owned files in `assets/textures/`, `assets/hdri/`, `assets/models/`, `assets/audio/`.
-- Store third-party files, including licensed files and derivatives, in
-  `assets/external/<source-or-vendor>/<asset>/`. Modification does not remove source or licence duties.
-- Record each third-party original and derivative in `Documents/ASSETS.md`; keep `SOURCE.md` and a
-  verbatim `LICENSE.txt` beside every external asset. Preserve original licence files too.
+- Project-owned files: `assets/textures/`, `assets/hdri/`, `assets/models/`, `assets/audio/`.
+- Third-party files and derivatives:
+  `assets/external/<source-or-vendor>/<asset>/`. Modification does not remove source or licence
+  duties.
+- Register every third-party original and derivative in `Documents/ASSETS.md`.
+- Keep `SOURCE.md` and a verbatim `LICENSE.txt` beside every external asset. Preserve original
+  licence files.
 
 ## Workflow
 
-1. Find the asset with Blender MCP `search_assets` or manual source discovery. Do not import before
-   the source, licence, and intended-use checks below are complete.
+1. Find an asset with `blender_search_assets` or manual source discovery. Do not import before
+   source, licence, and intended-use checks pass.
 2. Record source, author, licence, attribution, redistribution, local path, and packaging mode in
-   `Documents/ASSETS.md`.
-3. Add `SOURCE.md` from
-   `../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
-4. Copy the applicable licence terms verbatim to `LICENSE.txt` beside the asset, preserving any
-   original licence files. Record the licence source URL and attribution exactly. If terms cannot be
-   obtained or do not permit intended use, stop; do not invent, summarize, or substitute licence terms.
-5. Link or import with relative paths from the `.blend` (`//assets/...`). Never leave
-   machine-specific absolute paths.
+   `Documents/ASSETS.md` through the harness document action.
+3. Create `SOURCE.md` from `../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
+4. Copy the applicable licence terms verbatim to `LICENSE.txt`. Record the licence source URL and
+   attribution exactly. If terms are missing or incompatible, STOP; never invent or summarize them.
+5. Link or import with relative paths from the `.blend` (`//assets/...`). NEVER leave absolute paths.
 6. Check missing files before delivery.
-7. Decide whether the `.blend` links, packs, or embeds the asset, and record that decision. Treat
-   packed or embedded bytes as part of the deliverable even when the source binary is ignored by git.
+7. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
+   third-party data even when source binaries are ignored.
 
-## Git policy
+Imports and generation remain blocked until reviewed harness operations exist. Asset search does not
+authorize an unsupported import.
+
+## Git and delivery
 
 - External asset binaries are ignored by default.
-- Commit only assets whose licence permits redistribution. Remove the ignore rule for that path or
-  use `git add -f` deliberately.
+- Commit only assets whose licence permits redistribution. Remove the ignore rule for that exact
+  path so the harness commit can stage it. Force-add is unsupported; request reviewed tooling instead
+  of using manual Git.
 - Use Git LFS for large redistributable binaries.
-- Never commit non-redistributable assets, credentials, or paid asset packs.
-- A tracked `.blend` containing packed or embedded third-party data is a redistribution of that data.
-  Verify its licence, attribution, and delivery rights before committing or delivering the file.
+- NEVER commit non-redistributable assets, credentials, or paid asset packs.
+- A tracked `.blend` with packed or embedded third-party data is a redistribution. Verify licence,
+  attribution, and delivery rights before commit or delivery.
+- Required metadata MUST be tracked with the project.
+- Re-check missing files and packed/embedded data before delivery.
 
 ## Validation
 
 - Run `bpy.ops.file.report_missing_files()` and inspect missing-file reports; an operator return
-  status alone does not prove files exist. Resolve every missing dependency before delivery.
-- Apply `bpy.ops.file.make_paths_relative()` and verify external paths resolve within shipped folders.
-- Verify moving or copying the project folder does not break the scene.
+  status alone is not proof.
+- Apply `bpy.ops.file.make_paths_relative()` and verify external paths resolve inside shipped folders.
+- Verify moving the project folder does not break the scene.
 - Require an `ASSETS.md` row for every third-party asset and derivative.
-- Require `SOURCE.md` and verbatim `LICENSE.txt` in every external asset folder, and verify both
-  metadata files are tracked when committing the project.
+- Require `SOURCE.md` and verbatim `LICENSE.txt` in every external asset folder.
 - Require a registered source, licence, and packaging decision for every linked, packed, or embedded
-  third-party datablock in a deliverable `.blend`.
+  third-party datablock.
 
-For delivery copies, pack external data into the `.blend` only when its licence permits redistribution,
-or ship the documented asset folders together. Keep an unpacked working copy when the assets still need
-editing. Re-run missing-file checks and inspect packed/embedded third-party data before delivery.
+For delivery, pack external data only when its licence permits redistribution, or ship the documented
+asset folders. Re-run missing-file checks and inspect packed/embedded data before delivery.

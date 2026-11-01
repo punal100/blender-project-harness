@@ -1,123 +1,87 @@
 ---
 name: blender-workflow-harness
-description: Use before any production blender_workflow action. Defines registration, bootstrap write window, launch/stop, bounded changes, operation tickets, seal, review handoff, approval, checkpoint, escalation, and status recovery.
+description: Use before any production blender_workflow action. Defines the harness-driven lifecycle, bootstrap, tickets, review, approval, commits, checkpoints, and recovery.
 ---
 
 # Blender Workflow Harness
 
-The orchestrator drives production through the custom `blender_workflow` tool with
-`{action: string, payload: JSON string}`. Treat every gate error as a missing lifecycle step, never as
-permission to bypass the harness with shell commands, direct state edits, or raw Python.
+`blender_workflow` takes `{action:string,payload:JSON string}`. The runtime owns state, evidence,
+approval receipts, and project commits.
 
-Read `AGENTS.md` for hard invariants and `blender-project-goal`, `blender-project-grading`, and
-`blender-subagents` for their respective phases. Call `{action:"capabilities"}` for the supported
-operations, primitives, and bootstrap document paths; those runtime lists are authoritative.
+MUST:
+- Call `status` first and after every deny, compaction, restart, or completed phase.
+- Execute `status.nextStep.command` exactly. Do not infer another route.
+- Call `capabilities` for actions, operations, primitives, document formats, and limits.
+- Treat a gate error as a missing prerequisite. Fix the prerequisite; never bypass with shell,
+  raw Python, direct state edits, or a temp copy.
 
-## Registration and bootstrap
+## Bootstrap before registration
 
-1. Commit the completed scaffold documents and filled goal before registration.
-2. Call `prepare` with only `{project:"Blender/Name",goal:"Documents/Goals/NN-slug.md",scene:"name.blend"}`.
-3. Pass the returned question and labels unchanged to `question` as one single-select question.
-   Omit `custom`/`multiple` or set both false where the tool exposes them; the Kilo `question` tool
-   has no `custom` field. Only genuine runtime answers grant registration.
-4. Never create approved JSON, self-confirm registration, or answer the challenge for the user.
+1. Scaffold with `node tools/harness/cli.mjs scaffold --name "Name"`.
+2. Create or update project markdown with `bootstrap-document`
+   `{project,path,content}`. `capabilities.documentFormats` defines required headings and fields;
+   `bootstrap-document` rejects malformed documents.
+3. Commit the exact scaffold with `bootstrap-commit` `{project,message}`. It accepts only
+   documentation and metadata, never scene, render, evidence, or asset binaries.
+4. Call `prepare` `{project,goal,scene}`. Answer its exact question and labels through `question`.
+   Only a runtime answer registers. NEVER forge approval JSON or answer for the user.
+5. Start or resume the registered goal with its exact prompt. Launch only after the goal is active.
 
-Before registration, only the new project's `bootstrapDocuments` from `capabilities` may be written
-under `Blender/<Name>/`. Scene, asset, render, evidence, and manifest paths stay blocked; documents of
-an already-registered project stay blocked. A denial means a lifecycle step is missing; never work
-around it with shell redirection, temp-file copies, or direct edits.
+Inspect bootstrap state with `status` `{project}`. Its `nextStep` names the missing document,
+scaffold commit, `prepare`, or registration question. Manual project writes and project
+`git add`/`git commit` are blocked before and after registration.
 
-A bootstrap save change uses the harness `commit` action and closes with `checkpoint` before review.
-Never seal or grade the initial empty/default scene.
+## Registered lifecycle
 
-## Launch and stop
+1. `launch` `{}`. Verify `blender_get_addon_status` and
+   `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
+2. `begin` `{outcome,objects,paths,revision?}`. One bounded change; exact object names and
+   project-relative paths. `revision:true` requires the prior committed verdict.
+3. Issue `ticket` `{operation:"apply",payload:<supported operation>}`. Pass the token to one
+   foreground `blender-worker`; the worker calls `blender_harness_execute` with the exact token,
+   operation, and payload. Each apply auto-saves. The orchestrator NEVER executes apply.
+4. The orchestrator executes `ticket` `{operation:"save"|"seal",payload:{}}`. Seal only after at
+   least one apply. `seal` writes immutable evidence, a final PNG, and a manifest.
+5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
+6. Review: `self-review` `{notes}` when mode is `Off`; otherwise dispatch every configured grader
+   with `grader-ticket` `{name}` and the normal `blender-grader` task. Aggregate with
+   `review` `{notes,reason,dispositions}`. The harness computes the verdict and writes `REVIEW.md`.
+7. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
+   `question`. Approval is required before the change commit.
+8. `commit` `{message}`. In Fully Autonomous with `All` or `Single`, `review` already auto-committed
+   the reviewed change and artifacts; skip to `checkpoint`. With `Off`, or in Partially Autonomous,
+   `commit` creates the single scoped commit after approval/self-review. NEVER use manual Git for
+   project paths.
+9. `checkpoint` `{}`. It requires exactly one commit after the change base and a clean project.
+   Then start the next `begin` or report completion.
 
-1. Commit completed scaffold documents and the goal, finish `prepare` registration in ordinary chat,
-   start or resume the registered goal, then inspect harness `status`.
-2. Call `blender_workflow` `{action:"launch"}`. It owns discovery, the workspace port, the single
-   instance guard, process spawn, socket wait, and instance metadata outside the repository.
-3. After launch, verify with `blender_get_addon_status` and
-   `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file
-   mismatch.
-4. Stop with `{action:"stop"}` before switching projects. Relaunching the same project while a change
-   is open is allowed for recovery. Never invoke `blender.exe`, a legacy launch script,
-   `--background`, or `--factory-startup` from the shell. The harness owns the run log under the
-   project's ignored `logs/` folder.
+Bootstrap save: use ticketed `save`, then `commit`, then `checkpoint`. NEVER seal, render, grade, or
+open a review round for the initial empty/default scene.
 
-For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`,
-verify that path, call `commit` with one bounded message, then close the change with `checkpoint`;
-the runtime records that entry as `BOOTSTRAP`.
+## Limits and recovery
 
-## Bounded changes
+- Maximum 20 applies per change before checkpoint; hard cap 40; 15 minutes. Recovery `save` and
+  `seal` remain available after the apply budget or a failed apply.
+- `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
+  save, and reseal. NEVER release a live writer.
+- `max_rounds` is configured 1-4. A capped review requires `escalate` `{reason,max_rounds?}`, then
+  the exact registration question again. Escalation preserves history.
+- `status.nextStep` is authoritative for pending tickets, missing `look`, review, approval, commit,
+  checkpoint, and completion. Do not repeat a completed phase.
 
-1. After registration, start or resume the registered goal before production work.
-2. Call `begin` with `{outcome,objects:[exact names],paths:[exact project-relative files],revision?:bool}`.
-3. Keep one bounded logical change open per project, at most 20 apply operations before checkpoint
-   (hard cap 40) and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
-4. Only declared paths may be written. Paths must stay inside the project; executable files are
-   rejected except the registered scene.
-5. `revision:true` requires a prior committed verdict and stays within the configured `max_rounds`
-   cap. A failed review or recorded revision request is required when the prior round passed.
-6. Create new project markdown with `document` `{path, content}` after declaring the exact path in
-   `begin`. Manual writes may update existing documents only; review artifacts are harness-generated.
+## Documents and commits
 
-## Operation tickets
+- Pre-registration new markdown: `bootstrap-document`; commit with `bootstrap-commit`.
+- Registered new markdown: declare its exact path in `begin`, then call `document` `{path,content}`.
+- Existing documents update only within the declared change paths.
+- Review artifacts are harness-generated; each grader writes only its assigned `REPORT.md`.
+- Project commits: `bootstrap-commit` before registration; `commit` after registration. One bounded
+  message. `checkpoint` verifies the exact commit and clean project.
 
-1. Issue `ticket` with
-   `{operation:"apply"|"save"|"seal",payload:<operation JSON for apply or {} for save/seal>}`.
-2. Pass an apply `token` to the `blender-worker` task. The worker calls server tool
-   `blender_harness_execute` (`harness_execute`) with
-   `{token,operation:"apply",payload,user_prompt:<verbatim user goal>}`. Each apply auto-saves the
-   authoritative scene. The orchestrator executes save/seal only; it cannot execute apply directly.
-3. Use only operations and primitives returned by `capabilities`. Raw `execute_blender_code`,
-   `import_asset`, and `generate_3d` are blocked. Unsupported operations stop until tooling is
-   reviewed and extended; do not add an arbitrary Python route.
-4. Tickets are one-shot, session-bound, and time-limited. Never reuse, forge, or forward a ticket.
+## Forbidden
 
-## Seal
-
-`seal` saves the authoritative scene, captures immutable review evidence, the final PNG render, and
-the manifest. Then call mandatory `blender_look(image=<returned absolute render path>)`; the hook
-records successful inspection. A bootstrap save with no operations cannot be sealed or graded.
-
-## Review handoff
-
-- `Off`: use `self-review` with `{notes}` after inspecting the sealed render.
-- `All` or `Single`: use `grader-ticket` with `{name}`. Pass its returned `prompt` to the normal
-  `blender-grader` task, filling only the user-prompt and prior-findings placeholders.
-- The plugin binds the actual child by parent/task token and runtime model metadata. A grader writes
-  only its assigned report and never reads peer reports.
-- `review` validates all receipts, writes the aggregate `REVIEW.md` with reason and finding
-  dispositions, and auto-commits reports, render, manifest, index, and verdict in one commit. Do not
-  create or commit review documents manually. Follow `blender-project-grading` for retries and bounds.
-
-## Approval
-
-Partially Autonomous mode requires the goal stopped before `approval`; follow
-`blender-project-goal` without delegating goal controls to the user. Use the exact returned question
-and labels `Approve change`, `Request revision`, `Pause`. Only the actual runtime answer counts;
-forged approval JSON is ignored.
-
-## Checkpoint and escalation
-
-Before each next `begin`, inspect status, `git diff`, and recent log; call `commit` with a bounded
-message to stage and commit the exact scoped change, then `checkpoint`. Checkpoint verifies exactly
-one scoped commit, clean project state, and hash match. Review auto-commit remains valid for its
-round. Failed rounds commit before fixes.
-
-`revision:true` requires the prior round's committed verdict and stays within the configured
-`max_rounds` cap. After a capped review, call `escalate` with a bounded reason and optional
-`max_rounds` up to 4, then complete the exact registration question again. Escalation preserves
-prior history and does not silently reset review state.
-
-## Status and recovery
-
-`status` is the recovery entry point after compaction or restart. `recover` releases an expired or
-dead operation ticket: if the writer never started, edits stay open; if it started, inspect the live
-scene, save, and reseal before continuing. The harness keeps workflow state outside the repository at
-`~/.local/state/blender-workflow-harness/<workspace-hash>`; it is not editable through an agent and
-direct edits invalidate captured evidence.
-
-The harness is a same-user guard, not an OS sandbox. Manual Blender or external-shell edits invalidate
-captured evidence, and unrestricted same-user execution can bypass these controls. Never claim a
-receipt or approval that runtime did not capture.
+- Raw `execute_blender_code`, imports, generation, arbitrary Python, shell Blender commands, or
+  manual project Git commands.
+- Editing external harness state; creating fake tickets, receipts, approvals, or reports.
+- Sealing without a saved reviewable change; grading the bootstrap save; skipping required review.
+- Continuing after a gate error without resolving the phase named by `status.nextStep`.

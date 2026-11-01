@@ -1,54 +1,45 @@
 ---
 name: blender-project-readme
-description: Use when creating or updating a Blender project README. Enforces the required sections for purpose, requirements, visual direction, deliverables, external assets, and goals.
+description: Use when creating or updating a Blender project README. Enforces the required project sections and harness-owned document path.
 ---
 
 # Blender Project README
 
 Canonical template: `../blender-project-scaffold/templates/project/README.md`. Write the project copy
-at `Blender/<Project>/README.md`.
+at `Blender/<Project>/README.md` through `bootstrap-document` before registration or `document`
+inside a declared bounded change.
 
 ## Required sections
 
-- Purpose: one concrete paragraph.
-- What this project is: subject, audience, visual result.
-- Requirements: link to confirmed `Documents/REQUIREMENTS.md` and summarize only the highest-priority
-  points; do not duplicate the requirement register.
-- Visual direction: style, references, colour, lighting, camera, scale.
-- Deliverables: main `.blend`, final renders, exports, documents.
-- Project structure: the actual folders and the authoritative `.blend`.
-- Blender: workspace MCP port from the root config, harness launch/stop, run log and ignored
-  `logs/` folder, main file, relative-path rule, and the one-active-instance rule.
-- Workflow: link to `Documents/WORKFLOW.md` and `Documents/REVIEW.md`; state the selected autonomy
-  and review modes and link to the review-round index.
-- External assets: summary plus links to `Documents/ASSETS.md` and
-  `assets/external/README.md`. If there are none, say so explicitly.
-- Goals: index of `Documents/Goals/*.md`.
-- References: links to `Documents/References/`.
-- Open questions and next steps.
+Keep this order. Each heading MUST appear exactly once.
 
-Keep the section order. Remove instructional placeholders; replace them with project facts.
+1. Project title.
+2. Purpose: one concrete paragraph.
+3. What this project is: subject, audience, visual result.
+4. Requirements: link to confirmed `Documents/REQUIREMENTS.md`; summarize only the highest-priority
+   points. Do not duplicate the requirement register.
+5. Visual direction: style, references, colour, lighting, camera, scale.
+6. Deliverables: main `.blend`, final renders, exports, documents.
+7. Project structure: actual folders and authoritative `.blend`.
+8. Blender: workspace MCP port, harness launch/stop, run log, main file, relative paths, one-instance
+   rule.
+9. Workflow: links to `Documents/WORKFLOW.md` and `Documents/REVIEW.md`; selected modes; review index.
+10. External assets: summary plus links to `Documents/ASSETS.md` and
+    `assets/external/README.md`.
+11. Goals: index of `Documents/Goals/*.md`.
+12. References: links to `Documents/References/`.
+13. Open questions and next steps.
 
-## Quality bar
+The harness validates `Status:` and `Last updated:` fields. Replace instructional placeholders with
+project facts. Do not invent requirements or asset details; link to their registers.
 
-- Write for a new collaborator who has not seen the project.
-- Derive requirements from the confirmed `Documents/REQUIREMENTS.md`; do not invent or silently
-  extend them. Mark unknowns as `TBD`.
-- Keep asset details in `Documents/ASSETS.md`; the README links to it instead of duplicating the
-  register.
-- Use relative links and paths.
-- Update `Last updated` and `Status` whenever scope, assets, or deliverables change.
+## Validation
 
-## Validate
-
-- Verify every deliverable path exists or is explicitly planned.
-- Verify `Documents/REQUIREMENTS.md` is confirmed and the README links to it.
-- Verify `Documents/WORKFLOW.md` and `Documents/REVIEW.md` contain selected modes and README links.
-- During prelaunch bootstrap, mark the authoritative `.blend` path planned and check its project
-  location and slug without launching Blender. After the first save and before production acceptance,
-  require that path to match MCP `get_scene_info(fields=["settings"])`; stop on mismatch.
-- Verify external assets are registered and the README links to the register.
-- Verify the goal index matches `Documents/Goals/`; identify the active goal's actual path.
-- Before marking complete, require a saved inspected review render and the final applicable `PASS`
-  when grading is enabled, with no genuine unresolved blocker or major finding. Keep `REVIEW.md`
-  and review-round links current.
+- Every deliverable path MUST exist or be explicitly planned.
+- Requirements MUST be confirmed and linked.
+- Workflow and review records MUST contain selected modes and be linked.
+- The authoritative `.blend` path MUST match the MCP settings after the first save.
+- External assets MUST be registered and linked.
+- The goal index MUST match `Documents/Goals/` and identify the active goal.
+- Before completion, the README MUST reflect the delivered state, inspected review render, and final
+  applicable review result.

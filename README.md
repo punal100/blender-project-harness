@@ -5,8 +5,10 @@ handling the building and checking along the way. Each project lives in its own 
 `Blender/<ProjectName>/`, and the shared MCP harness and checks live in `tools/harness/`.
 
 `AGENTS.md` holds the internal rules the agent follows. You bring the creative brief, constraints,
-answers, feedback, and approvals. The agent turns those into project documents and goals, runs the
-workflow, keeps records up to date, operates Blender, and reports back as it goes.
+answers, feedback, and approvals. The agent turns those into project documents and goals through the
+harness, runs the workflow, keeps records up to date, operates Blender, and reports back as it goes.
+Project document creation and project commits go through `blender_workflow`; manual project Git
+commits are blocked.
 
 ## Quick Start
 
@@ -110,6 +112,8 @@ goals as the work changes.
 - Keep every Blender project under `Blender/<ProjectName>/`.
 - Let the agent launch and stop Blender through `blender_workflow`; don't run `blender.exe` or any
   script directly for workspace work.
+- Project documents and project commits go through the harness; manual project Git commits are
+  blocked.
 - Run only one Blender instance from this workspace at a time.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.

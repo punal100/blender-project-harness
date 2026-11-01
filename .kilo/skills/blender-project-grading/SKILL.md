@@ -1,56 +1,40 @@
 ---
 name: blender-project-grading
-description: Use when configuring or running independent Blender grader subagents. Defines review modes, the grader config array, evidence capture, round folders, aggregation, dispositions, re-review, and bounds.
+description: Use when configuring or running independent Blender grader subagents. Defines review modes, evidence, round folders, aggregation, dispositions, and re-review.
 ---
 
 # Blender Project Grading
 
-Independent graders review saved work against confirmed requirements. They do not replace the
-orchestrator's own `look` inspection, and they never edit the scene. The orchestrator owns design,
-acceptance, fixes, approvals, and commits.
+Graders review sealed evidence against confirmed requirements. They do not edit the scene and do not
+replace the orchestrator's mandatory `blender_look` inspection.
 
-`AGENTS.md` defines hard invariants; `blender-workflow-harness` defines the runtime contract.
-Workspace maintenance and read-only questions need no project goal or Blender review; do not launch
-Blender for those checks.
+`AGENTS.md` defines hard invariants. `blender-workflow-harness` defines the runtime actions. Call
+`blender_workflow {action:"status"}` and follow `nextStep` when a review gate fails.
 
-## When to grade
+## When review is required
 
-When mode is `All` or `Single`, grading is mandatory after every meaningful, saved visual change.
-The bootstrap save is not a meaningful visual state: never seal it, request `grader-ticket`, or
-dispatch a grader for the initial empty/default scene. Close that save with the harness `commit` action and
-`checkpoint` instead; grading starts with the first real scene change.
-In Partially Autonomous mode, complete required review before asking approval or revision direction.
-Re-review fixes after `CHANGES_REQUIRED` within the configured round cap. If the cap is exhausted
-with unresolved blockers or majors, stop production; never report completion or silently skip review.
+- Review every reviewable change: a bounded change with at least one apply operation.
+- NEVER review the bootstrap save. Commit and checkpoint it without sealing or grading.
+- Mode `Off`: call `self-review` after inspecting the sealed render.
+- Mode `All`: every configured grader reviews each round.
+- Mode `Single`: only the named configured grader reviews.
+- Partially Autonomous: complete review and obtain approval before the change commit.
+- Re-review a failed round with `revision:true` within `max_rounds`.
+- Missing, disabled, invalid, or unavailable required grading STOPS production. NEVER silently
+  downgrade to self-review.
 
-Ask the review mode in ordinary chat before the goal starts, alongside the workflow question.
-Kilo removes `question` during an active goal.
+## Review mode record
 
-Use `question` with `Off`, `All`, and `Single` options and wait for the answer. For `Single`, ask which
-configured grader to use before recording the mode. On a later return to a paused project, confirm
-whether to keep or change the recorded mode before resuming. Routine approval pauses within the
-same active task do not require repeated mode questions. Persist dates and exact answers; never
-infer a selection from an existing config or another mode answer.
-
-## Project review mode
-
-Record the mode in `Blender/<Project>/Documents/REVIEW.md`:
-
-- `Off` — no graders; the orchestrator self-reviews with `look`.
-- `All` — every configured grader reviews in batches bounded by `max_parallel`.
-- `Single` — only the grader named in `Single grader`.
-
-`Mode: Unset` is invalid once production starts. The user may switch modes at any pause; update the
-record and change log. The machine-level `blender_subagents.graders.enabled` flag is a kill switch: grading runs
-only when it is true and the project mode is not `Off`. If `All` or `Single` is selected but grading
-is disabled, missing, invalid, or unavailable, stop production and resolve the mismatch. Do not
-silently downgrade to self-review. In `Single`, the named grader must exist in the configured roster.
-The orchestrator must assess acceptance criteria outside that grader's focus.
+`Documents/REVIEW.md` MUST contain one `Mode:` value (`Off`, `All`, or `Single`), one `Selected:`
+date, and for `Single` one `Single grader:` name. Ask the mode in ordinary chat before the goal
+starts and on a genuine later return. Do not reask for routine approval or continuation pauses.
+Switch modes only after explicit user direction; update the record and re-register when registration
+facts change.
 
 ## Config
 
-Read `blender_subagents.graders` in the gitignored `config.json` at the workspace root.
-`config.example.json` is the template. Worker settings live alongside it in `blender_subagents.workers`.
+Read `blender_subagents.graders` from the gitignored workspace `config.json`; the tracked
+`config.example.json` is the template.
 
 ```json
 {
@@ -76,166 +60,85 @@ Read `blender_subagents.graders` in the gitignored `config.json` at the workspac
 }
 ```
 
-- The harness validates the roster at `prepare`/registration: unique slug, non-empty focus and model
-  fields, positive budgets, `max_steps` within the grader agent ceiling, `max_parallel` within the
-  roster, and `max_rounds` 1-4. Invalid or missing config stops production; never fabricate, drop, or
-  substitute a grader.
-- `max_rounds` 2 means the initial review plus one re-review; 3 adds one more, and 4 adds two. When
-  exhausted, call `escalate` with a bounded reason and optional `max_rounds` up to 4, then complete
-  the exact registration question again.
-- Resolve model, provider, and variant with `agent_manager_models`. Per-task overrides require the
-  user's explicit request; otherwise use supported inheritance or stop.
+The harness validates the roster at `prepare`: unique slug, non-empty focus/model fields, positive
+budgets, `max_steps` within the grader ceiling, `max_parallel` within the roster, and `max_rounds`
+1-4. NEVER fabricate, drop, substitute, or borrow a grader or model. Resolve models with
+`agent_manager_models`; per-task overrides require explicit user request.
 
-## Evidence
+## Evidence and round folder
 
-Capture evidence once per round through ticketed `seal`, before dispatch. Seal saves the authoritative
-scene and captures immutable evidence, a final PNG render, and `manifest.json`. Immediately call
-`blender_look(image=<returned absolute render path>)`; the hook records successful inspection.
-Do not substitute files, rewrite the manifest, or change sealed evidence. Graders then run in
-parallel without touching the live scene:
+Call `seal` after the reviewable scene is ready. It saves the authoritative scene and captures:
 
-- `_evidence/camera.png` — a camera render at review resolution.
-- `_evidence/scene.txt` — `blender_get_scene_info` output with settings, placement, materials, and
-  topology/weights health.
-- Optional detail views only when captured by reviewed harness support, never ad hoc scene mutation.
-- `manifest.json` — round metadata and SHA-256 hashes of evidence, spec files, and the saved `.blend`.
+- a final camera PNG;
+- `scene.txt` from `blender_get_scene_info`;
+- `manifest.json` with UTC time, goal, base commit, dirty state, scene hash, spec hashes, selected
+  graders, and evidence hashes.
 
-The harness owns capture and temporary-setting restoration; never change deliverable framing for
-evidence. Graders may use `blender_look` only on an exact frozen evidence image assigned by the
-harness. Live scene inspection stays orchestrator-only; parallel graders use files only.
+Immediately call `blender_look` on the returned absolute render path. The runtime records the
+inspection receipt. NEVER substitute an image, rewrite sealed evidence, or change the manifest.
 
-`_evidence/` is gitignored. Reports, manifests, and the round index are tracked.
-
-## Round folder
-
-The harness generates the folder name dynamically at seal: `R<NN>-<yyyyMMddTHHmmssZ>`.
-Use the current UTC time, not a copied example date. `NN` is the next project-wide sequence number,
-zero-padded to at least two digits, found from existing round folders and the index; start at `01`
-only when none exist. Never overwrite or reuse a round, including failed or incomplete rounds. On a
-name collision, stop and resolve it rather than overwriting. The `max_rounds` budget applies to one
-change and its re-reviews; it does not reset the project-wide sequence.
-
-The tree uses placeholders, not literal folder names:
-
-```text
-Documents/Reviews/
-  README.md
-  R<NN>-<yyyyMMddTHHmmssZ>/
-    manifest.json
-    REVIEW.md
-    _evidence/            # ignored
-      camera.png
-      scene.txt
-    visual/
-      REPORT.md
-    technical/
-      REPORT.md
-    spec/
-      REPORT.md
-```
-
-Each grader writes only its exact assigned `<grader>/REPORT.md`. The harness writes `manifest.json`,
-the verdict `REVIEW.md`, and the review index entry; `review` auto-commits them. Static permission globs
-do not isolate dynamically assigned graders: plugin hooks bind actual children by parent/task token
-and runtime model metadata, enforce the exact report path, and forbid reading peer reports.
-
-The harness-owned manifest records full round name, creation time in UTC, previous round (or null), active goal
-path, base commit SHA, dirty state, project-relative scene path and SHA-256, spec/evidence paths and
-SHA-256 hashes and selected graders with focus/model/provider/variant/budgets. Runtime receipts bind
-task IDs, dispatch status, failures, and verdicts; do not edit sealed metadata to simulate them.
-Freeze spec and evidence for the round; any change requires a new
-round. A base commit alone is insufficient evidence identity for an uncommitted scene.
+The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`.
 
 ## Dispatch
 
-After seal and successful orchestrator `blender_look`, call `blender_workflow` `grader-ticket` with
-`{name}` for each selected grader. Pass its returned `prompt` to the normal `blender-grader` task,
-filling only the user-prompt and prior-findings placeholders; keep the literal marker, token, paths,
-hashes, and deadline unchanged. Do not fabricate a child session or report receipt. Graders need no
-custom-tool permission: plugin hooks bind and collect the actual task result.
+1. After seal and successful `look`, call
+   `blender_workflow` `grader-ticket` `{name}` for each selected grader.
+2. Pass its returned prompt to the normal `blender-grader` task. Keep the literal
+   `HARNESS_GRADER:<token>`, report path, scene hash, evidence key, and deadline unchanged.
+3. Fill only the user-prompt and prior-findings placeholders. Do not invent a child session or
+   report receipt.
+4. Dispatch in batches no larger than `max_parallel`; graders run read-only and never edit the
+   scene. One writer rule remains.
+5. Retain each runtime-bound `task_id`. Resume the same grader session for re-review when model and
+   focus are unchanged.
 
-Dispatch selected graders in batches no larger than `max_parallel`, using multiple `task` calls per
-batch, each `subagent_type: "blender-grader"`. Use configured model/provider/variant only when
-runtime override rules permit. One Blender writer rule is unchanged; graders are read-only and never
-open or save Blender files.
-
-Retain each runtime-bound `task_id` without rewriting the sealed manifest. Resume that same session for the next round when
-the model and focus are unchanged; otherwise start fresh and record why. Each new round receives a
-new per-pass budget. A failed or missing report permits one replacement `grader-ticket` before
-`review`, with a fresh pass budget. After that replacement attempt fails, aggregate the grader as
-`BLOCKED`; never reset limits again within the same round.
+A missing or failed report permits one replacement `grader-ticket` before `review`; the replacement
+gets a fresh pass budget. A second failure aggregates as `BLOCKED`. Graders never loop or ask the
+user.
 
 ## Aggregate and dispose
 
-After all graders return, the orchestrator:
-
-1. Validates each report exists, cites the frozen evidence, and declares exactly one valid verdict.
-   Missing, malformed, or failed reports make the round `BLOCKED`; never count them as `PASS`.
-2. Merges duplicate findings; the highest substantiated severity wins. Resolve disagreements against
-   the confirmed spec and evidence, recording the reasoning.
-3. Records every finding as `open`, `fixed`, `deferred`, or `declined` with a concrete reason. A
-   `declined` blocker/major requires evidence that the finding is false or outside confirmed scope;
-   preference or time pressure cannot waive a real acceptance failure. `deferred` blockers/majors
-   remain unresolved and prevent `PASS`. A claim of a fix requires new evidence and re-review.
-4. Calls `blender_workflow` `review` with `{notes, reason, dispositions}`. The harness validates every
-   report, computes the verdict, writes `REVIEW.md` with correction/no-correction reasoning and
-   dispositions, and auto-commits reports, render, manifest, index, and verdict. Never create or
-   commit review documents manually. In `Off`, use `self-review` `{notes}`, then the harness `commit`
-   action; no graders run.
-5. Completes required runtime approval while paused, inspects status/diff/log, then runs
-   `checkpoint` before fixes. A round verdict describes its frozen evidence; never rewrite a failed
-   verdict to `PASS` using later scene changes.
-6. Fixes the scene only through normal workflow gates and a new bounded `begin` with `revision:true`,
-   ticketed save/seal, and returned-render `look`. Fixes get their own harness commits and checkpoints.
-
-Grader failure recovery: a failed child, expired budget, missing report, or invalid report is recorded
-as `BLOCKED` for that grader with an `error` in harness status. Before `review` aggregates the round,
-reissue `grader-ticket` once for the same grader and dispatch a replacement child; the retry reuses
-the grader's report path and gets a fresh pass budget. After the replacement fails or `review` has
-aggregated, retry only through a new revision round.
+1. Verify each report exists, cites the sealed evidence and scene hash, and declares exactly one
+   verdict.
+2. Merge duplicate findings; the highest substantiated severity wins.
+3. Resolve disagreements against the confirmed spec and frozen evidence; record the reasoning.
+4. Record every finding as `open`, `fixed`, `deferred`, or `declined` with a reason. A declined
+   blocker or major requires evidence that it is false or outside confirmed scope. Time pressure or
+   preference is not a waiver.
+5. Call `review` `{notes,reason,dispositions}`. The harness validates reports, computes the verdict,
+   writes `REVIEW.md`, and auto-commits in Fully Autonomous mode. In Partially Autonomous mode it
+   writes the verdict and waits for approval; `commit` then creates the single commit.
+6. Call `checkpoint` after the scoped commit. NEVER create or commit review documents manually.
 
 Verdicts:
 
-- `PASS` — all selected graders completed, required dimensions were assessed, required evidence
-  exists, and no substantiated blocker or major remains.
-- `CHANGES_REQUIRED` — at least one blocker or major remains.
-- `BLOCKED` — evidence/spec missing, grader failure, or a design decision is needed.
+- `PASS`: all selected graders completed, required dimensions were assessed, evidence is complete,
+  and no substantiated blocker or major remains.
+- `CHANGES_REQUIRED`: at least one blocker or major remains.
+- `BLOCKED`: evidence/spec missing, grader failed, or a necessary decision is unavailable.
 
-The final verdict belongs to the orchestrator, not to a vote count. A single substantiated blocker fails the round
-regardless of other PASS verdicts. Two consecutive rounds with no improvement on the same finding
-escalate to the user instead of a third automatic round.
+One substantiated blocker fails the round regardless of other PASS verdicts. Two rounds without
+improvement on the same finding STOP for user direction; do not run a third automatic round.
 
 ## Re-review
 
-New round folder, same grader sessions where possible. Prompt each resumed grader with the prior
-own report path, new evidence path, new exact report path, fresh `grader-ticket` marker, and orchestrator
-dispositions. Never permit peer report reads. The grader must
-mark each prior finding `FIXED`, `OPEN`, or `REGRESSED` with evidence, then add any new findings.
-Let runtime receipts bind task IDs and the previous round; do not rewrite frozen evidence metadata.
+Create a new round with `revision:true`. Resume the same grader sessions where possible. Give each
+grader its own prior report path, the new frozen evidence, the new exact report path, and the
+orchestrator's dispositions. The grader marks each prior finding `FIXED`, `OPEN`, or `REGRESSED`
+with evidence, then adds new findings. NEVER permit peer report reads or rewrite sealed metadata.
 
-## Partially Autonomous
+## Approval and completion
 
-Graders run before the approval question. After each meaningful scene change, save, inspect with
-`look`, complete its review round, then use the orchestrator-owned `blender-project-goal` input handoff
-and ask approval before making another meaningful change, including grader-requested fixes. Review
-findings do not authorize bypassing Partially Autonomous gates. Use harness `approval` and its exact
-returned question and labels
-`Approve change`, `Request revision`, `Pause`; only runtime answers count. Graders never ask the user.
-
-## Commit and ignore policy
-
-- Commit `REVIEW.md`, `manifest.json`, each `REPORT.md`, and the round index.
-- Ignore only `_evidence/` and `tmp/` inside `Documents/Reviews/`; never ignore reports.
-- Record the base commit SHA, saved scene SHA-256, and dirty state in the manifest and `REVIEW.md`.
-- Keep temporary previews inside the round's ignored folders; do not scatter them elsewhere.
-- Before next `begin`, `checkpoint` verifies exactly one scoped commit, clean project state, and hash
-  match. Commit failed rounds before revisions; never rewrite a failed verdict or skip its commit.
-- Recover phase through `status` after compaction/restart. Completion requires a clean checkpoint and
-  final applicable `PASS` with inspected sealed render. Never edit external harness state.
+- In Partially Autonomous mode, complete review before calling `approval`. Pass its exact question
+  and labels to `question`; only a runtime answer authorizes the commit.
+- Findings do not authorize fixes. A correction requires a new bounded `begin` with `revision:true`.
+- Completion requires a clean `checkpoint`, current records, inspected sealed render, and final
+  applicable `PASS` or recorded `Off` self-review with no unresolved blocker or major.
+- Commit policy: `bootstrap-commit` before registration, `commit` after registration. Manual project
+  Git commands are blocked. Failed rounds commit before fixes; `checkpoint` verifies exactly one
+  scoped commit after the change base.
 
 ## References
 
-- [Custom subagents](https://kilo.ai/docs/customize/custom-subagents)
-- [Per-task model selection](https://kilo.ai/docs/code-with-ai/agents/model-selection#per-task-model-selection)
-- [Session goals — clarification questions](https://kilo.ai/docs/code-with-ai/agents/goals#clarification-questions)
-- Rubric: `.kilo/agent/blender-grader.md`
+- `.kilo/agent/blender-grader.md` for the report rubric and output contract.
+- `config.example.json` for the tracked config template.
