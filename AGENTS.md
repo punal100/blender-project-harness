@@ -57,9 +57,11 @@ next call. `capabilities` is authoritative for actions, operations, document for
   `commit` and `checkpoint`.
 - Inspect every sealed render with `look`. Code output, scene text, and viewport checks do not
   replace the sealed render inspection.
-- Create new project markdown with `bootstrap-document` before registration and `document` during a
-  change. Review artifacts are harness-generated. Update existing documents only inside the declared
-  change paths.
+- Use `blender_document` `{action:"read"}` for structured title, field, and section access. Direct
+  full-file reads and edits are permitted but discouraged. Create pre-registration markdown with
+  `bootstrap-document`; use `blender_document` `{action:"write"}` or `document` during a registered
+  change. Update existing documents only inside declared change paths. Invalid known formats are
+  rejected with diagnostics; direct edits are revalidated on the next lifecycle command.
 - Commit atomically through the harness: `bootstrap-commit` before registration and `commit` after.
   Manual project `git add` and `git commit` are blocked. One bounded message; `checkpoint` MUST see
   exactly one scoped commit and a clean project.
@@ -74,8 +76,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   model or budget.
 - With review mode `All` or `Single`, every reviewable change MUST be graded before commit. Missing
   or disabled grader configuration stops production. NEVER downgrade silently to self-review.
-- Graders are read-only. Each writes only its assigned `REPORT.md` and MUST NOT read peer reports.
-  Dispatch only through `grader-ticket` and the normal `blender-grader` task.
+- Graders are read-only. Each writes only its assigned `REPORT.md`, through `blender_document`
+  `{action:"write"}`, and MUST NOT read peer reports. Dispatch only through `grader-ticket` and the
+  normal `blender-grader` task.
 - `review` writes the verdict and, in Fully Autonomous mode, auto-commits the reviewed change and
   its round artifacts including `REVIEW.md`. In Partially Autonomous mode, `commit` after approval
   creates the single scoped commit. NEVER create or commit review artifacts manually.

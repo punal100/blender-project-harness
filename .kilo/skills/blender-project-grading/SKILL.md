@@ -77,9 +77,12 @@ Call `seal` after the reviewable scene is ready. It saves the authoritative scen
 Immediately call `blender_look` on the returned absolute render path. The runtime records the
 inspection receipt. NEVER substitute an image, rewrite sealed evidence, or change the manifest.
 
-The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`.
+The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied.
 
 ## Dispatch
+
+0. Read spec documents through `blender_document` `{action:"read"}`. Direct `read`/`grep` is
+   acceptable but discouraged. Read non-markdown evidence directly.
 
 1. After seal and successful `look`, call
    `blender_workflow` `grader-ticket` `{name}` for each selected grader.

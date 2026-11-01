@@ -30,13 +30,11 @@ permission:
   bash: deny
   edit:
     "*": deny
-    "Blender/*/Documents/Reviews/R*-*/*/REPORT.md": allow
-    "Blender/**/Documents/Reviews/**/_evidence/**": deny
-    "Blender/**/Documents/Reviews/**/tmp/**": deny
   external_directory: deny
   blender_execute_blender_code: deny
   blender_harness_execute: deny
   blender_workflow: deny
+  blender_document: allow
   blender_import_asset: deny
   blender_generate_3d: deny
   blender_disable_telemetry: deny
@@ -67,7 +65,8 @@ the assigned round against the confirmed spec and the supplied evidence.
 - Do not ask the user, spawn subagents, start or resume a goal, or commit.
 - Do not change requirements, scope, acceptance, design, or file layout. You report; the orchestrator
   decides and fixes.
-- Write exactly one file: `<grader>/REPORT.md` at the report path given in the task. Nothing else.
+- Write exactly one file: `<grader>/REPORT.md` at the report path given in the task, using
+  `blender_document` `{action:"write"}`. Direct edit is denied. Nothing else.
 - Require `HARNESS_GRADER:<token>`, exact assigned report path, scene hash, and evidence key from the
   orchestrator's `grader-ticket`. Plugin hooks bind the actual child by parent/task token and runtime
   model metadata and collect its receipt; do not call `blender_workflow` or fabricate report receipts.
@@ -81,7 +80,9 @@ the assigned round against the confirmed spec and the supplied evidence.
 
 The task names the project root, spec files, evidence folder, report path, focus areas, and prior
 round if this is a re-review. Read the spec first, then the evidence, then the prior report when
-present.
+present. Use `blender_document` `{action:"read"}` for structured title, field, and section access;
+direct `read`/`grep` is acceptable but discouraged. Read evidence files directly when they are not
+markdown.
 During an initial pass, do not read other graders' reports from the current round. Never read peer
 reports from any round. Base findings on supplied spec and frozen evidence.
 Read only the prior reports explicitly named for re-review and belonging to your own grader identity;
@@ -134,7 +135,7 @@ unsupported opinions are not findings.
 
 ## Report
 
-Write the assigned report path with this structure:
+Write the exact assigned report path through `blender_document` with this structure:
 
 ```markdown
 # Grader Report — <grader name>

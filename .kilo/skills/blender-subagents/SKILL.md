@@ -114,8 +114,10 @@ commits through the harness, and checkpoints. Inspect `status.nextStep` before t
 ## Grader
 
 Graders are read-only. Each grader writes only its exact assigned
-`Documents/Reviews/R<NN>-<timestamp>/<grader>/REPORT.md`. It MUST NOT read peer reports, edit the
-scene, run mutation tools, ask the user, spawn subagents, or commit.
+`Documents/Reviews/R<NN>-<timestamp>/<grader>/REPORT.md`, through `blender_document`
+`{action:"write"}`. It MUST NOT read peer reports, edit the scene, run mutation tools, ask the user,
+spawn subagents, or commit. Read spec documents through `blender_document` `{action:"read"}`; direct
+read is acceptable but discouraged.
 
 Dispatch only after seal and successful sealed-render `look`:
 1. Call `grader-ticket` `{name}`.

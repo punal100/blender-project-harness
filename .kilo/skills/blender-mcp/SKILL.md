@@ -32,6 +32,7 @@ This skill is required before any Blender scene operation. `AGENTS.md` defines h
 | `blender_get_addon_status` | Connection, addon version, Blender version, enabled libraries/generators |
 | `blender_get_scene_info` | Text summary: objects, placement, materials, topology, weights, settings |
 | `blender_workflow` | Orchestrator lifecycle and review actions; payload is a JSON string |
+| `blender_document` | Structured document read; declared document or assigned grader-report write |
 | `blender_harness_execute` | Execute one ticketed apply/save/seal operation |
 | `blender_look` | Inspect an exact image: sealed render, viewport, camera, angles, frames |
 | `blender_search_assets` | Search asset libraries |
@@ -52,8 +53,9 @@ Use the exposed `blender_` prefix. Pass the user's exact words in `user_prompt` 
   the sealed render.
 - Review, approve, commit, and checkpoint through the harness. Never stage or commit project files
   manually or create review documents manually.
-- Create new project markdown with `bootstrap-document` before registration or `document` inside a
-  declared change.
+- Read project documents through `blender_document` `{action:"read"}`; direct full-file reads are
+  acceptable but discouraged. Create new project markdown with `bootstrap-document` before
+  registration or `blender_document` `{action:"write"}` / `document` inside a declared change.
 - Raw Python is forbidden for scene edits, saves, renders, API probes, or filesystem access.
 
 ## Visual checks

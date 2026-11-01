@@ -239,22 +239,15 @@ class WorkspaceContractTests(unittest.TestCase):
                      "external_directory", "blender_execute_blender_code", "blender_import_asset",
                      "blender_generate_3d", "mediamcp_*", "generate_image"):
             self.assertEqual(permissions[tool], "deny", tool)
-        edit_rules = list(permissions["edit"].items())
-        self.assertEqual(edit_rules[0], ("*", "deny"))
-        allow_index = edit_rules.index(("Blender/*/Documents/Reviews/R*-*/*/REPORT.md", "allow"))
-        self.assertGreater(allow_index, edit_rules.index(("*", "deny")))
-        for pattern in ("Blender/**/Documents/Reviews/**/_evidence/**",
-                        "Blender/**/Documents/Reviews/**/tmp/**"):
-            self.assertIn((pattern, "deny"), edit_rules)
-            self.assertGreater(edit_rules.index((pattern, "deny")), allow_index)
+        self.assertEqual(list(permissions["edit"].items()), [("*", "deny")])
+        self.assertEqual(permissions["blender_document"], "allow")
         base = "Blender/Example/Documents/Reviews/R01-20261031T081500Z"
-        self.assertEqual(self.permission_action(permissions, "edit", base + "/visual/REPORT.md"), "allow")
-        for target in (base + "/REVIEW.md", base + "/manifest.json", base + "/README.md",
-                       base + "/_evidence/visual/REPORT.md", base + "/tmp/visual/REPORT.md",
-                       "AGENTS.md", "Blender/Example/example.blend"):
+        for target in (base + "/visual/REPORT.md", base + "/REVIEW.md", base + "/manifest.json",
+                       base + "/README.md", base + "/_evidence/visual/REPORT.md",
+                       base + "/tmp/visual/REPORT.md", "AGENTS.md", "Blender/Example/example.blend"):
             self.assertEqual(self.permission_action(permissions, "edit", target), "deny", target)
         body = (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8")
-        for expected in ("REPORT.md", "PASS", "CHANGES_REQUIRED", "BLOCKED"):
+        for expected in ("REPORT.md", "PASS", "CHANGES_REQUIRED", "BLOCKED", "blender_document"):
             self.assertIn(expected, body)
         self.assertNotIn("Binary verdict", body)
         self.assertNotIn("valid but unusual", body)

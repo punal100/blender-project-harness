@@ -71,10 +71,16 @@ open a review round for the initial empty/default scene.
 
 ## Documents and commits
 
+- Use `blender_document` `{action:"read"}` for structured title, field, and section access. The
+  default read returns an index and diagnostics, not the full file. Pass `section` to read one
+  section. Direct `read`/`grep` is permitted but discouraged.
 - Pre-registration new markdown: `bootstrap-document`; commit with `bootstrap-commit`.
-- Registered new markdown: declare its exact path in `begin`, then call `document` `{path,content}`.
-- Existing documents update only within the declared change paths.
-- Review artifacts are harness-generated; each grader writes only its assigned `REPORT.md`.
+- Registered new markdown: declare its exact path in `begin`, then call `blender_document`
+  `{action:"write"}` or `document` `{path,content}`.
+- Existing documents update only within the declared change paths. Direct edit is permitted but
+  discouraged; the harness re-validates on the next lifecycle command.
+- Each grader writes only its assigned `REPORT.md` through `blender_document` `{action:"write"}`.
+  Direct report edits are denied. The harness generates the aggregate `REVIEW.md`.
 - Project commits: `bootstrap-commit` before registration; `commit` after registration. One bounded
   message. `checkpoint` verifies the exact commit and clean project.
 

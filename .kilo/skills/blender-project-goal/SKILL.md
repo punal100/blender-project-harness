@@ -11,9 +11,10 @@ questions and workspace maintenance MUST NOT launch or modify Blender.
 The orchestrator owns goal commands and continuation decisions. Users provide inputs, never goal
 commands. If the goal is already paused, do not repeat the stop procedure. There is no successful action, final response, or runtime notice that is approval. A final response alone does not prove approval; a response is not approval without the runtime receipt.
 
-Use `blender_workflow {action:"status"}` after compaction, restart, or any gate error. Execute
-`status.nextStep.command`; it names the required goal, document, registration, launch, or production
-step. The canonical goal template is
+Use `blender_document` `{action:"read"}` for structured project-document access; direct full-file
+reads are acceptable but discouraged. Use `blender_workflow {action:"status"}` after compaction,
+restart, or any gate error. Execute `status.nextStep.command`; it names the required goal, document,
+registration, launch, or production step. The canonical goal template is
 `../blender-project-scaffold/templates/project/Documents/Goals/01-project-brief.md`.
 
 ## New project

@@ -35,6 +35,7 @@ permission:
   skill: allow
   context7_*: allow
   external_directory: deny
+  blender_document: allow
   blender_generate_3d: deny
   blender_get_addon_status: allow
   blender_get_scene_info: allow
@@ -84,7 +85,8 @@ and commit decision. Execute exactly one assigned task, then return.
 
 ## Work
 
-1. Read the task prompt and the project documents it names.
+1. Read the task prompt and the project documents it names. Prefer structured
+   `blender_document` `{action:"read"}` for markdown; direct `read` is acceptable but discouraged.
 2. Load `blender-mcp`; verify addon status and the authoritative `.blend` with
    `blender_get_scene_info(fields=["settings"])`. Return `BLOCKED` on any mismatch; do not launch Blender.
 3. Execute the assigned apply payload with `blender_harness_execute` using the exact token,
