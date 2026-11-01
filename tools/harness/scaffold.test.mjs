@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { scaffold } from './scaffold.mjs';
+import { DEFAULT_TEMPLATE_ROOT, scaffold } from './scaffold.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const TEMPLATE = path.join(ROOT, '.kilo', 'skills', 'blender-project-scaffold', 'templates', 'project');
+const TEMPLATE = path.join(ROOT, 'tools', 'harness', 'templates', 'project');
 const tempBase = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempBase, { recursive: true });
 
@@ -15,10 +15,21 @@ function workspace(t) {
   const root = fs.mkdtempSync(path.join(tempBase, 'scaffold-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, 'Blender'), { recursive: true });
-  fs.mkdirSync(path.join(root, '.kilo', 'skills', 'blender-project-scaffold'), { recursive: true });
-  fs.cpSync(TEMPLATE, path.join(root, '.kilo', 'skills', 'blender-project-scaffold', 'templates', 'project'), { recursive: true });
   return root;
 }
+
+function templateCopy(t) {
+  const root = fs.mkdtempSync(path.join(tempBase, 'scaffold-template-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const template = path.join(root, 'project');
+  fs.cpSync(TEMPLATE, template, { recursive: true });
+  return template;
+}
+
+test('scaffold template is owned by the harness', () => {
+  assert.equal(DEFAULT_TEMPLATE_ROOT, TEMPLATE);
+  assert.ok(fs.existsSync(path.join(TEMPLATE, 'README.md')));
+});
 
 test('scaffold renders tokens, hidden files, and binaries', (t) => {
   const root = workspace(t);
@@ -45,13 +56,14 @@ test('scaffold dry run writes nothing', (t) => {
 
 test('scaffold rejects invalid names, duplicates, and unknown tokens', (t) => {
   const root = workspace(t);
+  const template = templateCopy(t);
   assert.throws(() => scaffold(root, { name: 'CON' }), /invalid project name/);
   assert.throws(() => scaffold(root, { name: 'Trailing ' }), /invalid project name/);
   scaffold(root, { name: 'Existing' });
   assert.throws(() => scaffold(root, { name: 'Existing' }), /already exists/);
-  const templateFile = path.join(root, '.kilo', 'skills', 'blender-project-scaffold', 'templates', 'project', 'Documents', 'ASSETS.md');
+  const templateFile = path.join(template, 'Documents', 'ASSETS.md');
   fs.writeFileSync(templateFile, '{{UNKNOWN_TOKEN}}\n');
-  assert.throws(() => scaffold(root, { name: 'Broken' }), /unknown template token/);
+  assert.throws(() => scaffold(root, { name: 'Broken', templateRoot: template }), /unknown template token/);
   assert.equal(fs.existsSync(path.join(root, 'Blender', 'Broken')), false);
   assert.equal(fs.readdirSync(path.join(root, 'Blender')).some((name) => name.startsWith('.scaffold-')), false);
 });

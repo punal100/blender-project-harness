@@ -1,11 +1,11 @@
 ---
 name: blender-project-scaffold
-description: Use when creating a new Blender project under the workspace Blender folder. Creates the standard project structure and harness bootstrap path.
+description: Use when creating a new Blender project under the workspace Blender folder. Runs the harness-owned scaffold command and bootstrap sequence.
 ---
 
 # Blender Project Scaffold
 
-Create projects only from `templates/project` through the scaffold command. Do not invent a layout.
+The harness scaffold command is the only project creator. Do not invent, copy, or reconstruct a layout.
 
 Requirements MUST be confirmed and workflow and review modes MUST be selected before scaffolding.
 Complete those in ordinary chat; no goal starts before the scaffold, records, commit, and
@@ -22,40 +22,11 @@ Use `--dry-run` to preview. A fresh scaffold cannot start Blender.
 
 If the command fails, stop and report the exact error. Do not copy the template manually.
 
-## Project structure
+## Template ownership
 
-```text
-Blender/<Project>/
-  README.md
-  <slug>.blend
-  .gitignore
-  Documents/
-    REQUIREMENTS.md
-    WORKFLOW.md
-    REVIEW.md
-    ASSETS.md
-    DECISIONS.md
-    TASKS.md
-    Goals/
-    Reviews/
-    References/
-  assets/
-    external/
-    textures/
-    hdri/
-    models/
-    audio/
-  renders/
-    final/
-    wip/
-  exports/
-  scenes/
-  scripts/
-  logs/        # ignored
-  backups/     # ignored
-```
-
-The template is authoritative. Do not add, rename, or omit top-level folders without updating it.
+`tools/harness/templates/project` is authoritative. `tools/harness/scaffold.mjs` copies it and renders
+the project tokens. Do not duplicate the tree in documentation; use the command, `--dry-run`, or the
+template itself when exact contents matter.
 
 ## Bootstrap through the harness
 
@@ -84,4 +55,4 @@ The template is authoritative. Do not add, rename, or omit top-level folders wit
 - Do not create `PLAN/`, plan-check, or verifier records. Goals replace planning.
 - Keep project documents under `Documents/`.
 - Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
-- Never edit the skill template for a specific project; create a named copy with the command.
+- Never edit the harness template for a specific project; create a named copy with the command.

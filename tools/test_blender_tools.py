@@ -15,7 +15,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = Path(".kilo/skills/blender-project-scaffold/templates/project")
+TEMPLATE = Path("tools/harness/templates/project")
 
 
 class IgnoreTests(unittest.TestCase):
@@ -96,11 +96,11 @@ class WorkspaceContractTests(unittest.TestCase):
                     if "://" not in target and not target.startswith("#"):
                         self.assertTrue((path.parent / target.split("#", 1)[0]).exists(), target)
 
-    def test_skill_sibling_template_references_resolve(self):
+    def test_skill_template_references_resolve(self):
         references = {
-            "blender-assets": "../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md",
-            "blender-project-goal": "../blender-project-scaffold/templates/project/Documents/Goals/01-project-brief.md",
-            "blender-project-readme": "../blender-project-scaffold/templates/project/README.md",
+            "blender-assets": "../../../tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md",
+            "blender-project-goal": "../../../tools/harness/templates/project/Documents/Goals/01-project-brief.md",
+            "blender-project-readme": "../../../tools/harness/templates/project/README.md",
         }
         for name, relative in references.items():
             skill = ROOT / ".kilo/skills" / name
@@ -113,6 +113,8 @@ class WorkspaceContractTests(unittest.TestCase):
                                  check=True, capture_output=True).stdout.decode("utf-8").split("\0")
         for name in filter(None, tracked):
             path = ROOT / name
+            if not path.is_file():
+                continue
             for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
                 if "://" in target or target.startswith("#"):
                     continue
@@ -331,8 +333,9 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn("`../REVIEW.md`", brief)
         self.assertIn("review answers", brief)
         scaffold = (ROOT / ".kilo/skills/blender-project-scaffold/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Documents/REVIEW.md", scaffold)
-        self.assertIn("Reviews/", scaffold)
+        self.assertIn("node tools/harness/cli.mjs scaffold", scaffold)
+        self.assertIn("tools/harness/templates/project", scaffold)
+        self.assertNotIn("## Project structure", scaffold)
 
     def test_atomic_commit_policy_is_mandatory(self):
         policy_files = [ROOT / "AGENTS.md", ROOT / "README.md",

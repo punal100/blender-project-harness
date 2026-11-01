@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const fail = (message) => { throw new Error(`Scaffold: ${message}`); };
+export const DEFAULT_TEMPLATE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'templates', 'project');
 
 const TEXT_EXTENSIONS = new Set(['.md', '.jsonc', '.json', '.txt', '.py', '.ps1', '.cmd', '.js', '.mjs']);
 const TOKEN = /\{\{([A-Z_]+)\}\}/g;
@@ -29,7 +31,7 @@ function render(text, replacements, name) {
   });
 }
 
-export function scaffold(root, { name, description, goal, goalTitle, dryRun = false, date = new Date() }) {
+export function scaffold(root, { name, description, goal, goalTitle, dryRun = false, date = new Date(), templateRoot = DEFAULT_TEMPLATE_ROOT }) {
   if (typeof name !== 'string' || !/^[A-Za-z0-9](?:[A-Za-z0-9 _-]*[A-Za-z0-9_-])?$/.test(name) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(name)) {
     fail('invalid project name; use letters, numbers, internal spaces, hyphens, or underscores, and avoid Windows device names');
   }
@@ -37,10 +39,10 @@ export function scaffold(root, { name, description, goal, goalTitle, dryRun = fa
   if (!slug) fail('project name must contain at least one letter or number');
 
   const projectsRoot = path.join(root, 'Blender');
-  const templateRoot = path.join(root, '.kilo', 'skills', 'blender-project-scaffold', 'templates', 'project');
+  const resolvedTemplateRoot = path.resolve(templateRoot);
   if (!fs.existsSync(projectsRoot) || !fs.statSync(projectsRoot).isDirectory()) fail(`project collection not found: ${projectsRoot}`);
   if (fs.existsSync(projectsRoot) && fs.lstatSync(projectsRoot).isSymbolicLink()) fail('project collection must not be a symbolic link or junction');
-  if (!fs.existsSync(templateRoot) || !fs.statSync(templateRoot).isDirectory()) fail(`project template not found: ${templateRoot}`);
+  if (!fs.existsSync(resolvedTemplateRoot) || !fs.statSync(resolvedTemplateRoot).isDirectory()) fail(`project template not found: ${resolvedTemplateRoot}`);
   const destination = path.join(projectsRoot, name);
   if (fs.existsSync(destination)) fail(`project already exists: ${destination}`);
 
@@ -52,9 +54,9 @@ export function scaffold(root, { name, description, goal, goalTitle, dryRun = fa
     GOAL: goal || 'TBD - replace with the first design request.',
     GOAL_TITLE: goalTitle || 'Project Brief',
   };
-  const files = walk(templateRoot).map((file) => ({
+  const files = walk(resolvedTemplateRoot).map((file) => ({
     source: file,
-    relative: path.relative(templateRoot, file),
+    relative: path.relative(resolvedTemplateRoot, file),
     text: isText(file) ? render(fs.readFileSync(file, 'utf8'), replacements, file) : null,
   }));
 

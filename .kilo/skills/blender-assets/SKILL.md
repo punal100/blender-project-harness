@@ -24,7 +24,7 @@ registered before use.
    source, licence, and intended-use checks pass.
 2. Record source, author, licence, attribution, redistribution, local path, and packaging mode in
    `Documents/ASSETS.md` through the harness document action.
-3. Create `SOURCE.md` from `../blender-project-scaffold/templates/project/assets/external/SOURCE_TEMPLATE.md`.
+3. Create `SOURCE.md` from `../../../tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md`.
 4. Copy the applicable licence terms verbatim to `LICENSE.txt`. Record the licence source URL and
    attribution exactly. If terms are missing or incompatible, STOP; never invent or summarize them.
 5. Link or import with relative paths from the `.blend` (`//assets/...`). NEVER leave absolute paths.

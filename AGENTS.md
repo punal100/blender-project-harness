@@ -122,7 +122,7 @@ not list workspace-local skills, read the file directly.
 | `blender-project-grading` | Review modes, evidence, rounds, aggregation, re-review. |
 | `blender-project-requirements` | Requirements discussion, confirmation, revisions. |
 | `blender-project-workflow` | Autonomy modes, switches, approval gates. |
-| `blender-project-scaffold` | Project structure and new-project setup. |
+| `blender-project-scaffold` | New-project scaffold command and bootstrap sequence. |
 | `blender-project-readme` | Project README structure. |
 | `blender-assets` | Asset licensing, paths, packing, delivery. |
 | `blender-mcp` | Blender MCP operations, rendering, API gaps. |
