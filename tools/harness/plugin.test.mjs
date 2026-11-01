@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import path from 'node:path';
 import { createHooks } from './plugin.mjs';
-import { git } from './engine.mjs';
+import { git, Harness } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
 function hooks(f) {
@@ -20,6 +20,18 @@ test('plugin denies raw code and unsupported production escape routes', async (t
   for (const command of ['python -c "print(1)"', 'git diff --output=scene.blend', 'git status; node bypass.mjs', 'git add -- .', 'git -c alias.x=anything x']) {
     await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope|blender_workflow commit/);
   }
+});
+
+test('unregistered tooling commit messages may mention the engine name', async (t) => {
+  const f = fixture(t);
+  const harness = new Harness(f.root, { stateRoot: path.join(path.dirname(f.root), 'unregistered-state') });
+  const h = hooks({ harness });
+  await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
+    command: 'git commit -m "docs: Blender harness notes"',
+  }));
+  await assert.rejects(before(h, 'ses_unregistered', 'bash', {
+    command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --background',
+  }), /launch and stop Blender/);
 });
 
 test('capabilities expose the harness-owned operation and bootstrap lists', async (t) => {
