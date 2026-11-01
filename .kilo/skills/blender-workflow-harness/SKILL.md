@@ -92,7 +92,9 @@ open a review round for the initial empty/default scene.
   discouraged; the harness re-validates on the next lifecycle command.
 - Registration documents are frozen after `prepare`: `Documents/REQUIREMENTS.md`,
   `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, and the active goal. NEVER write them inside a
-  bounded change. Stop and report a requested change for explicit re-registration.
+  bounded change. To change them, close the change and call `reregister` `{reason}`, edit with
+  `bootstrap-document`, commit with `bootstrap-commit`, then call `prepare` and answer the new
+  registration question. Re-registration clears the active goal and completion evidence.
 - Each grader writes only its assigned `REPORT.md` through `blender_document` `{action:"write"}`.
   Direct report edits are denied. The harness generates the aggregate `REVIEW.md`.
 - Project commits: `bootstrap-commit` before registration; `commit` after registration. One bounded
@@ -101,7 +103,8 @@ open a review round for the initial empty/default scene.
 ## Forbidden
 
 - Raw `execute_blender_code`, imports, generation, arbitrary Python, shell Blender commands, or
-  manual project Git commands.
+  manual project Git commands. Before registration the shell is limited to read-only Git, the
+  harness CLI scaffold/doctor, and the harness test commands; project files stay tool-owned.
 - Editing external harness state; creating fake tickets, receipts, approvals, or reports.
 - Sealing without a saved reviewable change; grading the bootstrap save; skipping required review.
 - Continuing after a gate error without resolving the phase named by `status.nextStep`.

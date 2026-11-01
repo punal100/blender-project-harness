@@ -76,6 +76,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   exactly one scoped commit and a clean project.
 - `revision:true` requires a committed prior verdict and stays within configured `max_rounds`.
   Exhausting the cap requires `escalate`, a reason, and re-registration. NEVER override it silently.
+- To change frozen registration records, close the change and call `reregister` `{reason}`. Update
+  records with `bootstrap-document`, commit with `bootstrap-commit`, then call `prepare` and answer
+  the new registration question. Re-registration clears the active goal and completion evidence.
 
 ## Review and delegation
 
