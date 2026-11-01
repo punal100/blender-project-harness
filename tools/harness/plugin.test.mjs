@@ -32,6 +32,21 @@ test('unregistered tooling commit messages may mention the engine name', async (
   await assert.rejects(before(h, 'ses_unregistered', 'bash', {
     command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --background',
   }), /launch and stop Blender/);
+  await assert.rejects(before(h, 'ses_unregistered', 'bash', {
+    command: 'echo ready; C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --background',
+  }), /launch and stop Blender/);
+  await assert.rejects(before(h, 'ses_unregistered', 'bash', {
+    command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --background --version',
+  }), /launch and stop Blender/);
+  await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
+    command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --version',
+  }));
+  await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
+    command: 'git commit -m "docs: Blender/harness notes"',
+  }));
+  await assert.rejects(before(h, 'ses_unregistered', 'bash', {
+    command: 'git commit -am "docs: Blender harness notes"',
+  }), /bootstrap-commit/);
 });
 
 test('capabilities expose the harness-owned operation and bootstrap lists', async (t) => {
@@ -117,6 +132,22 @@ test('document tool returns structured project reads', async (t) => {
   );
 });
 
+test('direct writes cannot bypass frozen documents or review artifacts', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  f.harness.transaction((state) => state.projects[f.project].change.paths.push(
+    `${f.project}/Documents/REQUIREMENTS.md`,
+    `${f.project}/Documents/Reviews/README.md`,
+  ));
+  await assert.rejects(before(h, f.session, 'write', {
+    filePath: path.join(f.root, f.project, 'Documents', 'REQUIREMENTS.md'),
+    content: 'changed\n',
+  }), /frozen/);
+  await assert.rejects(before(h, f.session, 'write', {
+    filePath: path.join(f.root, f.project, 'Documents', 'Reviews', 'README.md'),
+    content: 'changed\n',
+  }), /review artifacts/);
+});
+
 test('production worker delegation requires valid read-only limits', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const worker = {
@@ -199,7 +230,7 @@ test('apply execution is delegated to worker children', async (t) => {
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await before(h, f.session, 'read', { filePath: path.join(f.root, f.project, 'README.md') });
-  await before(h, f.session, 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'new docs' });
+  await before(h, f.session, 'write', { filePath: path.join(f.root, f.project, 'Documents', 'DECISIONS.md'), content: 'new docs' });
   await assert.rejects(before(h, f.session, 'write', { filePath: path.join(f.root, f.scene), content: 'forged' }), /runtime-owned/);
   await assert.rejects(before(h, f.session, 'apply_patch', { patchText: '*** Begin Patch\n*** Add File: tools/bypass.py\n+pass\n*** End Patch' }), /scope/);
 });
@@ -210,6 +241,7 @@ test('unregistered sessions cannot write project files or run mutating shell com
   await before(h, 'unregistered', 'write', { filePath: path.join(f.root, 'Blender', 'README.md'), content: 'collection docs' });
   await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /retired/);
   await assert.rejects(before(h, 'unregistered', 'bash', { command: `git add -- "${f.project}/README.md"` }), /bootstrap-commit/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'git add -- .' }), /bootstrap-commit/);
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
 });
 

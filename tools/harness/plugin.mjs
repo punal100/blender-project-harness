@@ -10,7 +10,29 @@ const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_inf
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
 const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
-const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
+const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:-launcher)?(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
+const BLENDER_VERSION = /^\s*(?:&\s*)?["']?(?:[^"'\r\n]*[\\/])?blender(?:\.exe)?["']?\s+--version\s*$/i;
+function shellSegments(command) {
+  const segments = [];
+  let start = 0, quote = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") quote = char;
+    else if (char === ';' || char === '&' || char === '|' || char === '\r' || char === '\n') {
+      segments.push(command.slice(start, index));
+      start = index + 1;
+    }
+  }
+  segments.push(command.slice(start));
+  return segments.map((segment) => segment.trim()).filter(Boolean);
+}
+function unsafeBlenderShell(command) {
+  const segments = shellSegments(command);
+  if (!segments.some((segment) => BLENDER_SHELL.test(segment))) return false;
+  return !(segments.length === 1 && BLENDER_VERSION.test(segments[0]));
+}
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
   'README.md',
@@ -52,7 +74,7 @@ const capabilities = () => ({
     { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?} or escalation fields' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
-  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after registration; stop for explicit re-registration. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
 });
@@ -227,9 +249,14 @@ export function createHooks(harness, client) {
         }
         if (tool === 'bash') {
           const command = args.command ?? '';
-          if (BLENDER_SHELL.test(command) && !/--version/.test(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
-          if (/^git add\b/.test(command) && /(?:^|[\s"'])Blender[\\/][^\\/"']+[\\/]/i.test(command)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+          if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
+          if (/^git add\b/.test(command)) {
+            const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
+            if (/(?:^|[\s"'])Blender[\\/][^\\/"']+[\\/]/i.test(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+          }
           if (/^git commit\b/.test(command)) {
+            const unquoted = command.replace(/"(?:\\.|[^"\\])*"|'(?:''|[^'])*'/g, ' ');
+            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || /(?:^|[\s"'])Blender[\\/]/i.test(unquoted)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
             const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
             if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }
@@ -243,7 +270,7 @@ export function createHooks(harness, client) {
       }
       if (tool === 'goal_report') {
         if (args.status === 'complete') {
-          if (p.change || p.history.at(-1)?.verdict !== 'PASS' || !p.lastRender || harness.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion blocked by missing checkpoint/PASS/render');
+          if (p.change || !['PASS', 'DOCUMENT'].includes(p.history.at(-1)?.verdict) || !p.lastRender || harness.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion blocked by missing checkpoint/PASS/render');
           harness.assertCommitted(p.project, harness.snapshot(p.project));
         }
         return;
@@ -265,17 +292,18 @@ export function createHooks(harness, client) {
         const c = p.change;
         if (!c) deny('no open bounded change; call blender_workflow begin with one outcome, exact object names, and exact project-relative paths before writing project files');
         const allowed = new Set(c.paths);
-        if (c.round) { allowed.add(`${p.project}/Documents/Reviews/${c.round}/REVIEW.md`); allowed.add(`${p.project}/Documents/Reviews/README.md`); }
-        const files = editPaths(tool, args);
-        if (files.some((f) => relative(f) === `${p.project}/Documents/TASKS.md`)) deny('the task ledger is harness-owned; ticket issue and completion update it');
-        if (files.some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
-        if (files.some((f) => relative(f).startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
+        const names = editPaths(tool, args).map(relative);
+        if (names.some((f) => Object.hasOwn(p.records.specs, f) || f === `${p.project}/Documents/REVIEW.md`)) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
+        if (names.some((f) => f === `${p.project}/Documents/TASKS.md`)) deny('the task ledger is harness-owned; ticket issue and completion update it');
+        if (names.some((f) => f.startsWith(`${p.project}/Documents/Reviews/`))) deny('review artifacts are harness-owned; use review, self-review, or grader tools');
+        if (names.some((f) => !allowed.has(f) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
+        if (names.some((f) => f.startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
         harness.fresh(p);
         return;
       }
       if (tool === 'bash') {
         const command = args.command ?? '';
-        if (BLENDER_SHELL.test(command) && !/--version/.test(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
+        if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('production Git/launch commands require workspace root');
         if (/[;&|`\r\n$<>]/.test(command)) deny('production shell accepts one literal command only');
         if (/^git status(?: --short)?(?: --branch)?$/.test(command) || /^git diff(?: --stat| --check| --cached| --name-only)*$/.test(command) || /^git log --oneline -10$/.test(command)) return;
