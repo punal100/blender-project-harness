@@ -53,6 +53,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   ].join('\n'));
   write(`${project}/Documents/ASSETS.md`, '# No external assets\n\n## Rules\n\nFixture asset rules.\n');
   write(`${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
+  write(`${project}/Documents/TASKS.md`, '# Task Ledger\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Change | Operation | Objects | Ticket | Worker | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — |\n');
   const goalBody = objectiveText.replace(/^#\s+.*\r?\n/, '');
   const objective = [
     '# Goal: Fixture',

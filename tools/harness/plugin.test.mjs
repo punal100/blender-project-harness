@@ -28,13 +28,49 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
+  assert.ok(result.bootstrapDocuments.includes('Documents/TASKS.md'));
+  assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'));
   assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
   assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
-  assert.match(result.commitPolicy, /manual project git/);
+  assert.match(result.commitPolicy, /manual project git/i);
   assert.match(result.documentPolicy, /structured/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);
   assert.equal(result.limits.hardApplyCap, 20);
   assert.equal(result.limits.minutesWithoutApply, 15);
+  assert.equal(result.limits.batchOperations, 10);
+});
+
+test('document ledger returns harness-owned task rows without tokens', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const ticket = f.harness.issue(f.session, 'apply', { operation: 'delete_object', name: 'Cube' });
+  const result = JSON.parse(await h.tool.blender_document.execute(
+    { action: 'ledger', payload: '{}' },
+    { sessionID: f.session },
+  ));
+  assert.equal(result.tasks.length, 1);
+  assert.equal(result.tasks[0].id, 'T001');
+  assert.equal(result.tasks[0].state, 'issued');
+  assert.equal(result.tasks[0].token, undefined);
+  assert.equal(result.tasks[0].tokenHash.length, 12);
+  assert.ok(result.tasks[0].id);
+  assert.notEqual(ticket.token, result.tasks[0].tokenHash);
+});
+
+test('ticket accepts apply batches up to ten operations and rejects more', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const operation = { operation: 'delete_object', name: 'Cube' };
+  const issued = JSON.parse(await h.tool.blender_workflow.execute(
+    { action: 'ticket', payload: JSON.stringify({ operation: 'apply', payload: { operations: [operation, operation] } }) },
+    { sessionID: f.session },
+  ));
+  assert.equal(issued.operation, 'apply');
+  await assert.rejects(
+    h.tool.blender_workflow.execute(
+      { action: 'ticket', payload: JSON.stringify({ operation: 'apply', payload: { operations: Array.from({ length: 11 }, () => operation) } }) },
+      { sessionID: f.session },
+    ),
+    /1-10/,
+  );
 });
 
 test('document tool returns structured project reads', async (t) => {

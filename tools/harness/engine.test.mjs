@@ -116,6 +116,7 @@ function createProject(root, {
   ].join('\n'));
   write(root, `${project}/Documents/ASSETS.md`, '# Fixture assets\n\n## Rules\n\nFixture asset rules.\n');
   write(root, `${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
+  write(root, `${project}/Documents/TASKS.md`, '# Task Ledger\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Change | Operation | Objects | Ticket | Worker | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — |\n');
   write(root, `${project}/Documents/Goals/01-test-goal.md`, [
     '# Goal: Fixture',
     ...['Mission', 'Project', 'Visual outcome', 'Scope', 'Deliverables', 'Acceptance', 'Workflow', 'Done'].flatMap((name) => [`## ${name}`, prompt, '']),
@@ -563,6 +564,49 @@ test('recover reopens a failed or expired reviewable change for repair', (t) => 
   assert.equal(repairedStatus.change.reopen, false);
   assert.equal(repairedStatus.change.operations, 1);
   assert.ok(repairedStatus.change.deadlineRemainingMs > 0);
+});
+
+test('task ledger records batched tickets and WIP commit preserves a failed change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = issueAndConsume(f, 'orchestrator', 'apply', { operations: [
+    { operation: 'create_mesh', name: 'Cube', primitive: 'cube', location: [0, 0, 0], scale: [1, 1, 1] },
+    { operation: 'create_mesh', name: 'Lamp', primitive: 'cylinder', location: [0, 0, 1], scale: [0.1, 0.1, 1] },
+  ] });
+  f.harness.finish(issued.token, { ok: false, error: 'simulated batch failure', completed: 1 });
+  const ledger = read(f.root, `${f.project}/Documents/TASKS.md`);
+  assert.match(ledger, /T001/);
+  assert.match(ledger, /apply x2/);
+  assert.match(ledger, /failed/);
+  assert.doesNotMatch(ledger, new RegExp(issued.token));
+  const failedStatus = f.harness.command('orchestrator', 'status');
+  assert.equal(failedStatus.change.saved, true);
+  assert.equal(failedStatus.change.sceneHash, f.harness.hash(f.scene));
+  const staged = f.harness.command('orchestrator', 'commit', { message: 'wip: preserve failed batch', mode: 'wip' });
+  assert.equal(staged.nextStep.phase, 'checkpoint');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+  const history = f.harness.transaction((state) => state.projects[f.project].history.at(-1));
+  assert.equal(history.verdict, 'WIP');
+  assert.doesNotThrow(() => begin(f));
+});
+
+test('failed change at the apply cap routes to WIP instead of an impossible recover', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((state) => {
+    const change = state.projects[f.project].change;
+    change.operations = 20;
+    change.failure = 'seal failed after cap';
+    change.deadline = 0;
+  });
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'wip');
+  assert.match(status.nextStep.command, /action:"commit"/);
+  assert.match(status.nextStep.command, /wip/);
+  assert.throws(() => f.harness.recover('orchestrator', { reopen: true }), /budget is exhausted/);
 });
 
 test('failed apply closes edit route but preserves recovery save and seal', (t) => {

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
-import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations.mjs';
+import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
@@ -20,6 +20,7 @@ const BOOTSTRAP_DOCUMENTS = [
   'Documents/REVIEW.md',
   'Documents/ASSETS.md',
   'Documents/DECISIONS.md',
+  'Documents/TASKS.md',
   'Documents/Goals/README.md',
   'Documents/Goals/<NN>-<slug>.md',
   'Documents/References/README.md',
@@ -50,10 +51,10 @@ const capabilities = () => ({
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
     { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?} or escalation fields' },
   ],
-  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4' },
-  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; manual project git add or git commit is blocked.',
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after registration; stop for explicit re-registration. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
-  documentTool: { actions: ['read', 'write'], read: '{project?,path,section?}', write: '{project?,path,content}' },
+  documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
 });
 
 export function createHooks(harness, client) {
@@ -120,7 +121,7 @@ export function createHooks(harness, client) {
           else if (args.action === 'ticket') {
             const p = stateFor(context.sessionID);
             if (!p) deny('no registered project for this session; call blender_workflow prepare and complete its registration question first');
-            if (payload.operation === 'apply') operationCode(payload.payload, p.change?.objects ?? []);
+            if (payload.operation === 'apply') operationBatchCode(payload.payload, p.change?.objects ?? []);
             else if (stable(payload.payload) !== '{}') deny('save/seal payload must be empty object');
             result = harness.issue(context.sessionID, payload.operation, payload.payload);
           } else {
@@ -134,14 +135,15 @@ export function createHooks(harness, client) {
         },
       },
       blender_document: {
-        description: 'Structured project-document access. action read returns title, metadata fields, section index and format diagnostics; pass section to read one section. action write creates or updates a declared document or the assigned grader report and rejects invalid format/structure. Use this instead of raw full-file reads and direct edits.',
+        description: 'Structured project-document access. action read returns title, metadata fields, section index and format diagnostics; pass section to read one section. action write creates or updates a declared document or the assigned grader report and rejects invalid format/structure. action ledger returns the harness-owned task rows and summary. Use this instead of raw full-file reads and direct edits.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const payload = JSON.parse(args.payload);
           if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
           if (args.action === 'read') return JSON.stringify(harness.documentRead(context.sessionID, payload, (await identity(context.sessionID)).parentID ?? null), null, 2);
           if (args.action === 'write') return JSON.stringify(harness.documentWrite(context.sessionID, payload), null, 2);
-          deny('document action must be read or write');
+          if (args.action === 'ledger') return JSON.stringify(harness.documentLedger(context.sessionID, payload), null, 2);
+          deny('document action must be read, write, or ledger');
         },
       },
     },
@@ -265,6 +267,7 @@ export function createHooks(harness, client) {
         const allowed = new Set(c.paths);
         if (c.round) { allowed.add(`${p.project}/Documents/Reviews/${c.round}/REVIEW.md`); allowed.add(`${p.project}/Documents/Reviews/README.md`); }
         const files = editPaths(tool, args);
+        if (files.some((f) => relative(f) === `${p.project}/Documents/TASKS.md`)) deny('the task ledger is harness-owned; ticket issue and completion update it');
         if (files.some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
         if (files.some((f) => relative(f).startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
         harness.fresh(p);
@@ -300,6 +303,9 @@ export function createHooks(harness, client) {
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
         if (!child) deny('grader task result lacks child session ID');
         harness.collectGrader(input.sessionID, child);
+      } else if (tool === 'task' && input.args?.subagent_type === 'blender-worker' && successful(output)) {
+        const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
+        if (child) harness.bindWorker(input.sessionID, child);
       }
       if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(harness.command(input.sessionID, 'status'))}`;
     },
