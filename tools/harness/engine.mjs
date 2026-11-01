@@ -221,7 +221,10 @@ export class Harness {
         if (stable(q.options.map((o) => o.label)) !== stable(['Confirm registration', 'Cancel'])) deny('registration options changed');
         if (Date.now() - c.created > 600000) deny('registration expired');
         if (answers[0][0] !== 'Confirm registration') { s.challenge = null; return; }
-        if (stable(this.snapshot(c.project)) !== stable(c.snapshot) || stable(this.records(c.project, c.goal)) !== stable(c.records) || this.head() !== c.checkpoint) deny('registration facts changed');
+        const current = this.records(c.project, c.goal);
+        const prior = s.projects[c.project];
+        if (c.reRegister && prior?.escalation?.maxRounds) current.maxRounds = Math.max(current.maxRounds, prior.escalation.maxRounds);
+        if (stable(this.snapshot(c.project)) !== stable(c.snapshot) || stable(current) !== stable(c.records) || this.head() !== c.checkpoint) deny('registration facts changed');
         const existing = s.projects[c.project];
         if (c.reRegister) {
           if (!existing || existing.orchestrator !== session || !existing.escalation?.requested || existing.change) deny('explicit escalation is no longer valid');

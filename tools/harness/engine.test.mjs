@@ -704,6 +704,17 @@ test('review record notes can change after registration', (t) => {
   f.harness.command('orchestrator', 'checkpoint');
 });
 
+test('escalation can extend the review cap before re-registration', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  reviewAll(f);
+  f.harness.command('orchestrator', 'checkpoint');
+  f.harness.command('orchestrator', 'escalate', { reason: 'Approved extra correction rounds.', max_rounds: 4 });
+  register(f);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].records.maxRounds), 4);
+});
+
 test('harness document action creates declared markdown only', (t) => {
   const f = useFixture(t);
   activate(f);
