@@ -49,7 +49,7 @@ export function createHooks(harness, client) {
     const first = messages.data.find((m) => m.info?.role === 'user' && m.parts?.some((p) => p.type === 'text' && p.text?.trim()));
     const user = first?.info;
     const prompt = first?.parts?.filter((p) => p.type === 'text' && !p.synthetic && !p.ignored).map((p) => p.text).join('\n');
-    if (user?.agent === 'blender-worker') return { worker: true };
+    if (user?.agent === 'blender-worker') return { worker: true, info };
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
     const existing = harness.transaction((s) => harness.graderAssignment(s, session));
     const assistant = messages.data.findLast((m) => m.info?.role === 'assistant' && !m.info.summary)?.info;
@@ -129,7 +129,13 @@ export function createHooks(harness, client) {
       if (/execute_blender_code|import_asset|generate_3d/.test(tool)) deny('raw Blender mutation disabled; use ticketed harness_execute');
       if (tool === 'blender_harness_execute') {
         const session = await identity(input.sessionID);
-        if (session.parentID) deny('only orchestrator may mutate Blender');
+        if (session.parentID) {
+          const child = await childAssignment(input.sessionID);
+          if (!child?.worker || args.operation !== 'apply') deny('worker may execute assigned apply operations only');
+          harness.authorize(session.parentID, args.token, args.operation, args.payload);
+          return;
+        }
+        if (args.operation === 'apply') deny('orchestrator delegates apply operations to blender-worker; save and seal stay orchestrator-owned');
         harness.authorize(input.sessionID, args.token, args.operation, args.payload);
         return;
       }

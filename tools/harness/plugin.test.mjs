@@ -78,6 +78,27 @@ test('worker children stay read-only after delegation', async (t) => {
     /read-only/,
   );
   await assert.rejects(before(h, 'ses_worker', 'blender_workflow', { action: 'status' }), /read-only/);
+  await assert.rejects(
+    before(h, 'ses_worker', 'blender_harness_execute', { action: 'status' }),
+    /assigned apply operations only/,
+  );
+});
+
+test('apply execution is delegated to worker children', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const ticket = f.harness.issue(f.session, 'apply', { retry: true });
+  await assert.rejects(
+    before(h, f.session, 'blender_harness_execute', ticket),
+    /delegates apply operations/,
+  );
+  const worker = createHooks(f.harness, {
+    session: {
+      get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-worker' } }),
+      messages: async () => ({ data: [{ info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Apply assignment' }] }] }),
+    },
+  });
+  await before(worker, 'ses_worker', 'blender_harness_execute', ticket);
+  assert.equal(f.harness.transaction((s) => s.tickets[ticket.token].state), 'authorized');
 });
 
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
