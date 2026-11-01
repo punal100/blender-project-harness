@@ -79,7 +79,7 @@ colour, scale, and mood. Name the review image or render that will prove it.
    production edits. Update README's planned path to saved only after verification.
 6. Build in small steps using the canonical `AGENTS.md` harness contract. `blender_workflow` takes
    `{action: string,payload: JSON string}`. `begin` declares one outcome, exact objects and project-relative
-   files; one change stays open, bounded by 40 operations/15 minutes. Request `ticket` for apply/save/seal;
+   files; one change stays open, bounded by 20 applies before checkpoint (hard cap 40)/15 minutes. Request `ticket` for apply/save/seal;
    next call `blender_harness_execute` with matching token, operation, payload, and verbatim user goal.
    Apply payload is a supported operation object; save/seal payload is `{}`. Save after meaningful
    changes and before risky work/handoff; recovery save/seal remain allowed after the apply budget.

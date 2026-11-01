@@ -51,8 +51,8 @@ tickets, seal, review handoff, approval, checkpoint, escalation, and status reco
   tooling is reviewed and extended.
 - Registration requires the exact runtime question and answer. Never create approved JSON,
   self-confirm registration, or answer a challenge for the user.
-- Keep one bounded logical change open per project, at most 40 operations and 15 minutes. Recovery
-  `save` and `seal` remain allowed after the apply budget.
+- Keep one bounded logical change open per project, at most 20 apply operations before checkpoint
+  (hard cap 40) and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
 - Seal only meaningful saved scene changes. The bootstrap save is not a reviewable visual state:
   commit it and close it with `checkpoint`; never seal, render, or grade the initial empty scene.
 - The orchestrator's `look` inspection is mandatory. After every scene, material, lighting, or

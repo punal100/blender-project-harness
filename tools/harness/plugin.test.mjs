@@ -28,7 +28,8 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
-  assert.equal(result.limits.operationsPerChange, 40);
+  assert.equal(result.limits.appliesBeforeCheckpoint, 20);
+  assert.equal(result.limits.hardApplyCap, 40);
 });
 
 test('production worker delegation requires valid read-only limits', async (t) => {

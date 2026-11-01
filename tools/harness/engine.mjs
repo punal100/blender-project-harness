@@ -7,6 +7,7 @@ import { instanceStatus, launchProject, stopProject } from './blender.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
+const CHECKPOINT_EVERY = 20;
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 export const stable = (value) => JSON.stringify(canonical(value));
@@ -452,7 +453,7 @@ export class Harness {
     return this.transaction((s) => {
       const p = this.owner(s, session); this.fresh(p);
       const c = p.change;
-       if (!c || c.sealed || c.pending || !p.goalActive || (operation === 'apply' && (c.failure || Date.now() > c.deadline || c.operations >= 40))) deny('open bounded change required; save/seal remains available after budget or failure');
+        if (!c || c.sealed || c.pending || !p.goalActive || (operation === 'apply' && (c.failure || Date.now() > c.deadline || c.operations >= CHECKPOINT_EVERY))) deny('open bounded change required; save/seal remains available after budget or failure');
       if (operation === 'seal' && c.bootstrap && c.operations === 0) deny('bootstrap save cannot be sealed or graded; commit the saved scene and call checkpoint, then begin a scene change');
       if (!['apply', 'save', 'seal'].includes(operation)) deny('unknown operation');
       const token = crypto.randomUUID();
@@ -474,7 +475,7 @@ export class Harness {
       if (!t || t.state !== 'authorized' || t.operation !== operation || stable(t.payload) !== stable(payload) || Date.now() - t.created > 60000) deny('Kilo hook authorization missing or stale');
       const p = s.projects[t.project]; this.fresh(p);
       if (p.change?.id !== t.change || p.change.pending !== token) deny('ticket change mismatch');
-      if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= 40)) deny('operation budget exhausted');
+      if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= CHECKPOINT_EVERY)) deny('apply budget exhausted; seal, review, commit and checkpoint before more edits');
       t.state = 'running'; t.pid = process.pid;
       return { project: p.project, scene: p.scene, goal: p.goal, previousRound: p.history.at(-1)?.round ?? null, change: structuredClone(p.change), records: p.records };
     });

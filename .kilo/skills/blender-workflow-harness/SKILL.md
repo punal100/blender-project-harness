@@ -52,8 +52,8 @@ verify that path, stage and commit the scene with its declared paths, then close
 
 1. After registration, start or resume the registered goal before production work.
 2. Call `begin` with `{outcome,objects:[exact names],paths:[exact project-relative files],revision?:bool}`.
-3. Keep one bounded logical change open per project, at most 40 operations and 15 minutes. Recovery
-   `save` and `seal` remain allowed after the apply budget.
+3. Keep one bounded logical change open per project, at most 20 apply operations before checkpoint
+   (hard cap 40) and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
 4. Only declared paths may be written. Paths must stay inside the project; executable files are
    rejected except the registered scene.
 5. `revision:true` requires a prior completed review and stays within the configured `max_rounds`

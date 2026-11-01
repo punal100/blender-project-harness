@@ -455,16 +455,16 @@ test('tickets require hook authorization and reject forged, replayed, cross-sess
   gate(() => f.harness.authorize('orchestrator', expired.token, 'save', expired.payload));
 });
 
-test('deadline and forty apply operations block edits but preserve recovery save and seal', (t) => {
+test('deadline and twenty apply operations block edits but preserve recovery save and seal', (t) => {
   const f = useFixture(t);
   activate(f);
   begin(f);
-  for (let index = 0; index < 40; index += 1) {
+  for (let index = 0; index < 20; index += 1) {
     const issued = issueAndConsume(f, 'orchestrator', 'apply', { index });
     f.harness.finish(issued.token, { ok: true });
   }
-  assert.equal(f.harness.command('orchestrator', 'status').change.operations, 40);
-  gate(() => f.harness.issue('orchestrator', 'apply', ticketPayload(f, { index: 40 })));
+  assert.equal(f.harness.command('orchestrator', 'status').change.operations, 20);
+  gate(() => f.harness.issue('orchestrator', 'apply', ticketPayload(f, { index: 20 })));
   finishSave(f);
   const sealed = seal(f);
   assert.equal(sealed.result.change.sealed, true);

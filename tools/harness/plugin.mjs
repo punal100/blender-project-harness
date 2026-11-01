@@ -29,7 +29,7 @@ const capabilities = () => ({
   operations: [...OPERATION_NAMES],
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
-  limits: { operationsPerChange: 40, minutesPerChange: 15, maxRounds: 'configured 1-3' },
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 40, minutesPerChange: 15, maxRounds: 'configured 1-4' },
 });
 
 export function createHooks(harness, client) {
