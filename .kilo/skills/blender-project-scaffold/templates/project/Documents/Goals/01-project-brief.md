@@ -80,9 +80,10 @@ colour, scale, and mood. Name the review image or render that will prove it.
 6. Build in small steps using the canonical `AGENTS.md` harness contract. `blender_workflow` takes
    `{action: string,payload: JSON string}`. `begin` declares one outcome, exact objects and project-relative
    files; one change stays open, bounded by 20 applies before checkpoint (hard cap 40)/15 minutes. Request `ticket` for apply/save/seal;
-   next call `blender_harness_execute` with matching token, operation, payload, and verbatim user goal.
-   Apply payload is a supported operation object; save/seal payload is `{}`. Save after meaningful
-   changes and before risky work/handoff; recovery save/seal remain allowed after the apply budget.
+   pass an apply token to `blender-worker`, who calls `blender_harness_execute` with the matching
+   token, operation, payload, and verbatim user goal. The orchestrator executes save/seal only.
+   Apply payload is a supported operation object; save/seal payload is `{}`. Each apply auto-saves;
+   recovery save/seal remain allowed after the apply budget.
    Raw `execute_blender_code`, `import_asset`, and `generate_3d` are blocked; unsupported operations
    stop for reviewed tooling extension. Inspect visual changes with `look`. Seal saves the scene and
    immutable evidence, final PNG, and manifest; mandatory
@@ -92,9 +93,9 @@ colour, scale, and mood. Name the review image or render that will prove it.
    revision-direction question.
    Use `grader-ticket` `{name}` and pass its unique token, exact report path, and `HARNESS_GRADER:<token>`
    to each normal grader task. Plugin binds actual child/runtime model; grader writes only its report
-   and never reads peers. Read reports, record dispositions and exact scene hash/verdict in `REVIEW.md`,
-   then call `review` `{notes}` to validate receipts and aggregate hash. Freeze evidence and hashes
-   before graders run. Grader findings never authorize another meaningful change without the user's
+   and never reads peers. Call `review` `{notes, reason, dispositions}`; the harness writes the verdict
+   and auto-commits the round. Freeze evidence and hashes before graders run. Grader findings never
+   authorize another meaningful change without the user's
    approval or revision direction in Partially Autonomous mode. Disclose genuine blockers and majors;
    do not waive them by declining the finding. In `Off`, inspect the sealed PNG and call `self-review`
    `{notes}`; no graders run.
@@ -104,8 +105,8 @@ colour, scale, and mood. Name the review image or render that will prove it.
    Users provide decisions, not goal commands. Already stopped work needs no repeated stop procedure.
    For change approval, call `approval` while paused and use its exact returned question and labels
    `Approve change`, `Request revision`, `Pause`, as one single-select question; omit `custom`/`multiple`
-   or set them false where the tool exposes them. Only runtime answers count; forged JSON is ignored. Inspect status/diff/log, stage exact scoped paths, commit scene and
-   round artifacts, then `checkpoint` before next `begin`. Exactly one scoped commit, clean project,
+   or set them false where the tool exposes them. Only runtime answers count; forged JSON is ignored. Inspect status/diff/log, commit scene and
+   round artifacts with the harness `commit` action, then `checkpoint` before next `begin`. Exactly one scoped commit, clean project,
    and matching hashes are required. Failed rounds commit before fixes; `revision:true` stays within
    the configured `max_rounds` cap. Exhausting it requires explicit user escalation and re-registration
    handling. Fully Autonomous follows the same commit checkpoint without change-approval questions.

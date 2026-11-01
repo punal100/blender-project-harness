@@ -55,7 +55,8 @@ tickets, seal, review handoff, approval, checkpoint, escalation, and status reco
 - Keep one bounded logical change open per project, at most 20 apply operations before checkpoint
   (hard cap 40) and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
 - Seal only meaningful saved scene changes. The bootstrap save is not a reviewable visual state:
-  commit it and close it with `checkpoint`; never seal, render, or grade the initial empty scene.
+  use the harness `commit` action and close it with `checkpoint`; never seal, render, or grade the
+  initial empty scene.
 - The orchestrator's `look` inspection is mandatory. After every scene, material, lighting, or
   camera change, inspect the result with `look`; code output alone is not proof.
 - `revision:true` stays within the configured `max_rounds` cap. Exhausting the cap needs explicit

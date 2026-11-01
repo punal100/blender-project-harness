@@ -203,7 +203,8 @@ tree. The orchestrator runs required grading; workers never dispatch graders or 
 In Partially Autonomous mode, the orchestrator asks the user for approval after each meaningful
 worker task that leads to an orchestrator change; the worker never asks. The orchestrator owns ticketed
 save/seal, returned-render `blender_look`, review receipts, and required runtime approval. Inspect
-status/diff/log, stage exact paths, commit atomically, and run `checkpoint` before another `begin`.
+status/diff/log, commit atomically with the harness `commit` action, and run `checkpoint` before
+another `begin`.
 Failed rounds commit before bounded `revision:true` fixes. Workers never commit or edit harness state.
 
 ## Format references

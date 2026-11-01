@@ -17,7 +17,7 @@ Blender for those checks.
 
 When mode is `All` or `Single`, grading is mandatory after every meaningful, saved visual change.
 The bootstrap save is not a meaningful visual state: never seal it, request `grader-ticket`, or
-dispatch a grader for the initial empty/default scene. Close that save with a scoped commit and
+dispatch a grader for the initial empty/default scene. Close that save with the harness `commit` action and
 `checkpoint` instead; grading starts with the first real scene change.
 In Partially Autonomous mode, complete required review before asking approval or revision direction.
 Re-review fixes after `CHANGES_REQUIRED` within the configured round cap. If the cap is exhausted
@@ -186,7 +186,7 @@ After all graders return, the orchestrator:
    `checkpoint` before fixes. A round verdict describes its frozen evidence; never rewrite a failed
    verdict to `PASS` using later scene changes.
 6. Fixes the scene only through normal workflow gates and a new bounded `begin` with `revision:true`,
-   ticketed save/seal, and returned-render `look`. Fixes get their own scoped commits and checkpoints.
+   ticketed save/seal, and returned-render `look`. Fixes get their own harness commits and checkpoints.
 
 Grader failure recovery: a failed child, expired budget, missing report, or invalid report is recorded
 as `BLOCKED` for that grader with an `error` in harness status. Before `review` aggregates the round,

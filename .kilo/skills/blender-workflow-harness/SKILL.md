@@ -45,8 +45,8 @@ seal or grade the initial empty/default scene.
    project's ignored `logs/` folder.
 
 For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`,
-verify that path, stage and commit the scene with its declared paths, then close the change with
-`checkpoint`; the runtime records that entry as `BOOTSTRAP`.
+verify that path, call `commit` with one bounded message, then close the change with `checkpoint`;
+the runtime records that entry as `BOOTSTRAP`.
 
 ## Bounded changes
 
@@ -67,8 +67,8 @@ verify that path, stage and commit the scene with its declared paths, then close
    `{operation:"apply"|"save"|"seal",payload:<operation JSON for apply or {} for save/seal>}`.
 2. Pass an apply `token` to the `blender-worker` task. The worker calls server tool
    `blender_harness_execute` (`harness_execute`) with
-   `{token,operation:"apply",payload,user_prompt:<verbatim user goal>}`. The orchestrator executes
-   save/seal only; it cannot execute apply directly.
+   `{token,operation:"apply",payload,user_prompt:<verbatim user goal>}`. Each apply auto-saves the
+   authoritative scene. The orchestrator executes save/seal only; it cannot execute apply directly.
 3. Use only operations and primitives returned by `capabilities`. Raw `execute_blender_code`,
    `import_asset`, and `generate_3d` are blocked. Unsupported operations stop until tooling is
    reviewed and extended; do not add an arbitrary Python route.

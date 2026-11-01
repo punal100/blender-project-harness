@@ -96,7 +96,7 @@ temp-file copies.
    generation stay blocked until reviewed tooling supports them, even when launch preflight passes.
 7. The harness writes the run log to the project's ignored `logs/` folder; inspect it on startup failure.
 8. Verify addon and scene settings after launch. Complete the bootstrap save as one bounded change:
-   ticketed `save` to `<slug>.blend` at the project root, verify that path, commit the declared paths,
+   ticketed `save` to `<slug>.blend` at the project root, verify that path, call harness `commit`,
    and `checkpoint` as `BOOTSTRAP`. Never seal, render, or dispatch graders for the initial empty
    scene. Update README from planned to saved. Stop on connection, addon, or file mismatch.
 9. Run every later change through the harness gates; never use a late mega-commit.
