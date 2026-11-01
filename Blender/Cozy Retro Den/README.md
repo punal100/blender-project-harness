@@ -30,7 +30,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 ## Deliverables
 
-- Main Blender file: `cozy-retro-den.blend` (planned at project root until first save)
+- Main Blender file: `cozy-retro-den.blend` (saved at project root)
 - Final renders: `renders/final/`
 - Exports: `exports/` (none required)
 - Documentation: `Documents/`
@@ -74,7 +74,7 @@ Cozy Retro Den/
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
 - Launch and stop with `blender_workflow` `launch`/`stop`; never invoke Blender from the shell.
 - Each launch writes `logs/blender-<timestamp>.log`; `logs/` is ignored.
-- Main file: `cozy-retro-den.blend` at the project root. Planned until the first ticketed save verifies this exact path.
+- Main file: `cozy-retro-den.blend` at the project root, verified after the bootstrap save.
 - Keep external paths relative (`//assets/...`); do not use absolute paths.
 - Only one Blender project spawned by this workspace may be open at a time.
 
