@@ -717,6 +717,19 @@ test('review auto-commits reports and the verdict before checkpoint', (t) => {
   assert.equal(status.change, null);
 });
 
+test('commit helper stages the exact scoped change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  seal(f);
+  selfReview(f);
+  f.harness.command('orchestrator', 'commit', { message: 'feat: bounded fixture change' });
+  assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
+  const status = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(status.change, null);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'PASS');
+});
+
 test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {
   const f = useFixture(t);
   activate(f);

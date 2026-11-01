@@ -247,11 +247,12 @@ export class Harness {
   reviewPaths(p, c) {
     return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
   }
-  autoCommit(p, c, message) {
-    if (this.head() !== c.base) deny('review auto-commit requires no prior commit after the change base');
-    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before review auto-commit');
-    const files = [...new Set([...c.paths, p.scene, ...this.reviewPaths(p, c)])]
-      .filter((name) => fs.existsSync(path.join(this.root, ...name.split('/'))));
+  autoCommit(p, c, message, { review = true } = {}) {
+    if (this.head() !== c.base) deny('commit must be the first commit after the change base');
+    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before the scoped commit');
+    const artifacts = review ? this.reviewPaths(p, c) : [];
+    const files = [...new Set([...c.paths, p.scene, ...artifacts])]
+      .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/'))));
     git(this.root, ['add', '--', ...files]);
     if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no review files changed');
     git(this.root, ['commit', '-m', message]);
@@ -393,6 +394,12 @@ export class Harness {
         c.reports[name] = digest(text); c.notes = args.notes; c.reason = args.reason; c.dispositions = args.dispositions;
         this.updateManifest(p);
         this.autoCommit(p, c, `review: ${c.round} ${c.verdict}`);
+      } else if (action === 'commit') {
+        if (!c || c.pending) deny('open change with no pending operation required');
+        if (typeof args.message !== 'string' || !args.message.trim() || args.message.length > 200 || /[\r\n]/.test(args.message)) deny('one bounded commit message required');
+        const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
+        if (!bootstrap && !c.verdict) deny('complete review before committing the change');
+        this.autoCommit(p, c, args.message.trim(), { review: !bootstrap });
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
