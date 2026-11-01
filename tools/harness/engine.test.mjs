@@ -810,15 +810,14 @@ test('missing grader report records BLOCKED and allows re-dispatch before review
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
 });
 
-test('review record notes can change after registration', (t) => {
+test('review registration record is frozen after registration', (t) => {
   const f = useFixture(t);
   activate(f);
   begin(f);
   seal(f);
   selfReview(f);
   fs.appendFileSync(path.join(f.root, f.project, 'Documents', 'REVIEW.md'), '\nReview notes updated.\n');
-  scopedCommit(f, 'record review notes');
-  f.harness.command('orchestrator', 'checkpoint');
+  gate(() => f.harness.command('orchestrator', 'checkpoint'), /spec, modes|re-registration/);
 });
 
 test('escalation can extend the review cap before re-registration', (t) => {
@@ -978,6 +977,18 @@ test('document-only changes commit without sealing and close at checkpoint', (t)
   assert.doesNotThrow(() => begin(f));
 });
 
+test('document-only commit stages a declared deletion', (t) => {
+  const f = useFixture(t);
+  write(f.root, `${f.project}/Documents/References/extra.md`, '# Extra reference\n');
+  commit(f.root, 'test: add removable reference', [f.project]);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/References/extra.md'] });
+  fs.rmSync(path.join(f.root, f.project, 'Documents', 'References', 'extra.md'));
+  const committed = f.harness.command('orchestrator', 'commit', { message: 'docs: remove fixture reference' });
+  assert.equal(committed.nextStep.phase, 'checkpoint');
+  assert.equal(f.harness.command('orchestrator', 'checkpoint').change, null);
+});
+
 test('document-only checkpoint preserves a prior PASS for completion', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -993,6 +1004,26 @@ test('document-only checkpoint preserves a prior PASS for completion', (t) => {
   const complete = f.harness.command('orchestrator', 'goal-complete');
   assert.equal(complete.complete, true);
   assert.equal(complete.nextStep.phase, 'complete');
+});
+
+test('paused project can reregister with updated records', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const before = f.harness.transaction((state) => state.projects[f.project].records.specs);
+  const started = f.harness.command('orchestrator', 'reregister', { reason: 'Requirements changed after confirmation.' });
+  assert.equal(started.reregistering.reason, 'Requirements changed after confirmation.');
+  assert.equal(started.nextStep.phase, 'reregister-prepare');
+  const requirements = read(f.root, `${f.project}/Documents/REQUIREMENTS.md`) + '\nUpdated requirement detail.\n';
+  f.harness.bootstrapDocument('orchestrator', { project: f.project, path: 'Documents/REQUIREMENTS.md', content: requirements });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'reregister-commit');
+  assert.match(f.harness.bootstrapCommit('orchestrator', { project: f.project, message: 'docs: update requirements' }).next, /prepare/);
+  const prepared = f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName });
+  f.harness.question('orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
+  const after = f.harness.command('orchestrator', 'status');
+  assert.equal(after.goalActive, false);
+  assert.equal(after.nextStep.phase, 'goal');
+  assert.equal(f.harness.transaction((state) => state.projects[f.project].reregistering), false);
+  assert.notDeepEqual(f.harness.transaction((state) => state.projects[f.project].records.specs), before);
 });
 
 test('registered changes cannot rewrite registration documents', (t) => {

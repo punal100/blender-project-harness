@@ -59,6 +59,7 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'));
   assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
   assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
+  assert.ok(result.actions.some((action) => action.name === 'reregister'));
   assert.match(result.commitPolicy, /manual project git/i);
   assert.match(result.documentPolicy, /structured/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);
@@ -194,7 +195,10 @@ test('worker children stay read-only after delegation', async (t) => {
   const h = createHooks(f.harness, {
     session: {
       get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-worker' } }),
-      messages: async () => ({ data: [{ info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Inspect scene' }] }] }),
+      messages: async () => ({ data: [
+        { info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Inspect scene' }] },
+        { info: { role: 'assistant', providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' }, parts: [] },
+      ] }),
     },
   });
   await before(h, 'ses_worker', 'read', { filePath: path.join(f.root, f.project, 'README.md') });
@@ -208,6 +212,16 @@ test('worker children stay read-only after delegation', async (t) => {
     before(h, 'ses_worker', 'blender_harness_execute', { action: 'status' }),
     /assigned apply operations only/,
   );
+  const wrong = createHooks(f.harness, {
+    session: {
+      get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-worker' } }),
+      messages: async () => ({ data: [
+        { info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Inspect scene' }] },
+        { info: { role: 'assistant', providerID: 'other-provider', modelID: 'fixture-model', variant: 'fixture-variant' }, parts: [] },
+      ] }),
+    },
+  });
+  await assert.rejects(before(wrong, 'ses_wrong_worker', 'blender_get_scene_info', {}), /configured worker/);
 });
 
 test('apply execution is delegated to worker children', async (t) => {
@@ -220,7 +234,10 @@ test('apply execution is delegated to worker children', async (t) => {
   const worker = createHooks(f.harness, {
     session: {
       get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-worker' } }),
-      messages: async () => ({ data: [{ info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Apply assignment' }] }] }),
+      messages: async () => ({ data: [
+        { info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Apply assignment' }] },
+        { info: { role: 'assistant', providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' }, parts: [] },
+      ] }),
     },
   });
   await before(worker, 'ses_worker', 'blender_harness_execute', ticket);
@@ -242,7 +259,11 @@ test('unregistered sessions cannot write project files or run mutating shell com
   await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /retired/);
   await assert.rejects(before(h, 'unregistered', 'bash', { command: `git add -- "${f.project}/README.md"` }), /bootstrap-commit/);
   await assert.rejects(before(h, 'unregistered', 'bash', { command: 'git add -- .' }), /bootstrap-commit/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'Set-Content "Blender\\Test Project\\README.md" "bypass"' }), /read-only Git/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'node -e "process.exit(1)"' }), /read-only Git/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'git status --short; echo bypass' }), /read-only Git/);
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
+  await before(h, 'unregistered', 'bash', { command: 'node tools/harness/cli.mjs scaffold --name "Fresh Project"' });
 });
 
 test('unregistered sessions must create and commit scaffold documents through the harness', async (t) => {

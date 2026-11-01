@@ -151,7 +151,7 @@ export class Harness {
         if (roster.length !== 1) deny('unknown Single grader');
       }
     }
-    const specs = Object.fromEntries(['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', goal].map((name) => [`${project}/${name}`, this.hash(`${project}/${name}`)]));
+    const specs = Object.fromEntries(['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', goal].map((name) => [`${project}/${name}`, this.hash(`${project}/${name}`)]));
     return { workflow, review, roster, maxParallel, maxRounds, specs, goalText };
   }
 
@@ -272,7 +272,8 @@ export class Harness {
     return this.transaction((s) => {
       if (Object.keys(args).some((key) => !['project', 'path', 'content'].includes(key))) deny('bootstrap-document accepts project, path and content only');
       const base = this.projectPath(args.project);
-      if (s.projects[args.project]) deny('project already registered; use document inside a bounded change');
+      const existing = s.projects[args.project];
+      if (existing && (existing.orchestrator !== session || !existing.reregistering || existing.change)) deny('project already registered; use reregister before editing registration documents');
       if (s.challenge?.project === args.project && s.challenge.session !== session) deny('another session owns the pending registration');
       const full = contained(base, args.path, true);
       const clean = path.relative(base, full).replaceAll('\\', '/');
@@ -288,14 +289,21 @@ export class Harness {
     return this.transaction((s) => {
       if (Object.keys(args).some((key) => !['project', 'message'].includes(key))) deny('bootstrap-commit accepts project and message only');
       this.projectPath(args.project);
-      if (s.projects[args.project]) deny('project already registered; use the harness commit action inside a bounded change');
+      const existing = s.projects[args.project];
+      if (existing && (existing.orchestrator !== session || !existing.reregistering || existing.change)) deny('project already registered; use the harness commit action inside a bounded change');
       if (s.challenge?.project === args.project && s.challenge.session !== session) deny('another session owns the pending registration');
       if (typeof args.message !== 'string' || !args.message.trim() || args.message.length > 200 || /[\r\n]/.test(args.message)) deny('one bounded commit message required');
       if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before bootstrap-commit');
       const snapshot = this.snapshot(args.project);
-      const files = Object.keys(snapshot);
+      if (existing?.reregistering && existing.scene && snapshot[existing.scene] !== existing.snapshot?.[existing.scene]) {
+        deny('scene cannot change during re-registration; restore the checkpointed scene');
+      }
+      const entries = Object.keys(snapshot);
+      const files = existing?.reregistering
+        ? entries.filter((name) => name === existing.scene || isBootstrapFile(name.slice(args.project.length + 1)))
+        : entries;
       if (!files.length) deny('no scaffold files found');
-      const blocked = files.filter((name) => !isBootstrapFile(name.slice(args.project.length + 1)));
+      const blocked = files.filter((name) => name !== existing?.scene && !isBootstrapFile(name.slice(args.project.length + 1)));
       if (blocked.length) deny(`bootstrap-commit only accepts scaffold documentation/metadata; remove or move: ${blocked.join(', ')}`);
       for (const name of files.filter((name) => name.endsWith('.md'))) {
         try { validateDocument(name.slice(args.project.length + 1), fs.readFileSync(contained(this.root, name), 'utf8')); }
@@ -315,7 +323,7 @@ export class Harness {
       if (prior?.escalation?.maxRounds) records.maxRounds = Math.max(records.maxRounds, prior.escalation.maxRounds);
       if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be project-root .blend filename');
       contained(this.projectPath(args.project), args.scene, true);
-      const reRegister = Boolean(prior?.escalation?.requested && prior.orchestrator === session && !prior.change);
+      const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
       if (s.challenge) {
         const c = s.challenge;
@@ -324,13 +332,13 @@ export class Harness {
         if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal } };
         s.challenge = null;
       }
-      if (prior && !reRegister) deny('project already registered; use status to continue it, or escalate only after a capped review');
+      if (prior && !reRegister) deny('project already registered; use status to continue it, reregister a paused project, or escalate only after a capped review');
       if (Object.values(s.projects).some((p) => p.project === args.project && p.orchestrator !== session)) deny('project owned by another orchestrator');
       if (Object.values(s.projects).some((p) => p.orchestrator === session && p.project !== args.project)) deny('orchestrator already owns another project');
       const snapshot = this.snapshot(args.project);
       this.assertCommitted(args.project, snapshot);
       const question = `Register ${args.project}, scene ${args.scene}, goal ${args.goal}, workflow ${records.workflow}, review ${records.review}? HARNESS REGISTER ${crypto.randomUUID()}`;
-      s.challenge = { ...args, records, session, question, snapshot, created: Date.now(), checkpoint: this.head(), reRegister };
+      s.challenge = { ...args, records, session, question, snapshot, created: Date.now(), checkpoint: this.head(), reRegister, explicitReregister: Boolean(prior?.reregistering) };
       return { question, labels: ['Confirm registration', 'Cancel'], details: { project: args.project, workflow: records.workflow, review: records.review, scene: args.scene, goal: args.goal } };
     });
   }
@@ -349,8 +357,8 @@ export class Harness {
         if (stable(this.snapshot(c.project)) !== stable(c.snapshot) || stable(current) !== stable(c.records) || this.head() !== c.checkpoint) deny('registration facts changed');
         const existing = s.projects[c.project];
         if (c.reRegister) {
-          if (!existing || existing.orchestrator !== session || !existing.escalation?.requested || existing.change) deny('explicit escalation is no longer valid');
-          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, complete: false, escalation: null, lastRender: null });
+          if (!existing || existing.orchestrator !== session || existing.change || (!existing.escalation?.requested && !existing.reregistering)) deny('explicit re-registration is no longer valid');
+          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, complete: false, escalation: null, reregistering: false, lastRender: null });
         } else {
           s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, history: [], complete: false, escalation: null };
         }
@@ -416,6 +424,18 @@ export class Harness {
     return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
        change: c ? { id: c.id, outcome: c.outcome, paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
+  }
+  reregisterStatus(p) {
+    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering };
+    try { this.records(p.project, p.goal); }
+    catch (error) {
+      return { ...base, next: `Fix the registration documents before preparing: ${error.message}`, nextStep: { phase: 'reregister-document', actor: 'orchestrator', action: 'bootstrap-document', command: this.wire('bootstrap-document', { project: p.project, path: '<invalid registration document>', content: '<complete format from capabilities.documentFormats>' }), reason: 'Fix registration documents through bootstrap-document while reregistering.' } };
+    }
+    try { this.assertCommitted(p.project, this.snapshot(p.project)); }
+    catch {
+      return { ...base, next: 'Commit the updated registration documents with bootstrap-commit.', nextStep: { phase: 'reregister-commit', actor: 'orchestrator', action: 'bootstrap-commit', command: this.wire('bootstrap-commit', { project: p.project, message: 'docs: update project registration' }), reason: 'Registration only accepts committed records.' } };
+    }
+    return { ...base, next: 'Call prepare and answer the new registration question.', nextStep: { phase: 'reregister-prepare', actor: 'orchestrator', action: 'prepare', command: this.wire('prepare', { project: p.project, goal: p.goal, scene: path.basename(p.scene) }), reason: 'The updated records are committed; confirm the new registration.' } };
   }
   bootstrapStatus(session, project, state) {
     if (!/^Blender\/[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(project ?? '')) deny('project must be Blender/<Name>');
@@ -524,8 +544,13 @@ export class Harness {
     if (this.head() !== c.base) deny('commit must be the first commit after the change base');
     if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before the scoped commit');
     const artifacts = review ? this.reviewPaths(p, c) : [];
+    const declared = new Set(c.paths);
+    const tracked = new Set(git(this.root, ['ls-files', '-z', '--', p.project]).split('\0').filter(Boolean));
     const files = [...new Set([...c.paths, p.scene, `${p.project}/${TASKS_DOCUMENT}`, ...artifacts])]
-      .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/'))));
+      .filter((name) => typeof name === 'string' && (
+        fs.existsSync(path.join(this.root, ...name.split('/')))
+        || (declared.has(name) && name !== p.scene && name !== `${p.project}/${TASKS_DOCUMENT}` && tracked.has(name))
+      ));
     git(this.root, ['add', '--', ...files]);
     if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no review files changed');
     git(this.root, ['commit', '-m', message]);
@@ -534,7 +559,7 @@ export class Harness {
     return this.transaction((s) => {
       if (action === 'status') {
         const projects = Object.values(s.projects).filter((p) => p.orchestrator === session);
-        if (projects.length === 1) return this.status(projects[0], s);
+        if (projects.length === 1) return projects[0].reregistering ? this.reregisterStatus(projects[0]) : this.status(projects[0], s);
         if (projects.length > 1) deny('session owns multiple projects; inspect workspace state before continuing');
         if (args.project) return this.bootstrapStatus(session, args.project, s);
         const pending = s.challenge?.session === session
@@ -544,6 +569,17 @@ export class Harness {
         return { project: null, scene: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending, nextStep: { phase: 'unregistered', actor: 'orchestrator', action: 'status', command: 'blender_workflow {action:"status",payload:"{\\"project\\":\\"Blender/<Name>\\"}"}', reason: pending } };
       }
       const p = this.owner(s, session);
+      if (action === 'reregister') {
+        if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('reregister requires one bounded reason');
+        if (p.reregistering) return this.reregisterStatus(p);
+        if (p.change) deny('checkpoint or preserve the open change before re-registration');
+        p.reregistering = { requested: Date.now(), reason: args.reason.trim() };
+        p.goalActive = false;
+        p.complete = false;
+        p.escalation = null;
+        p.lastRender = null;
+        return this.reregisterStatus(p);
+      }
       this.fresh(p);
       const c = p.change;
       if (action === 'goal-active') {

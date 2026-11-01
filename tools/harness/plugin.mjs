@@ -9,7 +9,7 @@ const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearc
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister']);
 const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:-launcher)?(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
 const BLENDER_VERSION = /^\s*(?:&\s*)?["']?(?:[^"'\r\n]*[\\/])?blender(?:\.exe)?["']?\s+--version\s*$/i;
 function shellSegments(command) {
@@ -32,6 +32,24 @@ function unsafeBlenderShell(command) {
   const segments = shellSegments(command);
   if (!segments.some((segment) => BLENDER_SHELL.test(segment))) return false;
   return !(segments.length === 1 && BLENDER_VERSION.test(segments[0]));
+}
+const unquotedShell = (command) => command.replace(/"(?:\\.|[^"\\])*"|'(?:''|[^'])*'/g, ' ');
+function safeShellSegment(segment) {
+  if (/--output\b/i.test(segment)) return false;
+  if (/^git status(?: --short)?(?: --branch)?$/i.test(segment)) return true;
+  if (/^git diff(?: --stat| --check| --cached| --name-only)*$/i.test(segment)) return true;
+  if (/^git log --oneline -10$/i.test(segment)) return true;
+  if (/^git (?:show|rev-parse|rev-list|cat-file|ls-files|grep)\b/i.test(segment)) return true;
+  if (/^git (?:add|commit)\b/i.test(segment)) return true;
+  if (/^node tools[\\/]harness[\\/]cli\.mjs (?:scaffold|doctor)\b/i.test(segment)) return true;
+  if (/^node --test tools[\\/]harness[\\/][^\r\n]*\.test\.mjs$/i.test(segment)) return true;
+  if (/^python -m pytest tools[\\/]test_blender_tools\.py(?:\s|$)/i.test(segment)) return true;
+  return false;
+}
+function safeUnregisteredShell(command) {
+  if (/[<>$`]/.test(unquotedShell(command)) || /\$\(/.test(command)) return false;
+  const segments = shellSegments(command);
+  return segments.length > 0 && (segments.length === 1 && BLENDER_VERSION.test(segments[0]) || segments.every(safeShellSegment));
 }
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
@@ -65,6 +83,7 @@ const capabilities = () => ({
     { name: 'bootstrap-document', actor: 'orchestrator', phase: 'before registration', payload: '{project,path,content}' },
     { name: 'bootstrap-commit', actor: 'orchestrator', phase: 'before registration', payload: '{project,message}' },
     { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
+    { name: 'reregister', actor: 'orchestrator', phase: 'paused project', payload: '{reason}' },
     { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
     { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,revision?}' },
     { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation,payload}' },
@@ -75,7 +94,7 @@ const capabilities = () => ({
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
-  documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after registration; stop for explicit re-registration. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
+  documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
 });
 
@@ -96,10 +115,17 @@ export function createHooks(harness, client) {
     const first = messages.data.find((m) => m.info?.role === 'user' && m.parts?.some((p) => p.type === 'text' && p.text?.trim()));
     const user = first?.info;
     const prompt = first?.parts?.filter((p) => p.type === 'text' && !p.synthetic && !p.ignored).map((p) => p.text).join('\n');
-    if (user?.agent === 'blender-worker') return { worker: true, info };
+    const assistant = messages.data.findLast((m) => m.info?.role === 'assistant' && !m.info.summary)?.info;
+    if (user?.agent === 'blender-worker') {
+      if (!assistant) deny('worker runtime model metadata unavailable');
+      const cfg = harness.workerConfig();
+      if (assistant.providerID !== cfg.provider || assistant.modelID !== cfg.model || assistant.variant !== cfg.variant) {
+        deny('worker runtime model does not match configured worker');
+      }
+      return { worker: true, info };
+    }
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
     const existing = harness.transaction((s) => harness.graderAssignment(s, session));
-    const assistant = messages.data.findLast((m) => m.info?.role === 'assistant' && !m.info.summary)?.info;
     if (!assistant) deny('grader runtime model metadata unavailable');
     if (!existing) harness.bindGrader(info.parentID, session, prompt, { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant });
     return info;
@@ -128,7 +154,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -250,13 +276,13 @@ export function createHooks(harness, client) {
         if (tool === 'bash') {
           const command = args.command ?? '';
           if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
+          if (!safeUnregisteredShell(command)) deny('unregistered shell accepts only read-only Git and harness maintenance commands');
           if (/^git add\b/.test(command)) {
             const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
             if (/(?:^|[\s"'])Blender[\\/][^\\/"']+[\\/]/i.test(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }
           if (/^git commit\b/.test(command)) {
-            const unquoted = command.replace(/"(?:\\.|[^"\\])*"|'(?:''|[^'])*'/g, ' ');
-            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || /(?:^|[\s"'])Blender[\\/]/i.test(unquoted)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || /(?:^|[\s"'])Blender[\\/]/i.test(unquotedShell(command))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
             const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
             if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }

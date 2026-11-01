@@ -63,10 +63,15 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   write(scene, 'fixture blend bytes\n');
   write(`${project}/Documents/Reviews/README.md`, '# Review Index\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
   write('.gitignore', '**/_evidence/**\n/config.json\n');
-  if (review !== 'Off') write('config.json', JSON.stringify({ blender_subagents: { graders: {
+  const config = { blender_subagents: { workers: {
+    agent: 'blender-worker', provider: 'fixture-provider', model: 'fixture-model', variant: 'fixture-variant',
+    max_minutes: 10, max_steps: 18, max_failed_attempts: 2, max_parallel: 1,
+  } } };
+  if (review !== 'Off') config.blender_subagents.graders = {
     enabled: true, agent: 'blender-grader', max_parallel: 1, max_rounds: 2,
     graders: [{ name: 'visual', focus: 'composition', provider: 'test', model: 'test-model', variant: 'test-variant', max_steps: 12, max_minutes: 5 }],
-  } } }));
+  };
+  write('config.json', JSON.stringify(config));
   git(root, ['init', '--quiet']);
   git(root, ['add', '--', '.']);
   const commit = (message = 'test: fixture checkpoint') => git(root, ['-c', 'user.name=Harness Test', '-c', 'user.email=harness-test@example.invalid', 'commit', '--quiet', '-m', message]);
