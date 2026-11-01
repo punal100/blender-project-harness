@@ -14,9 +14,10 @@ const before = (h, session, tool, args) => h['tool.execute.before']({ sessionID:
 
 test('plugin denies raw code and unsupported production escape routes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
-  for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'background_process', 'agent_manager', 'use_mcp_tool']) {
+  for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'agent_manager', 'use_mcp_tool']) {
     await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified/);
   }
+  await assert.doesNotReject(before(h, f.session, 'background_process', { command: 'node tools/harness/cli.mjs doctor' }));
   for (const command of ['python -c "print(1)"', 'git diff --output=scene.blend', 'git status; node bypass.mjs', 'git add -- .', 'git -c alias.x=anything x']) {
     await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope|blender_workflow commit/);
   }
@@ -55,10 +56,10 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
-  assert.ok(result.bootstrapDocuments.includes('Documents/TASKS.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
-  assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'));
   assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKSTRACKER.md'));
+  assert.equal(result.bootstrapDocuments.includes('Documents/TASKS.md'), false);
+  assert.equal(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'), false);
   assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
   assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
   assert.ok(result.actions.some((action) => action.name === 'reregister'));

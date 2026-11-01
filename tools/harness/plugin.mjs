@@ -5,11 +5,12 @@ import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.m
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 
-const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete']);
+const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
+const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause', 'reclaim']);
 const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:-launcher)?(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
 const BLENDER_VERSION = /^\s*(?:&\s*)?["']?(?:[^"'\r\n]*[\\/])?blender(?:\.exe)?["']?\s+--version\s*$/i;
 function shellSegments(command) {
@@ -60,7 +61,6 @@ const BOOTSTRAP_DOCUMENTS = [
   'Documents/REVIEW.md',
   'Documents/ASSETS.md',
   'Documents/DECISIONS.md',
-  'Documents/TASKS.md',
   'Documents/TASKSTRACKER.md',
   'Documents/Tasks/README.md',
   'Documents/Goals/README.md',
@@ -94,10 +94,10 @@ const capabilities = () => ({
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
     { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
-    { name: 'recover|escalate|pause', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, or {reason}' },
+    { name: 'recover|escalate|pause|reclaim', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, or {project,reason}' },
   ],
-  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
-  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
 });
@@ -234,11 +234,12 @@ export function createHooks(harness, client) {
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
         const child = await childAssignment(input.sessionID);
         if (child?.worker) {
-          if (['write', 'edit', 'apply_patch', 'bash', 'task', 'agent_manager', 'question', 'goal', 'goal_report'].includes(tool)
+          if (ORCHESTRATOR_ONLY.has(tool) || ['write', 'edit', 'apply_patch', 'bash', 'task', 'agent_manager', 'question', 'goal', 'goal_report'].includes(tool)
             || (tool.startsWith('blender_') && !WORKER_BLENDER_READ.has(tool))
             || (!READ_ONLY.has(tool) && !WORKER_BLENDER_READ.has(tool) && !tool.startsWith('context7_'))) deny('worker child is read-only and cannot use this tool');
           return;
         }
+        if (ORCHESTRATOR_ONLY.has(tool)) deny('graders cannot use scheduler or process tools');
         const assignment = harness.graderStep(input.sessionID, tool, args);
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
           deny('grader document writes use blender_document only; direct edit is denied');
@@ -270,6 +271,7 @@ export function createHooks(harness, client) {
       }
       if (tool === 'question') questions.set(input.callID, structuredClone(args));
       if (!p) {
+        if (ORCHESTRATOR_ONLY.has(tool)) deny('scheduler and process tools require a registered active goal');
         if (tool.startsWith('blender_') && !BLENDER_READ.has(tool) && tool !== 'blender_workflow') deny('production tool requires a registered project; run blender_workflow prepare and complete its registration question first');
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
           const files = editPaths(tool, args).map(relative);
@@ -291,6 +293,14 @@ export function createHooks(harness, client) {
             if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }
         }
+        return;
+      }
+      if (tool === 'background_process') {
+        const command = args.command ?? '';
+        if (typeof command !== 'string' || !command.trim()) deny('background process requires one command');
+        if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop');
+        if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('background process workdir must be the workspace root');
+        if (/^git (?:add|commit)\b/i.test(command)) deny('production commits use blender_workflow commit');
         return;
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
@@ -324,7 +334,7 @@ export function createHooks(harness, client) {
         const allowed = new Set(c.paths);
         const names = editPaths(tool, args).map(relative);
         if (names.some((f) => Object.hasOwn(p.records.specs, f) || f === `${p.project}/Documents/REVIEW.md`)) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
-        if (names.some((f) => f === `${p.project}/Documents/TASKS.md` || f === `${p.project}/Documents/TASKSTRACKER.md` || f.startsWith(`${p.project}/Documents/Tasks/`))) deny('the task tracker is harness-owned; ticket issue and completion update it');
+        if (names.some((f) => f === `${p.project}/Documents/TASKSTRACKER.md` || f.startsWith(`${p.project}/Documents/Tasks/`))) deny('the task tracker is harness-owned; ticket issue and completion update it');
         if (names.some((f) => f.startsWith(`${p.project}/Documents/Reviews/`))) deny('review artifacts are harness-owned; use review, self-review, or grader tools');
         if (names.some((f) => !allowed.has(f) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
         if (names.some((f) => f.startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
@@ -366,9 +376,14 @@ export function createHooks(harness, client) {
         } else {
           harness.collectGrader(input.sessionID, child);
         }
-      } else if (tool === 'task' && input.args?.subagent_type === 'blender-worker' && successful(output)) {
+      } else if (tool === 'task' && input.args?.subagent_type === 'blender-worker') {
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
-        if (child) harness.bindWorker(input.sessionID, child, input.args?.prompt ?? '');
+        if (successful(output) && child) {
+          harness.bindWorker(input.sessionID, child, input.args?.prompt ?? '');
+        } else {
+          const token = input.args?.prompt?.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
+          if (token) harness.failWorkerByToken(input.sessionID, token, output.output ?? 'worker task failed before completion');
+        }
       }
       if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(harness.command(input.sessionID, 'status'))}`;
     },

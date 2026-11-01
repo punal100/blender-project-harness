@@ -63,12 +63,6 @@ export const DOCUMENT_FORMATS = Object.freeze([
     sections: [],
   },
   {
-    id: 'tasks',
-    path: 'Documents/TASKS.md',
-    fields: ['Status', 'Last updated'],
-    sections: ['Tasks'],
-  },
-  {
     id: 'task-tracker',
     path: 'Documents/TASKSTRACKER.md',
     fields: ['Status', 'Last updated'],

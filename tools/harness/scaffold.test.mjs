@@ -42,6 +42,9 @@ test('scaffold renders tokens, hidden files, and binaries', (t) => {
   assert.match(readme, /2026-10-31/);
   assert.doesNotMatch(readme, /\{\{/);
   assert.ok(fs.existsSync(path.join(project, '.gitignore')));
+  assert.ok(fs.existsSync(path.join(project, 'Documents', 'TASKSTRACKER.md')));
+  assert.ok(fs.existsSync(path.join(project, 'Documents', 'Tasks', 'README.md')));
+  assert.equal(fs.existsSync(path.join(project, 'Documents', 'TASKS.md')), false);
   assert.ok(fs.existsSync(path.join(project, 'exports', '.gitkeep')));
   assert.equal(fs.readdirSync(path.join(root, 'Blender')).some((name) => name.startsWith('.scaffold-')), false);
 });

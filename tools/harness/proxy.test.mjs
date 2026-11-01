@@ -38,6 +38,11 @@ async function execute(f, proxy, operation, payload = {}) {
   f.harness.authorize(f.session, token, operation, payload);
   return proxy.call('harness_execute', { token, operation, payload, user_prompt: 'Create fixture scene.' });
 }
+async function prepareSeal(f, proxy) {
+  f.harness.command(f.session, 'finalize');
+  const wip = JSON.parse((await execute(f, proxy, 'wip')).content[0].text);
+  f.harness.inspect(f.session, path.join(f.root, wip.change.wipRender.path), true);
+}
 const meshOperation = {
   operation: 'create_mesh',
   name: 'Cube',
@@ -65,6 +70,7 @@ test('proxy seals immutable evidence, manifest and PNG, then checkpoint succeeds
   const upstreamMock = upstream(f), p = new BlenderProxy(f.harness, upstreamMock);
   await execute(f, p, 'apply', meshOperation);
   await execute(f, p, 'save');
+  await prepareSeal(f, p);
   const seal = JSON.parse((await execute(f, p, 'seal')).content[0].text);
   assert.ok(fs.existsSync(seal.render));
   assert.ok(seal.change.evidenceKey);
@@ -89,9 +95,12 @@ test('proxy executes one batched apply ticket and saves each operation', async (
     { operation: 'transform', name: 'Cube', location: [0, 0, 1] },
   ] })).content[0].text);
   assert.equal(applied.change.operations, 1);
-  const ledger = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'TASKS.md'), 'utf8');
+  const ledger = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'TASKSTRACKER.md'), 'utf8');
   assert.match(ledger, /apply x2/);
   assert.match(ledger, /done/);
+  const taskDoc = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'Tasks', 'T001', 'SUMMARY.md'), 'utf8');
+  assert.match(taskDoc, /create_mesh/);
+  assert.match(taskDoc, /Operation Results/);
 });
 
 test('proxy renders a WIP image without creating review evidence', async (t) => {
@@ -116,7 +125,8 @@ test('proxy camera preflight fails before creating round artifacts and keeps rec
   };
   const p = new BlenderProxy(f.harness, noCamera);
   await execute(f, p, 'apply', meshOperation);
-  await assert.rejects(execute(f, p, 'seal'), /camera/);
+  f.harness.command(f.session, 'finalize');
+  await assert.rejects(execute(f, p, 'wip'), /camera/);
   const status = f.harness.command(f.session, 'status');
   assert.equal(status.change.sealed, false);
   assert.equal(status.nextStep.phase, 'recover');
@@ -137,15 +147,18 @@ test('proxy fails closed on addon mismatch and preserves recovery', async (t) =>
 
 test('failed seal removes incomplete round artifacts and reserves its sequence', async (t) => {
   const f = fixture(t); f.begin();
+  let failScene = false;
   const bad = upstream(f);
   bad.callTool = async (call) => {
     if (call.name === 'get_addon_status') return result(JSON.stringify({ up_to_date: true }));
-    if (call.name === 'get_scene_info') return { isError: true, content: [{ type: 'text', text: 'summary failed' }] };
+    if (failScene && call.name === 'get_scene_info') return { isError: true, content: [{ type: 'text', text: 'summary failed' }] };
     return upstream(f).callTool(call);
   };
   const p = new BlenderProxy(f.harness, bad);
   await execute(f, p, 'apply', meshOperation);
   await execute(f, p, 'save');
+  await prepareSeal(f, p);
+  failScene = true;
   await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
   const failed = f.harness.command(f.session, 'status').change;
   assert.equal(failed.sealed, false);

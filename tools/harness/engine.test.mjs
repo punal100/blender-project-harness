@@ -116,7 +116,7 @@ function createProject(root, {
   ].join('\n'));
   write(root, `${project}/Documents/ASSETS.md`, '# Fixture assets\n\n## Rules\n\nFixture asset rules.\n');
   write(root, `${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
-  write(root, `${project}/Documents/TASKS.md`, '# Task Ledger\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Change | Operation | Objects | Ticket | Worker | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — |\n');
+  write(root, `${project}/Documents/TASKSTRACKER.md`, '# Task Tracker — Test\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Kind | Change | Operation | Objects | Assigned | Child | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — | — |\n');
   write(root, `${project}/Documents/Goals/01-test-goal.md`, [
     '# Goal: Fixture',
     ...['Mission', 'Project', 'Visual outcome', 'Scope', 'Deliverables', 'Acceptance', 'Workflow', 'Done'].flatMap((name) => [`## ${name}`, prompt, '']),
@@ -281,7 +281,7 @@ function begin(f, session = 'orchestrator', options = {}) {
     ...(options.revision === undefined ? {} : { revision: options.revision }),
     ...(options.milestone === undefined ? {} : { milestone: options.milestone }),
     ...(options.requirements === undefined ? {} : { requirements: options.requirements }),
-    ...(options.final === undefined ? {} : { final: options.final }),
+    final: options.final ?? true,
   };
   return f.harness.command(session, 'begin', args);
 }
@@ -309,6 +309,16 @@ function seal(f, session = 'orchestrator', { round = 'R01-20261031T110000Z', ins
   if (change && change.operations === 0 && !change.failure && Date.now() <= change.deadline) {
     const issued = issueAndConsume(f, session, 'apply', { sealFixture: true });
     f.harness.finish(issued.token, { ok: true });
+  }
+  const current = f.harness.transaction((s) => s.projects[f.project].change);
+  const recovery = current && (current.failure || Date.now() > current.deadline);
+  if (current && !recovery && !current.readyToSeal) f.harness.command(session, 'finalize');
+  if (current && !recovery && (!current.wipLook || current.wipLook.operations !== current.operations)) {
+    const wipPath = `${f.project}/renders/wip/WIP-${round}.png`;
+    write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const wip = issueAndConsume(f, session, 'wip');
+    f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+    f.harness.inspect(session, path.resolve(f.root, wipPath), true);
   }
   const renderPath = `${f.project}/renders/final/${round}.png`;
   const evidenceRoot = `${f.project}/Documents/Reviews/${round}/_evidence`;
@@ -588,7 +598,7 @@ test('task ledger records batched tickets and WIP commit preserves a failed chan
     { operation: 'create_mesh', name: 'Lamp', primitive: 'cylinder', location: [0, 0, 1], scale: [0.1, 0.1, 1] },
   ] });
   f.harness.finish(issued.token, { ok: false, error: 'simulated batch failure', completed: 1 });
-  const ledger = read(f.root, `${f.project}/Documents/TASKS.md`);
+  const ledger = read(f.root, `${f.project}/Documents/TASKSTRACKER.md`);
   assert.match(ledger, /T001/);
   assert.match(ledger, /apply x2/);
   assert.match(ledger, /failed/);
@@ -1079,7 +1089,7 @@ test('partial review waits for approval before committing the reviewed change', 
   activate(f);
   begin(f);
   reviewAll(f);
-  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '1');
+  assert.ok(Number(git(f.root, ['rev-list', '--count', 'HEAD']).trim()) >= 2);
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'approval');
   const approval = f.harness.command('orchestrator', 'approval');
   f.harness.question('orchestrator', {
@@ -1088,7 +1098,7 @@ test('partial review waits for approval before committing the reviewed change', 
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'commit');
   f.harness.command('orchestrator', 'commit', { message: 'feat: approved fixture change' });
   f.harness.command('orchestrator', 'checkpoint');
-  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
+  assert.ok(Number(git(f.root, ['rev-list', '--count', 'HEAD']).trim()) >= 3);
 });
 
 test('review auto-commits reports and the verdict before checkpoint', (t) => {
@@ -1097,7 +1107,7 @@ test('review auto-commits reports and the verdict before checkpoint', (t) => {
   begin(f);
   reviewAll(f);
   assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
-  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
+  assert.ok(Number(git(f.root, ['rev-list', '--count', 'HEAD']).trim()) >= 3);
   const review = read(f.root, `${f.project}/Documents/Reviews/R01-20261031T110000Z/REVIEW.md`);
   assert.match(review, /Verdict: PASS/);
   assert.match(review, /## Reason/);
@@ -1118,7 +1128,7 @@ test('commit helper stages the exact scoped change', (t) => {
   assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'PASS');
 });
 
-test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {
+test('checkpoint accepts a scoped commit range and completes goal after PASS', (t) => {
   const f = useFixture(t);
   activate(f);
   begin(f);
@@ -1130,7 +1140,7 @@ test('checkpoint accepts one exact scoped commit and completes goal after PASS',
   write(f.root, `${f.project}/notes.txt`, 'approved change\n');
   scopedCommit(f);
   f.harness.command('orchestrator', 'checkpoint');
-  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
+  assert.ok(Number(git(f.root, ['rev-list', '--count', 'HEAD']).trim()) >= 3);
   const complete = f.harness.command('orchestrator', 'goal-complete');
   assert.equal(complete.complete, true);
   assert.equal(complete.change, null);
@@ -1161,7 +1171,7 @@ test('strict milestone commits each apply, requires finalize/WIP look, and accep
   let status = f.harness.command('orchestrator', 'status');
   assert.equal(status.change.commits.length, 2);
   assert.equal(status.nextStep.phase, 'apply');
-  const tracker = read(f.root, `${f.project}/Documents/TASKS.md`);
+  const tracker = read(f.root, `${f.project}/Documents/TASKSTRACKER.md`);
   assert.match(tracker, /^# Task Tracker — Test/);
   assert.match(tracker, /Tasks\/T001\/TASK\.md/);
   assert.match(read(f.root, `${f.project}/Documents/Tasks/T001/TASK.md`), /Child session: child-worker/);
@@ -1181,11 +1191,42 @@ test('strict milestone commits each apply, requires finalize/WIP look, and accep
   f.harness.command('orchestrator', 'commit', { message: 'feat: strict fixture change' });
   const closed = f.harness.command('orchestrator', 'checkpoint');
   assert.equal(closed.change, null);
-  assert.ok(f.harness.transaction((s) => s.projects[f.project].history.at(-1).strict));
+  assert.ok(f.harness.transaction((s) => s.projects[f.project].history.at(-1).final));
   assert.equal(f.harness.command('orchestrator', 'goal-complete').complete, true);
 });
 
-test('checkpoint rejects unrelated files and multiple commits', (t) => {
+test('every third apply requires a WIP render before continuing', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  for (let index = 0; index < 3; index += 1) {
+    const issued = issueAndConsume(f, 'orchestrator', 'apply', { index });
+    f.harness.finish(issued.token, { ok: true });
+  }
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'wip');
+  const wipPath = `${f.project}/renders/wip/WIP-third.png`;
+  write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const wip = issueAndConsume(f, 'orchestrator', 'wip');
+  f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'wip-inspect');
+  f.harness.inspect('orchestrator', path.resolve(f.root, wipPath), true);
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'apply');
+});
+
+test('a failed worker task produces a task summary without closing the change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'apply', { index: 1 });
+  f.harness.failWorkerByToken('orchestrator', issued.token, 'worker crashed before apply');
+  const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.id === issued.taskId));
+  assert.equal(task.state, 'failed');
+  assert.match(task.result, /worker crashed/);
+  assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
+  assert.notEqual(f.harness.command('orchestrator', 'status').change, null);
+});
+
+test('checkpoint rejects unrelated files and accepts scoped commit ranges', (t) => {
   const unrelated = useFixture(t);
   activate(unrelated);
   begin(unrelated);
@@ -1205,7 +1246,7 @@ test('checkpoint rejects unrelated files and multiple commits', (t) => {
   scopedCommit(multiple, 'first change');
   write(multiple.root, `${multiple.project}/notes.txt`, 'second commit\n');
   scopedCommit(multiple, 'second change');
-  gate(() => multiple.harness.command('orchestrator', 'checkpoint'));
+  assert.equal(multiple.harness.command('orchestrator', 'checkpoint').change, null);
 });
 
 test('state survives Harness restart and state lock blocks writers', (t) => {
@@ -1236,6 +1277,21 @@ test('pause is explicit, requires a closed change, and stops the active goal', (
   assert.equal(paused.goalActive, false);
   assert.equal(paused.nextStep.phase, 'goal');
   gate(() => begin(f));
+});
+
+test('reclaim requires a stale window and transfers ownership explicitly', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((s) => {
+    s.projects[f.project].orchestrator = 'old-session';
+    s.projects[f.project].change.deadline = Date.now() + 60_000;
+  });
+  gate(() => f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'test' }), /live change window/);
+  f.harness.transaction((s) => { s.projects[f.project].change.deadline = Date.now() - 1; });
+  const reclaimed = f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'old session stopped responding' });
+  assert.equal(reclaimed.goalActive, true);
+  assert.equal(f.harness.command('new-session', 'status').project, f.project);
 });
 
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {

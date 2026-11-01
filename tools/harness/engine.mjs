@@ -11,9 +11,8 @@ export const normalizeGoal = (value) => typeof value === 'string' ? value.replac
 const CHECKPOINT_EVERY = 20;
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
-const STRICT_MAX_OBJECTS = 20;
+const MAX_CHANGE_OBJECTS = 20;
 const TASKSTRACKER_DOCUMENT = 'Documents/TASKSTRACKER.md';
-const LEGACY_TASKS_DOCUMENT = 'Documents/TASKS.md';
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 export const stable = (value) => JSON.stringify(canonical(value));
@@ -103,9 +102,7 @@ export class Harness {
   }
   hash(name) { return digest(fs.readFileSync(contained(this.root, name))); }
   taskDocument(p) {
-    const tracker = `${p.project}/${TASKSTRACKER_DOCUMENT}`;
-    const legacy = `${p.project}/${LEGACY_TASKS_DOCUMENT}`;
-    return fs.existsSync(path.join(this.root, ...tracker.split('/'))) || !fs.existsSync(path.join(this.root, ...legacy.split('/'))) ? tracker : legacy;
+    return `${p.project}/${TASKSTRACKER_DOCUMENT}`;
   }
   head() { return gitText(this.root, ['rev-parse', 'HEAD']); }
   snapshot(project) {
@@ -186,6 +183,24 @@ export class Harness {
     if (steps && cfg.max_steps > steps) deny('worker max_steps exceeds agent steps ceiling');
     return { ...cfg };
   }
+  projectDoctor(project) {
+    return this.transaction((state) => {
+      const p = state.projects[project];
+      if (!p) deny('project is not registered');
+      const base = path.join(this.root, ...project.split('/'));
+      const tracker = path.join(base, 'Documents', 'TASKSTRACKER.md');
+      const tasks = path.join(base, 'Documents', 'Tasks');
+      return {
+        project, owner: p.orchestrator, goalActive: Boolean(p.goalActive), complete: Boolean(p.complete),
+        staleOwnerWindow: Boolean(p.change ? p.change.deadline < Date.now() : false),
+        change: p.change ? { id: p.change.id, milestone: p.change.milestone, operations: p.change.operations, deadline: p.change.deadline, verdict: p.change.verdict, blockingKind: p.change.blockingKind ?? null } : null,
+        scene: { path: p.scene, exists: fs.existsSync(path.join(this.root, p.scene)) },
+        docs: { tracker: fs.existsSync(tracker), tasks: fs.existsSync(tasks) },
+        models: (p.records.roster ?? []).map(({ name, provider, model, variant }) => ({ name, provider, model, variant })),
+        blender: instanceStatus(this.home),
+      };
+    });
+  }
   owner(state, session) {
     const projects = Object.values(state.projects).filter((p) => p.orchestrator === session);
     if (projects.length !== 1) deny('register exactly one project for orchestrator session');
@@ -259,6 +274,8 @@ export class Harness {
       `- Change: ${task.change}`,
       `- Operation: ${task.operation}`,
       `- State: ${task.state}`,
+      `- Actor: ${task.actor ?? task.worker}`,
+      `- Capability: ${task.capability ?? task.operation}`,
       `- Assigned: ${task.worker}`,
       `- Child session: ${task.child ?? ''}`,
       `- Created: ${task.created}`,
@@ -295,6 +312,8 @@ export class Harness {
       `- Change: ${task.change}`,
       `- Operation: ${task.operation}`,
       `- State: ${task.state}`,
+      `- Actor: ${task.actor ?? task.worker}`,
+      `- Capability: ${task.capability ?? task.operation}`,
       `- Child session: ${task.child ?? ''}`,
       `- Created: ${task.created}`,
       `- Finished: ${task.finished ?? ''}`,
@@ -324,7 +343,8 @@ export class Harness {
       id: `T${String(++p.taskSeq).padStart(3, '0')}`, kind: 'operation', change: p.change.id,
       operation: operation === 'apply' && operations.length > 1 ? `apply x${operations.length}` : operation,
       objects, paths: p.change.paths ? [...p.change.paths] : [], token, tokenHash: digest(token).slice(0, 12),
-      worker: operation === 'apply' ? 'blender-worker' : 'orchestrator', child: '',
+      worker: operation === 'apply' ? 'blender-worker' : 'orchestrator',
+      actor: operation === 'apply' ? 'blender-worker' : 'orchestrator', capability: operation, child: '',
       state: 'issued', created: new Date().toISOString(), finished: '', result: '',
       deadline: p.change.deadline ?? null, operationResults: [],
     };
@@ -338,7 +358,7 @@ export class Harness {
     const task = {
       id: `G${String(++p.taskSeq).padStart(3, '0')}`, kind: 'grader', change: p.change.id,
       operation: `grader:${name}`, objects: [], paths: [report], token, tokenHash: digest(token).slice(0, 12),
-      worker: name, child: '', state: 'issued', created: new Date().toISOString(), finished: '', result: '',
+      worker: name, actor: 'blender-grader', capability: 'grade', child: '', state: 'issued', created: new Date().toISOString(), finished: '', result: '',
       deadline: p.change.deadline ?? null, operationResults: [],
     };
     p.tasks.push(task);
@@ -510,9 +530,11 @@ export class Harness {
         : { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The document-only commit is ready; checkpoint it before another begin.' };
     }
     if (!c.sealed && c.operations === 0) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: 'Seal requires at least one apply ticket; issue one operation or a batch of up to 10 and delegate it to blender-worker.' };
-    if (!c.sealed && c.strict && !c.readyToSeal) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: `Continue milestone "${c.milestone ?? c.outcome}", extend exact scope, or call finalize before sealing.` };
-    if (!c.sealed && c.strict && (!c.wipRender || c.wipRender.operations !== c.operations)) return { phase: 'wip', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'wip', payload: {} }), reason: 'Render a WIP frame for the current apply state, then inspect it with blender_look.' };
-    if (!c.sealed && c.strict && (!c.wipLook || c.wipLook.operations !== c.operations)) return { phase: 'wip-inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.wipRender.path}"}`, reason: 'Inspect the exact WIP render before sealing the current apply state.' };
+    if (!c.sealed && c.operations > 0 && c.operations % 3 === 0 && (!c.wipRender || c.wipRender.operations !== c.operations)) return { phase: 'wip', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'wip', payload: {} }), reason: 'Every third apply requires a WIP render for a quick visual check.' };
+    if (!c.sealed && c.wipRender?.operations === c.operations && (!c.wipLook || c.wipLook.operations !== c.operations)) return { phase: 'wip-inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.wipRender.path}"}`, reason: 'Inspect the exact WIP render before continuing or sealing.' };
+    if (!c.sealed && !c.readyToSeal) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: `Continue milestone "${c.milestone ?? c.outcome}", extend exact scope, or call finalize before sealing.` };
+    if (!c.sealed && (!c.wipRender || c.wipRender.operations !== c.operations)) return { phase: 'wip', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'wip', payload: {} }), reason: 'Render a WIP frame for the current apply state, then inspect it with blender_look.' };
+    if (!c.sealed && (!c.wipLook || c.wipLook.operations !== c.operations)) return { phase: 'wip-inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.wipRender.path}"}`, reason: 'Inspect the exact WIP render before sealing the current apply state.' };
     if (!c.sealed) return { phase: 'seal', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'seal', payload: {} }), reason: 'Save and seal the changed scene, then inspect the returned render.' };
     if (!c.inspected) return { phase: 'inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.renderPath}"}`, reason: 'Inspect the exact sealed render before review.' };
     if (!c.verdict) {
@@ -525,14 +547,14 @@ export class Harness {
       return { phase: 'retry-grader', actor: 'orchestrator', action: 'grader-ticket', command: this.wire('grader-ticket', { name: blocked }), reason: 'This is a tooling/evidence block, not a design failure. Retry the blocked grader; do not open a scene revision.' };
     }
     if (p.records.workflow === 'Partially Autonomous' && !c.approval) return { phase: 'approval', actor: 'orchestrator', action: 'approval', command: this.wire('approval', {}), reason: 'Pause the goal and ask the exact approval question before committing this change.' };
-    if (this.head() === c.base) return { phase: 'commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<one bounded conventional message>' }), reason: 'Commit exactly the reviewed change and its harness artifacts.' };
+    if (c.verdict && this.reviewPending(p, c)) return { phase: 'commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<one bounded conventional message>' }), reason: 'Commit the reviewed change and its harness artifacts.' };
     return { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'Verify the exact scoped commit and close the change before another begin.' };
   }
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
     return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), strict: Boolean(c.strict), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -607,7 +629,7 @@ export class Harness {
         const allowed = new Set([...Object.keys(assignment.p.records.specs),
           `${assignment.p.project}/README.md`, `${assignment.p.project}/Documents/ASSETS.md`,
           `${assignment.p.project}/Documents/DECISIONS.md`, `${assignment.p.project}/Documents/REVIEW.md`,
-          `${assignment.p.project}/${TASKSTRACKER_DOCUMENT}`, `${assignment.p.project}/${LEGACY_TASKS_DOCUMENT}`, `${assignment.p.project}/Documents/README.md`, assignment.g.report]);
+          `${assignment.p.project}/${TASKSTRACKER_DOCUMENT}`, `${assignment.p.project}/Documents/README.md`, assignment.g.report]);
         if (!allowed.has(`${project}/${clean}`)) deny('grader document read outside assigned spec documents');
       }
       if (!fs.existsSync(full)) deny(`project document missing: ${clean}`);
@@ -646,6 +668,10 @@ export class Harness {
       fs.writeFileSync(full, args.content);
       return { project: p.project, path: g.report, verdict: verdicts[0][1], bytes: args.content.length, next: 'Return the report facts; the orchestrator validates and aggregates.' };
     });
+  }
+  reviewPending(p, c) {
+    const paths = this.reviewPaths(p, c);
+    return Boolean(gitText(this.root, ['status', '--porcelain', '--', ...paths]).trim());
   }
   reviewPaths(p, c) {
     return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
@@ -696,6 +722,20 @@ export class Harness {
             : 'Complete and commit scaffold docs, then call prepare and answer its registration question';
         return { project: null, scene: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending, nextStep: { phase: 'unregistered', actor: 'orchestrator', action: 'status', command: 'blender_workflow {action:"status",payload:"{\\"project\\":\\"Blender/<Name>\\"}"}', reason: pending } };
       }
+      if (action === 'reclaim') {
+        if (typeof args.project !== 'string' || !args.project.trim() || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('reclaim requires project and one bounded reason');
+        const target = s.projects[args.project];
+        if (!target) deny('project not found');
+        if (target.orchestrator === session) return this.status(target, s);
+        const stale = !target.change || target.change.deadline < Date.now();
+        if (!stale) deny('project owner has a live change window; pause it before reclaiming');
+        const from = target.orchestrator;
+        target.orchestrator = session;
+        target.goalActive = true;
+        target.paused = null;
+        target.reclaimed = { from, at: new Date().toISOString(), reason: args.reason.trim() };
+        return this.status(target, s);
+      }
       const p = this.owner(s, session);
       if (action === 'pause') {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('pause requires one bounded reason');
@@ -723,7 +763,7 @@ export class Harness {
       } else if (action === 'goal-complete') {
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
-        if (p.history.some((item) => item.strict) && !last.final) deny('completion requires a final full-spec change after milestone reviews');
+        if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project)); p.complete = true;
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
@@ -735,8 +775,8 @@ export class Harness {
          if (c || p.complete || p.escalation || !p.goalActive) deny('one open logical change per project; prior checkpoint and active goal required');
         if (typeof args.outcome !== 'string' || !args.outcome.trim() || args.outcome.length > 1000 || !Array.isArray(args.objects) || args.objects.length > 200 || args.objects.some((n) => typeof n !== 'string' || !/^[\x20-\x7e]{1,100}$/.test(n))) deny('bounded outcome and exact object names required');
         if (args.final !== undefined && typeof args.final !== 'boolean') deny('final must be boolean');
-        const milestone = args.final === true ? 'final' : args.milestone === undefined ? null : args.milestone;
-        if (milestone !== null && (typeof milestone !== 'string' || !milestone.trim() || milestone.length > 200)) deny('milestone must be a bounded non-empty string');
+        const milestone = args.final === true ? 'final' : args.milestone ?? args.outcome;
+        if (typeof milestone !== 'string' || !milestone.trim() || milestone.length > 200) deny('milestone must be a bounded non-empty string');
         if (args.requirements !== undefined && (!Array.isArray(args.requirements) || args.requirements.length > 50 || args.requirements.some((item) => typeof item !== 'string' || !item.trim()))) deny('requirements must be an array of non-empty strings');
         if (!Array.isArray(args.paths) || !args.paths.length || args.paths.length > 100) deny('exact project-relative file paths required');
         const paths = [...new Set(args.paths.map((name) => {
@@ -760,13 +800,11 @@ export class Harness {
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
         this.ensureTaskLedger(p);
         const sceneExists = fs.existsSync(path.join(this.root, p.scene));
-        const strict = milestone !== null || args.requirements !== undefined;
-        if (strict && args.objects.length > STRICT_MAX_OBJECTS) deny(`strict milestone changes are capped at ${STRICT_MAX_OBJECTS} objects; split the milestone`);
         p.change = {
-          id: crypto.randomUUID(), created: Date.now(), outcome: args.outcome, milestone: milestone?.trim() ?? null,
+          id: crypto.randomUUID(), created: Date.now(), outcome: args.outcome, milestone: milestone.trim(),
           requirements: args.requirements ? [...new Set(args.requirements.map((item) => item.trim()))] : [],
-          final: args.final === true, strict, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
-          deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: !strict,
+          final: args.final === true, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
+          deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: false,
           wipRender: null, wipLook: null, commits: [], graders: {}, reports: {}, bootstrap: !sceneExists,
           documentOnly: paths.every((name) => /\.md$/i.test(name)), sceneHash: sceneExists ? this.hash(p.scene) : null,
         };
@@ -781,6 +819,7 @@ export class Harness {
           return `${p.project}/${clean}`;
         }))];
         c.objects = [...new Set([...c.objects, ...(args.objects ?? [])])];
+        if (c.objects.length > MAX_CHANGE_OBJECTS) deny(`changes are capped at ${MAX_CHANGE_OBJECTS} objects; split the milestone`);
         c.paths = [...new Set([...c.paths, ...added])];
       } else if (action === 'finalize') {
         if (!c || c.sealed || c.pending || c.documentOnly) deny('finalize requires an unsealed scene change with no pending operation');
@@ -794,7 +833,7 @@ export class Harness {
         if (!/\.md$/i.test(clean) || clean.startsWith('Documents/Reviews/')) deny('document action writes project markdown outside runtime review artifacts only');
         if (!c.paths.includes(`${p.project}/${clean}`)) deny('document path must be declared in the open change paths');
         if (Object.hasOwn(p.records.specs, `${p.project}/${clean}`) || `${p.project}/${clean}` === `${p.project}/Documents/REVIEW.md`) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
-        if (clean === TASKSTRACKER_DOCUMENT || clean === LEGACY_TASKS_DOCUMENT || clean.startsWith('Documents/Tasks/')) deny('the task tracker is harness-owned; it updates on ticket issue and completion');
+        if (clean === TASKSTRACKER_DOCUMENT || clean.startsWith('Documents/Tasks/')) deny('the task tracker is harness-owned; it updates on ticket issue and completion');
         try { validateDocument(clean, args.content); } catch (error) { deny(error.message); }
         fs.mkdirSync(path.dirname(full), { recursive: true });
         fs.writeFileSync(full, args.content);
@@ -930,12 +969,9 @@ export class Harness {
         const failedReview = c.verdict && !['PASS', 'WIP'].includes(c.verdict);
         if (c.verdict === 'BLOCKED' && c.blockingKind === 'tooling') deny('retry the tooling-blocked grader before checkpoint');
         const partialApprovalRequired = p.records.workflow === 'Partially Autonomous' && !documentOnly && (!c.approval || c.approval.evidence !== c.evidenceKey);
-        if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review and runtime-captured approval required before checkpoint');
+        if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || this.reviewPending(p, c) || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review commit and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
-        if (!c.strict && gitText(this.root, ['rev-parse', 'HEAD^']) !== c.base) deny('checkpoint must be exactly one commit after change base');
-        const changed = c.strict
-          ? gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`]).split(/\r?\n/).filter(Boolean)
-          : git(this.root, ['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', 'HEAD']).split('\0').filter(Boolean);
+        const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`]).split(/\r?\n/).filter(Boolean);
         const reviewed = bootstrap || wip || documentOnly ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, this.taskDocument(p), ...reviewed, ...this.taskFiles(p, c)]);
         const taskPrefix = `${p.project}/Documents/Tasks/`;
@@ -944,7 +980,7 @@ export class Harness {
           if (!gitText(this.root, ['ls-files', '--error-unmatch', '--', name])) deny('required deliverable missing from checkpoint');
         }
         const snapshot = this.snapshot(p.project); this.assertCommitted(p.project, snapshot);
-        p.history.push({ id: c.id, round: c.round ?? null, verdict: bootstrap ? 'BOOTSTRAP' : wip ? 'WIP' : documentOnly ? 'DOCUMENT' : c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, strict: Boolean(c.strict), final: Boolean(c.final), approval: c.approval?.label ?? null });
+        p.history.push({ id: c.id, round: c.round ?? null, verdict: bootstrap ? 'BOOTSTRAP' : wip ? 'WIP' : documentOnly ? 'DOCUMENT' : c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, final: Boolean(c.final), approval: c.approval?.label ?? null });
         p.checkpoint = this.head(); p.snapshot = snapshot;
         if (!bootstrap && !wip && !documentOnly && c.verdict === 'PASS') p.lastRender = { path: c.renderPath, hash: this.hash(c.renderPath) };
         p.change = null;
@@ -979,10 +1015,11 @@ export class Harness {
       if (operation === 'apply' && c.documentOnly) deny('document-only changes cannot apply scene operations; begin a scene change');
       if (operation === 'seal' && c.bootstrap) deny('bootstrap save cannot be sealed or graded; commit the saved scene and call checkpoint, then begin a scene change');
       if (operation === 'seal' && c.documentOnly) deny('document-only changes commit without sealing or review');
+      const recovery = Boolean(c.failure || Date.now() > c.deadline);
       if (operation === 'wip' && (c.bootstrap || c.documentOnly || !c.operations || c.sealed)) deny('WIP render requires an unsealed scene change with at least one apply');
-      if (operation === 'seal' && c.strict && !c.readyToSeal) deny('finalize the declared milestone before sealing');
-      if (operation === 'seal' && c.strict && (!c.wipLook || c.wipLook.operations !== c.operations)) deny('seal requires a WIP render and blender_look receipt from the current apply state');
-      if (operation === 'seal' && c.operations === 0 && !c.failure && Date.now() <= c.deadline) deny('seal requires at least one apply operation; document-only changes commit without sealing');
+      if (operation === 'seal' && c.operations === 0 && !recovery) deny('seal requires at least one apply operation; document-only changes commit without sealing');
+      if (operation === 'seal' && !recovery && !c.readyToSeal) deny('finalize the declared milestone before sealing');
+      if (operation === 'seal' && !recovery && (!c.wipLook || c.wipLook.operations !== c.operations)) deny('seal requires a WIP render and blender_look receipt from the current apply state');
       if (!['apply', 'save', 'seal', 'wip'].includes(operation)) deny('unknown operation');
       const token = crypto.randomUUID();
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };
@@ -1040,7 +1077,7 @@ export class Harness {
         c.manifestHash = this.hash(c.manifestPath);
       }
       this.recordTaskFinished(p, token, result);
-      if (t.operation === 'apply' && c.strict) {
+      if (t.operation === 'apply') {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitProgress(p, c, task);
       }
@@ -1084,6 +1121,19 @@ export class Harness {
         this.writeTaskLedger(p);
       }
       this.updateManifest(p);
+    });
+  }
+  failWorkerByToken(orchestrator, token, error) {
+    return this.transaction((s) => {
+      const p = this.owner(s, orchestrator);
+      const task = p.tasks?.find((item) => item.token === token);
+      if (!task || task.state === 'done' || task.state === 'failed') return;
+      task.state = 'failed';
+      task.finished = new Date().toISOString();
+      task.result = String(error ?? 'worker task failed').slice(0, 300);
+      this.writeTaskDocument(p, task);
+      this.writeTaskSummary(p, task);
+      this.writeTaskLedger(p);
     });
   }
   failGraderByToken(orchestrator, token, error) {

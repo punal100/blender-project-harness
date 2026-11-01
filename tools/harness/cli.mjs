@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { findBlender, instanceStatus } from './blender.mjs';
+import { Harness } from './engine.mjs';
 import { scaffold } from './scaffold.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -52,7 +53,7 @@ function checkUpstream() {
   if (!version.includes('mcp-for-blender')) fail('pinned mcp-for-blender command did not return expected help');
 }
 
-function doctor() {
+function doctor({ project } = {}) {
   const node = process.versions.node;
   if (Number.parseInt(node, 10) < 22) fail(`Node ${node} is too old; Node 22 or newer required`);
   checkPackage();
@@ -62,7 +63,8 @@ function doctor() {
   checkUpstream();
   const blender = findBlender();
   const instance = instanceStatus(stateHome());
-  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6', blender, instance }, null, 2) + '\n');
+  const projectState = project ? new Harness(root).projectDoctor(project) : null;
+  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6', blender, instance, project: projectState }, null, 2) + '\n');
 }
 
 function parseOptions(args) {
@@ -82,7 +84,7 @@ function parseOptions(args) {
 
 async function main() {
   const command = process.argv[2];
-  if (command === 'doctor') return doctor();
+  if (command === 'doctor') return doctor(parseOptions(process.argv.slice(3)));
   if (command === 'scaffold') {
     const options = parseOptions(process.argv.slice(3));
     if (!options.name) fail('usage: node tools/harness/cli.mjs scaffold --name "Project Name" [--description "..."] [--goal "..."] [--goal-title "..."] [--dry-run]');
@@ -104,7 +106,7 @@ async function main() {
     }
     return undefined;
   }
-  fail('usage: node tools/harness/cli.mjs doctor | scaffold --name "Project Name"');
+  fail('usage: node tools/harness/cli.mjs doctor [--project "Blender/Name"] | scaffold --name "Project Name"');
 }
 
 try { await main(); }

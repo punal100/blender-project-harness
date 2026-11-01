@@ -53,7 +53,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   ].join('\n'));
   write(`${project}/Documents/ASSETS.md`, '# No external assets\n\n## Rules\n\nFixture asset rules.\n');
   write(`${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
-  write(`${project}/Documents/TASKS.md`, '# Task Ledger\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Change | Operation | Objects | Ticket | Worker | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — |\n');
+  write(`${project}/Documents/TASKSTRACKER.md`, '# Task Tracker — Test Project\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Kind | Change | Operation | Objects | Assigned | Child | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — | — |\n');
   const goalBody = objectiveText.replace(/^#\s+.*\r?\n/, '');
   const objective = [
     '# Goal: Fixture',
@@ -84,7 +84,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   harness.question(session, questionArgs(registration.question, registration.labels), [['Confirm registration']]);
   const begin = () => {
     harness.command(session, 'goal-active', { objective });
-    return harness.command(session, 'begin', { outcome: 'Create fixture composition', objects: ['Cube'], paths: ['notes.txt', 'Documents/DECISIONS.md'] });
+    return harness.command(session, 'begin', { outcome: 'Create fixture composition', objects: ['Cube'], paths: ['notes.txt', 'Documents/DECISIONS.md'], final: true });
   };
   return { root, project, scene, goal, objective, write, commit, harness, session, questionArgs, begin };
 }
