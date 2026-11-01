@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261101T074657Z | 2026-11-01 07:46:57 | `70840f9c377d` | All | visual, technical, spec | BLOCKED | [`R01-20261101T074657Z/REVIEW.md`](R01-20261101T074657Z/REVIEW.md) |
+| R02-20261101T075345Z | 2026-11-01 07:53:45 | `d1166f476f83` | All | visual, technical, spec | BLOCKED | [`R02-20261101T075345Z/REVIEW.md`](R02-20261101T075345Z/REVIEW.md) |
 
 ## Rules
 
@@ -47,3 +48,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   `_evidence/` and `tmp/` remain ignored.
 
 - R01-20261101T074657Z: Block out the den shell, window, hero camera, and evening light rig for a first reviewable state; evidence af2bf623af0c2d5077932605741766d1ce76742bfceb3d3af584d047d6b6606b
+
+- R02-20261101T075345Z: Re-review the saved room-shell state with corrected evidence pointers after the blocked first round; evidence e4d913eaf83a6bd2fbf05c04d44e8b1dab2b3a57ece23a35a1213b1504367f7a

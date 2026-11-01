@@ -1,0 +1,82 @@
+{
+  "round": "R02-20261101T075345Z",
+  "created": "2026-11-01T07:53:46.185Z",
+  "previous_round": "R01-20261101T074657Z",
+  "active_goal": "Blender/Cozy Retro Den/Documents/Goals/01-project-brief.md",
+  "base_commit": "92c2f126da1847e7f3a905b3f30300b999d3e976",
+  "dirty": "M \"Blender/Cozy Retro Den/cozy-retro-den.blend\"\n?? \"Blender/Cozy Retro Den/renders/final/R02-20261101T075345Z.png\"",
+  "scene": {
+    "path": "Blender/Cozy Retro Den/cozy-retro-den.blend",
+    "sha256": "d1166f476f83d789226e5d5f678038d5cef101dbdf68b70f614efcc592ee9d88"
+  },
+  "specs": {
+    "Blender/Cozy Retro Den/Documents/REQUIREMENTS.md": "c6f2211bb9fe12f6201461278e627dd3bd91c697de53e63fe50b87a4b8394924",
+    "Blender/Cozy Retro Den/Documents/WORKFLOW.md": "d0fcd7a6b710f2e5ec1aeee1d475bc5c744b84c3b3ab304ee27eaa28f987f6e8",
+    "Blender/Cozy Retro Den/Documents/Goals/01-project-brief.md": "2a3cbd867e026172fc4ea221ea35e62cddddf27c5a8e8b2608372dde8a977a31"
+  },
+  "evidence": {
+    "Blender/Cozy Retro Den/renders/final/R02-20261101T075345Z.png": "15ab2212f014ab50c13e0623e5b94f09e684b07135c93a63310fc8b5e2f3dd6c",
+    "Blender/Cozy Retro Den/Documents/Reviews/R02-20261101T075345Z/_evidence/camera.png": "15ab2212f014ab50c13e0623e5b94f09e684b07135c93a63310fc8b5e2f3dd6c",
+    "Blender/Cozy Retro Den/Documents/Reviews/R02-20261101T075345Z/_evidence/scene.txt": "afd36e9944d15200f2640b7737700f0b778f7fe7a9586dc6cb49f993cebd1a6c"
+  },
+  "evidence_key": "e4d913eaf83a6bd2fbf05c04d44e8b1dab2b3a57ece23a35a1213b1504367f7a",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "87b724a2-ceb7-449e-90c9-986e76bfa27e",
+      "report": "Blender/Cozy Retro Den/Documents/Reviews/R02-20261101T075345Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793519947742,
+      "steps": 6,
+      "child": "ses_e69e268bcffeA2cj2opCFgKbdj",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    "technical": {
+      "token": "3efe11f5-0b2d-45dc-a5a3-9fc49e57f66c",
+      "report": "Blender/Cozy Retro Den/Documents/Reviews/R02-20261101T075345Z/technical/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793519947883,
+      "steps": 6,
+      "child": "ses_e69e4722effevltrDaLsediDZy",
+      "verdict": "CHANGES_REQUIRED"
+    },
+    "spec": {
+      "token": "6a77a365-25a0-41d4-b7e0-6dd64eca72a8",
+      "report": "Blender/Cozy Retro Den/Documents/Reviews/R02-20261101T075345Z/spec/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793519948079,
+      "steps": 7,
+      "child": "ses_e69e258f0ffe4pufBvIQV10r0V",
+      "verdict": "BLOCKED"
+    }
+  },
+  "verdict": "BLOCKED"
+}
