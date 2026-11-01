@@ -33,7 +33,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| R01-20261101T074657Z | 2026-11-01 07:46:57 | `70840f9c377d` | All | visual, technical, spec | BLOCKED | [`R01-20261101T074657Z/REVIEW.md`](R01-20261101T074657Z/REVIEW.md) |
 
 ## Rules
 
@@ -45,3 +45,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   state when grading is enabled, with no genuine unresolved blocker or major finding.
 - Commit each completed round's `REVIEW.md`, manifest, reports, and index entry atomically; only
   `_evidence/` and `tmp/` remain ignored.
+
+- R01-20261101T074657Z: Block out the den shell, window, hero camera, and evening light rig for a first reviewable state; evidence af2bf623af0c2d5077932605741766d1ce76742bfceb3d3af584d047d6b6606b
