@@ -312,6 +312,15 @@ export class Harness {
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
         const sceneExists = fs.existsSync(path.join(this.root, p.scene));
         p.change = { id: crypto.randomUUID(), outcome: args.outcome, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0, deadline: Date.now() + 900000, sealed: false, inspected: false, graders: {}, reports: {}, bootstrap: !sceneExists, sceneHash: sceneExists ? this.hash(p.scene) : null };
+      } else if (action === 'document') {
+        if (!c || c.pending) deny('open change with no pending operation required');
+        if (typeof args.path !== 'string' || !args.path.trim() || typeof args.content !== 'string' || args.content.length > 1_000_000) deny('document path and bounded markdown content required');
+        const full = contained(this.projectPath(p.project), args.path, true);
+        const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
+        if (!/\.md$/i.test(clean) || clean.startsWith('Documents/Reviews/')) deny('document action writes project markdown outside runtime review artifacts only');
+        if (!c.paths.includes(`${p.project}/${clean}`)) deny('document path must be declared in the open change paths');
+        fs.mkdirSync(path.dirname(full), { recursive: true });
+        fs.writeFileSync(full, args.content);
       } else if (action === 'self-review') {
         if (!c?.inspected || p.records.review !== 'Off' || !args.notes?.trim()) deny('inspect sealed render before self-review');
         c.verdict = 'PASS'; c.notes = args.notes;

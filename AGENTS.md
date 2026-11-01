@@ -46,9 +46,10 @@ Read `.kilo/skills/blender-workflow-harness/SKILL.md` before any production `ble
 action. It owns registration, the bootstrap write window, launch/stop, bounded changes, operation
 tickets, seal, review handoff, approval, checkpoint, escalation, and status recovery.
 
-- Production uses orchestrator-only `blender_workflow` operations. Raw `execute_blender_code`,
-  `import_asset`, `generate_3d`, and arbitrary Python are blocked; unsupported operations stop until
-  tooling is reviewed and extended.
+- Production uses orchestrator-only `blender_workflow` lifecycle operations. Blender apply edits are
+  executed by `blender-worker` with the orchestrator's ticket; the orchestrator executes save/seal
+  and owns commit/checkpoint. Raw `execute_blender_code`, `import_asset`, `generate_3d`, and arbitrary
+  Python are blocked; unsupported operations stop until tooling is reviewed and extended.
 - Registration requires the exact runtime question and answer. Never create approved JSON,
   self-confirm registration, or answer a challenge for the user.
 - Keep one bounded logical change open per project, at most 20 apply operations before checkpoint
@@ -66,26 +67,29 @@ tickets, seal, review handoff, approval, checkpoint, escalation, and status reco
 
 - Run graders only when review mode is `All` or `Single` and the grader config is enabled. If a
   required grader is missing or disabled, stop production; never silently downgrade to self-review.
-- Grade every meaningful saved visual state. Read reports and record every finding's disposition in
-  `Documents/Reviews/<round>/REVIEW.md`. Graders are read-only; each writes only its assigned
-  `REPORT.md` and never reads peer reports.
-- Commit each review round's `REVIEW.md`, `manifest.json`, reports, and index entry atomically before
-  ending the turn, including failed rounds and blocked goals. Never leave a completed round
-  uncommitted.
+- Grade every meaningful saved visual state. `review` records every finding's disposition with the
+  verdict. Graders are read-only; each writes only its assigned `REPORT.md` and never reads peer
+  reports.
+- `review` writes the aggregate verdict and auto-commits the round's reports, `REVIEW.md`,
+  `manifest.json`, render, and index entry atomically. Do not create review documents or commit round
+  artifacts manually. Failed rounds commit before fixes; never leave a completed round uncommitted.
 - Read `.kilo/skills/blender-subagents/SKILL.md` before delegating. Validate `config.json` before
   production delegation; never guess or substitute a model. Spawn `blender-worker` with `task`;
   do not create Agent Manager sessions.
-- Workers are inspection-only unless a reviewed assignment grants writes. Graders are read-only and
-  may run in parallel when configured. Allow one Blender writer at a time.
+- Workers execute only bounded apply operations from an orchestrator ticket; they do not save, seal,
+  review, or commit. Graders are read-only and may run in parallel. Allow one Blender writer at a time.
 
 ## Working
 
 - Save the authoritative `.blend` through ticketed `save` after every meaningful scene change and
   before risky work or handoff. Seal and review each bounded change, obtain required approval, then
-  inspect status, diff, and recent history. Commit atomically: one exact scoped change per commit,
-  then `checkpoint` before the next `begin`. Never defer work into an end-of-task mega-commit.
+  inspect status, diff, and recent history. Commit atomically through the harness `commit` action:
+  one exact scoped change per commit, then `checkpoint` before the next `begin`. Never defer work
+  into an end-of-task mega-commit.
 - Keep `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`,
-  `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current.
+  `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current. Create new project documents through
+  the harness `document` action after declaring their exact paths in `begin`; manual writes may only
+  update existing files.
 - For Blender or library APIs, check Context7 and official docs first. If docs are missing,
   version-mismatched, or unclear, web-search official docs, source, and community reports; verify
   against the live Blender version with a minimal test. Never invent API behavior.

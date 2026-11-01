@@ -56,10 +56,11 @@ client. Pass `user_prompt` with the user's exact words when the tool accepts it.
 review, approval, and checkpoints. Recover with `blender_workflow` `status`; call `capabilities` for
 the runtime operation and bootstrap lists. Do not infer supported operations from examples.
 
-Use one ticketed `apply`, `save`, or `seal` at a time. Save after meaningful changes; seal before
-review; inspect the returned final PNG with `blender_look`. Complete `Off` self-review or the required
-graders, then commit and `checkpoint` before the next `begin`. `status.change.paths` is the exact
-staging scope; never stage unrelated files or defer work into a mega-commit.
+Use one ticketed operation at a time. The orchestrator issues an `apply` ticket and passes it to
+`blender-worker`, who executes it; the orchestrator executes `save`/`seal` only. Seal before review,
+inspect the returned final PNG with `blender_look`, then call the harness `commit` action and
+`checkpoint` before the next `begin`. Do not stage or commit manually. Create new markdown through
+the harness `document` action after declaring its path; review documents are harness-generated.
 
 Visual verification is mandatory. Every scene, material, lighting, or camera change must be
 inspected with `look` before completion; code output alone is not proof.

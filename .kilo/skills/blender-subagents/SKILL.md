@@ -6,12 +6,12 @@ description: Use when the orchestrator session delegates Blender work to bounded
 # Blender Subagents
 
 The current session is the orchestrator. It owns requirements, design, scope, acceptance, user
-communication, and commits. A `blender-worker` subagent executes one specific task and returns.
+communication, save/seal lifecycle, review, and commits. A `blender-worker` subagent executes the
+orchestrator's apply ticket and returns. Orchestrators cannot execute apply directly.
 
-Current harness operations are orchestrator-only under `AGENTS.md` and `blender-workflow-harness`. Workers perform read-only
-inspection; `blender_execute_blender_code`, `blender_workflow`, and `blender_harness_execute` stay
-denied. Delegated writes require explicit assignment plus reviewed tooling and narrowly scoped
-permissions, not an ad hoc allow rule. Unsupported work returns `BLOCKED`; no arbitrary Python fallback.
+Workers may run only the named apply payload through `blender_harness_execute`; `blender_workflow`,
+save, seal, review, and commit stay unavailable. `execute_blender_code` and arbitrary Python stay
+denied. Unsupported work returns `BLOCKED`; no fallback.
 
 Use `task` with `subagent_type="blender-worker"`. Do not create Agent Manager sessions or
 worktrees for this work.
@@ -95,8 +95,9 @@ Independent review uses `blender-grader`, configured at `blender_subagents.grade
   permission.
 - One pass per grader per round. A failed or missing report permits one replacement `grader-ticket`
   before `review`; a second failure aggregates as blocked. Graders never loop or ask the user.
-- A single blocker fails the round regardless of other PASS verdicts. The orchestrator records the
-  final verdict and every finding's disposition.
+- A single blocker fails the round regardless of other PASS verdicts. `review` writes the final
+  verdict, correction/no-correction reasoning, and every finding's disposition, then auto-commits the
+  round. Do not create or commit review documents manually.
 
 Workspace-maintenance tasks may use `general`, or read-only `explore`, without the Blender worker/grader
 roster. Assign bounded, non-overlapping scopes; forbid Blender access and commits. Do not treat this

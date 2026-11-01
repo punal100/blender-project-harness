@@ -134,8 +134,8 @@ Documents/Reviews/
       REPORT.md
 ```
 
-Each grader writes only its exact assigned `<grader>/REPORT.md`. The harness writes `manifest.json`;
-the orchestrator writes `REVIEW.md` and updates `Documents/Reviews/README.md`. Static permission globs
+Each grader writes only its exact assigned `<grader>/REPORT.md`. The harness writes `manifest.json`,
+the verdict `REVIEW.md`, and the review index entry; `review` auto-commits them. Static permission globs
 do not isolate dynamically assigned graders: plugin hooks bind actual children by parent/task token
 and runtime model metadata, enforce the exact report path, and forbid reading peer reports.
 
@@ -177,13 +177,14 @@ After all graders return, the orchestrator:
    `declined` blocker/major requires evidence that the finding is false or outside confirmed scope;
    preference or time pressure cannot waive a real acceptance failure. `deferred` blockers/majors
    remain unresolved and prevent `PASS`. A claim of a fix requires new evidence and re-review.
-4. Writes `REVIEW.md` with the exact saved scene hash, final verdict, per-grader verdicts, merged
-   findings, dispositions, and next action. Calls `blender_workflow` `review` with `{notes}` to validate
-   all report receipts plus aggregate hash, verdict, and dispositions. In `Off`, after sealed-render
-   inspection use `self-review` with `{notes}` instead; no graders run.
-5. Completes required runtime approval while paused, inspects status/diff/log, stages exact scoped
-   paths, commits completed round artifacts atomically, then runs `checkpoint` before fixes. A round verdict describes
-   its frozen evidence; never rewrite a failed verdict to `PASS` using later scene changes.
+4. Calls `blender_workflow` `review` with `{notes, reason, dispositions}`. The harness validates every
+   report, computes the verdict, writes `REVIEW.md` with correction/no-correction reasoning and
+   dispositions, and auto-commits reports, render, manifest, index, and verdict. Never create or
+   commit review documents manually. In `Off`, use `self-review` `{notes}`, then the harness `commit`
+   action; no graders run.
+5. Completes required runtime approval while paused, inspects status/diff/log, then runs
+   `checkpoint` before fixes. A round verdict describes its frozen evidence; never rewrite a failed
+   verdict to `PASS` using later scene changes.
 6. Fixes the scene only through normal workflow gates and a new bounded `begin` with `revision:true`,
    ticketed save/seal, and returned-render `look`. Fixes get their own scoped commits and checkpoints.
 

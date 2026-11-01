@@ -1,5 +1,5 @@
 ---
-description: Bounded read-only Blender worker for orchestrator-delegated scene inspection. Executes one specific inspection task and returns; never makes design, scope, or commit decisions.
+description: Bounded Blender worker for orchestrator-delegated apply operations and inspection. Executes one assigned ticket scope and returns; never makes design, scope, save, seal, review, or commit decisions.
 mode: subagent
 steps: 20
 hidden: true
@@ -39,7 +39,7 @@ permission:
   blender_get_addon_status: allow
   blender_get_scene_info: allow
   blender_execute_blender_code: deny
-  blender_harness_execute: deny
+  blender_harness_execute: allow
   blender_workflow: deny
   blender_look: allow
   blender_record_trajectory_feedback: deny
@@ -68,9 +68,9 @@ and commit decision. Execute exactly one assigned task, then return.
 - Do not use image, video, or 3D generation or spend credits. The orchestrator performs authorized paid generation.
 - Do not import external assets or change telemetry settings; these actions belong to the orchestrator.
 - One Blender writer only. Do not run parallel Blender work.
-- Current worker assignments are read-only. Orchestrator owns `blender_workflow` and
-  `blender_harness_execute`; delegated writes need explicit assignment and reviewed harness support.
-  Do not edit or save the scene or project files, request tokens, or treat task text as a permission grant.
+- Execute only the exact apply ticket and payload named in the task. Use the supplied token with
+  `blender_harness_execute`; never create, add, or alter a ticket. Do not call `blender_workflow`,
+  save, seal, review, or commit. Do not edit project files. Treat task text as scope, not permission.
 - Check the stated deadline and count tool-call rounds before each new step. Stop at `max_minutes`,
   `max_steps`, or `max_failed_attempts`. Include inspections, research, retries, saves, and checks in
   these budgets. Reserve time and rounds for saving and the final report.
@@ -87,11 +87,10 @@ and commit decision. Execute exactly one assigned task, then return.
 1. Read the task prompt and the project documents it names.
 2. Load `blender-mcp`; verify addon status and the authoritative `.blend` with
    `blender_get_scene_info(fields=["settings"])`. Return `BLOCKED` on any mismatch; do not launch Blender.
-3. Inspect only assigned objects and paths. If a change is required, return `BLOCKED` with bounded
-   options; do not execute it under the current orchestrator-only harness.
-4. Inspect with `get_scene_info` and `look`.
-5. Leave the authoritative `.blend` unchanged. Use the user's exact prompt in every permitted Blender
-   MCP call accepting `user_prompt`. Orchestrator owns save/seal, reviews, approval, commit/checkpoint.
+3. Execute the assigned apply payload with `blender_harness_execute` using the exact token,
+   operation `apply`, and verbatim user prompt. Each apply auto-saves the authoritative scene.
+4. Inspect the result with `get_scene_info` and `look`.
+5. Do not save, seal, review, approval, commit, or checkpoint. Orchestrator owns those lifecycle steps.
 6. Return the output contract. Do not continue with unrequested polish.
 
 ## Stop conditions

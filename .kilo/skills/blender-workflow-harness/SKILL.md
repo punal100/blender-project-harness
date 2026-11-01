@@ -56,15 +56,19 @@ verify that path, stage and commit the scene with its declared paths, then close
    (hard cap 40) and 15 minutes. Recovery `save` and `seal` remain allowed after the apply budget.
 4. Only declared paths may be written. Paths must stay inside the project; executable files are
    rejected except the registered scene.
-5. `revision:true` requires a prior completed review and stays within the configured `max_rounds`
+5. `revision:true` requires a prior committed verdict and stays within the configured `max_rounds`
    cap. A failed review or recorded revision request is required when the prior round passed.
+6. Create new project markdown with `document` `{path, content}` after declaring the exact path in
+   `begin`. Manual writes may update existing documents only; review artifacts are harness-generated.
 
 ## Operation tickets
 
 1. Issue `ticket` with
    `{operation:"apply"|"save"|"seal",payload:<operation JSON for apply or {} for save/seal>}`.
-2. Pass the returned `token` to server tool `blender_harness_execute` (`harness_execute`) with
-   `{token,operation,payload,user_prompt:<verbatim user goal>}`.
+2. Pass an apply `token` to the `blender-worker` task. The worker calls server tool
+   `blender_harness_execute` (`harness_execute`) with
+   `{token,operation:"apply",payload,user_prompt:<verbatim user goal>}`. The orchestrator executes
+   save/seal only; it cannot execute apply directly.
 3. Use only operations and primitives returned by `capabilities`. Raw `execute_blender_code`,
    `import_asset`, and `generate_3d` are blocked. Unsupported operations stop until tooling is
    reviewed and extended; do not add an arbitrary Python route.
@@ -83,8 +87,9 @@ records successful inspection. A bootstrap save with no operations cannot be sea
   `blender-grader` task, filling only the user-prompt and prior-findings placeholders.
 - The plugin binds the actual child by parent/task token and runtime model metadata. A grader writes
   only its assigned report and never reads peer reports.
-- `review` validates all report receipts plus aggregate `REVIEW.md` hash, verdict, and finding
-  dispositions. Follow `blender-project-grading` for retries, bounds, and dispositions.
+- `review` validates all receipts, writes the aggregate `REVIEW.md` with reason and finding
+  dispositions, and auto-commits reports, render, manifest, index, and verdict in one commit. Do not
+  create or commit review documents manually. Follow `blender-project-grading` for retries and bounds.
 
 ## Approval
 
@@ -95,13 +100,15 @@ forged approval JSON is ignored.
 
 ## Checkpoint and escalation
 
-Before each next `begin`, inspect status, `git diff`, and recent log; stage only scoped paths; commit
-one exact scoped change; run `checkpoint`. Checkpoint verifies exactly one scoped commit, clean
-project state, and hash match. Failed rounds commit their review artifacts before fixes.
+Before each next `begin`, inspect status, `git diff`, and recent log; call `commit` with a bounded
+message to stage and commit the exact scoped change, then `checkpoint`. Checkpoint verifies exactly
+one scoped commit, clean project state, and hash match. Review auto-commit remains valid for its
+round. Failed rounds commit before fixes.
 
-`revision:true` stays within the configured `max_rounds` cap. After a capped review, call `escalate`
-with a bounded reason and optional `max_rounds` up to 4, then complete the exact registration
-question again. Escalation preserves prior history and does not silently reset review state.
+`revision:true` requires the prior round's committed verdict and stays within the configured
+`max_rounds` cap. After a capped review, call `escalate` with a bounded reason and optional
+`max_rounds` up to 4, then complete the exact registration question again. Escalation preserves
+prior history and does not silently reset review state.
 
 ## Status and recovery
 

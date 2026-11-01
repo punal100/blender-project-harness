@@ -1,13 +1,14 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, normalizeGoal, stable } from './engine.mjs';
 import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
 const BLENDER_SHELL = /start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
@@ -82,21 +83,10 @@ export function createHooks(harness, client) {
     const match = /^Blender\/[^/]+\/(.+)$/.exec(name);
     return Boolean(match) && BOOTSTRAP_DOC.test(match[1]);
   }
-  function isBootstrap(c) {
-    return Boolean(c?.bootstrap && c.saved && !c.sealed && !c.operations);
-  }
-  function canCommit(p) {
-    harness.fresh(p);
-    const c = p.change;
-    if (!isBootstrap(c) && (!c?.verdict || !c.inspected || (p.records.workflow === 'Partially Autonomous' && !c.approval))) deny('finish review and required approval before committing');
-    const staged = git(harness.root, ['diff', '--cached', '--name-only', '-z']).split('\0').filter(Boolean);
-    const allowed = new Set([...c.paths, p.scene, c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`]);
-    if (!staged.length || staged.some((name) => !allowed.has(name))) deny('index empty or contains unrelated files');
-  }
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, prepare, status, launch, stop, begin, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
+        description: 'Mandatory Blender workflow gate. capabilities, prepare, status, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -224,7 +214,9 @@ export function createHooks(harness, client) {
         if (!c) deny('no open bounded change; call blender_workflow begin with one outcome, exact object names, and exact project-relative paths before writing project files');
         const allowed = new Set(c.paths);
         if (c.round) { allowed.add(`${p.project}/Documents/Reviews/${c.round}/REVIEW.md`); allowed.add(`${p.project}/Documents/Reviews/README.md`); }
-        if (editPaths(tool, args).some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
+        const files = editPaths(tool, args);
+        if (files.some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
+        if (files.some((f) => relative(f).startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_workflow document after declaring the exact path');
         harness.fresh(p);
         return;
       }
@@ -234,16 +226,8 @@ export function createHooks(harness, client) {
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('production Git/launch commands require workspace root');
         if (/[;&|`\r\n$<>]/.test(command)) deny('production shell accepts one literal command only');
         if (/^git status(?: --short)?(?: --branch)?$/.test(command) || /^git diff(?: --stat| --check| --cached| --name-only)*$/.test(command) || /^git log --oneline -10$/.test(command)) return;
-        if (/^git add -- /.test(command)) {
-          if (!isBootstrap(p.change) && (!p.change?.verdict || (p.records.workflow === 'Partially Autonomous' && !p.change.approval))) deny('review/approval required before staging');
-          const tokens = [...command.slice('git add -- '.length).matchAll(/"([^"]+)"|'([^']+)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3]);
-          const c = p.change;
-          const allowed = new Set([...c.paths, p.scene, c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`]);
-          if (!tokens.length || tokens.some((name) => !allowed.has(relative(name)))) deny('stage exact scoped files only');
-          return;
-        }
-        if (/^git commit -m (?:"[^"\r\n]+"|'[^'\r\n]+')$/.test(command)) { canCommit(p); return; }
-        deny('production shell route denied; use guarded tools or scoped Git checkpoint');
+        if (/^git (?:add|commit)\b/.test(command)) deny('production commits use blender_workflow commit with one bounded message');
+        deny('production shell route denied; use guarded tools or the harness commit action');
       }
       deny(`unclassified production tool: ${tool}`);
     },

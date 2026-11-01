@@ -704,6 +704,16 @@ test('review record notes can change after registration', (t) => {
   f.harness.command('orchestrator', 'checkpoint');
 });
 
+test('harness document action creates declared markdown only', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/DECISIONS.md', 'Documents/NEW.md'] });
+  f.harness.command('orchestrator', 'document', { path: 'Documents/NEW.md', content: '# New document\n' });
+  assert.equal(read(f.root, `${f.project}/Documents/NEW.md`), '# New document\n');
+  gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/Reviews/R01/REVIEW.md', content: 'manual' }));
+  gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/UNDECLARED.md', content: 'outside' }));
+});
+
 test('review auto-commits reports and the verdict before checkpoint', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);

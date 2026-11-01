@@ -18,7 +18,7 @@ test('plugin denies raw code and unsupported production escape routes', async (t
     await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified/);
   }
   for (const command of ['python -c "print(1)"', 'git diff --output=scene.blend', 'git status; node bypass.mjs', 'git add -- .', 'git -c alias.x=anything x']) {
-    await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope/);
+    await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope|blender_workflow commit/);
   }
 });
 
@@ -60,6 +60,15 @@ test('production worker delegation requires valid read-only limits', async (t) =
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
     /steps ceiling/,
+  );
+});
+
+test('manual creation of new project documents is blocked', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  f.harness.transaction((s) => s.projects[f.project].change.paths.push(`${f.project}/Documents/NEW.md`));
+  await assert.rejects(
+    before(h, f.session, 'write', { filePath: `${f.project}/Documents/NEW.md`, content: '# New\n' }),
+    /blender_workflow document/,
   );
 });
 
@@ -150,10 +159,18 @@ test('bootstrap save can be staged and committed without review', async (t) => {
     change.operations = 0;
   });
   fs.appendFileSync(path.join(f.root, f.scene), 'bootstrap save\n');
-  await before(h, f.session, 'bash', { command: `git add -- "${f.scene}"` });
-  git(f.root, ['add', '--', f.scene]);
-  await before(h, f.session, 'bash', { command: 'git commit -m "feat: bootstrap scene"' });
-  git(f.root, ['-c', 'user.name=Harness Test', '-c', 'user.email=harness-test@example.invalid', 'commit', '--quiet', '-m', 'feat: bootstrap scene']);
+  await assert.rejects(
+    before(h, f.session, 'bash', { command: `git add -- "${f.scene}"` }),
+    /blender_workflow commit/,
+  );
+  await assert.rejects(
+    before(h, f.session, 'bash', { command: 'git commit -m "feat: bootstrap scene"' }),
+    /blender_workflow commit/,
+  );
+  await h.tool.blender_workflow.execute(
+    { action: 'commit', payload: JSON.stringify({ message: 'feat: bootstrap scene' }) },
+    { sessionID: f.session },
+  );
   await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
 });
 
