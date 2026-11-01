@@ -127,7 +127,7 @@ export class Harness {
         if (graderSteps && g.max_steps > graderSteps) deny('invalid grader roster');
         names.add(g.name);
       }
-      if (!Number.isInteger(cfg.max_parallel) || cfg.max_parallel < 1 || cfg.max_parallel > names.size || !Number.isInteger(cfg.max_rounds) || cfg.max_rounds < 1 || cfg.max_rounds > 3) deny('invalid grader limits');
+      if (!Number.isInteger(cfg.max_parallel) || cfg.max_parallel < 1 || cfg.max_parallel > names.size || !Number.isInteger(cfg.max_rounds) || cfg.max_rounds < 1 || cfg.max_rounds > 4) deny('invalid grader limits');
       roster = cfg.graders; maxParallel = cfg.max_parallel; maxRounds = cfg.max_rounds;
       if (review === 'Single') {
         roster = roster.filter((g) => g.name === field(docs['Documents/REVIEW.md'], 'Single grader'));
@@ -188,9 +188,10 @@ export class Harness {
     return this.transaction((s) => {
       if (Object.keys(args).some((k) => !['project', 'goal', 'scene'].includes(k))) deny('prepare accepts project, goal and scene only');
       const records = this.records(args.project, args.goal);
+      const prior = s.projects[args.project];
+      if (prior?.escalation?.maxRounds) records.maxRounds = Math.max(records.maxRounds, prior.escalation.maxRounds);
       if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be project-root .blend filename');
       contained(this.projectPath(args.project), args.scene, true);
-      const prior = s.projects[args.project];
       const reRegister = Boolean(prior?.escalation?.requested && prior.orchestrator === session && !prior.change);
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
       if (s.challenge) {
@@ -282,7 +283,9 @@ export class Harness {
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
         if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
-        p.escalation = { requested: Date.now(), reason: args.reason };
+        const maxRounds = args.max_rounds ?? p.records.maxRounds;
+        if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 4 || maxRounds < p.records.maxRounds) deny('escalation may extend max_rounds up to 4');
+        p.escalation = { requested: Date.now(), reason: args.reason, maxRounds };
       } else if (action === 'begin') {
          if (c || p.complete || p.escalation || !p.goalActive) deny('one open logical change per project; prior checkpoint and active goal required');
         if (typeof args.outcome !== 'string' || !args.outcome.trim() || args.outcome.length > 1000 || !Array.isArray(args.objects) || args.objects.length > 200 || args.objects.some((n) => typeof n !== 'string' || !/^[\x20-\x7e]{1,100}$/.test(n))) deny('bounded outcome and exact object names required');

@@ -78,10 +78,11 @@ Read `blender_subagents.graders` in the gitignored `config.json` at the workspac
 
 - The harness validates the roster at `prepare`/registration: unique slug, non-empty focus and model
   fields, positive budgets, `max_steps` within the grader agent ceiling, `max_parallel` within the
-  roster, and `max_rounds` 1-3. Invalid or missing config stops production; never fabricate, drop, or
+  roster, and `max_rounds` 1-4. Invalid or missing config stops production; never fabricate, drop, or
   substitute a grader.
-- `max_rounds` 2 means the initial review plus one re-review; 3 adds one more. When exhausted, call
-  `escalate` with a bounded reason and complete the exact registration question again.
+- `max_rounds` 2 means the initial review plus one re-review; 3 adds one more, and 4 adds two. When
+  exhausted, call `escalate` with a bounded reason and optional `max_rounds` up to 4, then complete
+  the exact registration question again.
 - Resolve model, provider, and variant with `agent_manager_models`. Per-task overrides require the
   user's explicit request; otherwise use supported inheritance or stop.
 

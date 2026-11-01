@@ -309,7 +309,7 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIs(type(graders["max_parallel"]), int)
         self.assertTrue(1 <= graders["max_parallel"] <= len(roster))
         self.assertIs(type(graders["max_rounds"]), int)
-        self.assertTrue(1 <= graders["max_rounds"] <= 3)
+        self.assertTrue(1 <= graders["max_rounds"] <= 4)
         names = [item["name"] for item in roster]
         self.assertEqual(len(names), len(set(names)))
         for item in roster:

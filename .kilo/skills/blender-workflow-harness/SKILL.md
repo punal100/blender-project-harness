@@ -100,8 +100,8 @@ one exact scoped change; run `checkpoint`. Checkpoint verifies exactly one scope
 project state, and hash match. Failed rounds commit their review artifacts before fixes.
 
 `revision:true` stays within the configured `max_rounds` cap. After a capped review, call `escalate`
-with a bounded reason, then complete the exact registration question again. Escalation preserves
-prior history and does not silently reset review state.
+with a bounded reason and optional `max_rounds` up to 4, then complete the exact registration
+question again. Escalation preserves prior history and does not silently reset review state.
 
 ## Status and recovery
 

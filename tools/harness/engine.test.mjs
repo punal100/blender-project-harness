@@ -370,6 +370,7 @@ test('records reject invalid modes and grader configurations before registration
     ['disabled grader config', { review: 'All', configValue: validGraderConfig({ enabled: false }) }, null],
     ['legacy grader config', { review: 'All', configValue: { workers: {}, blender_graders: {} } }, null],
     ['invalid grader roster', { review: 'All', configValue: validGraderConfig({ graders: [] }) }, null],
+    ['max rounds above four', { review: 'All', configValue: validGraderConfig({ max_rounds: 5 }) }, null],
   ];
   for (const [name, options, mutate] of cases) {
     const f = useFixture(t, options);
