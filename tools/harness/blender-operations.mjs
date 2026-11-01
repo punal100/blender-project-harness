@@ -342,7 +342,7 @@ function preflightCode(scenePath) {
 function saveCode(scenePath) {
   validateProjectPath(scenePath, 'scenePath');
   const pathLiteral = quote(scenePath);
-  return `import bpy\nimport json\nimport os\n\nexpected = ${pathLiteral}\ncurrent = bpy.data.filepath\nif current and os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("refusing mismatched existing scene filepath")\nbpy.ops.wm.save_as_mainfile(filepath=expected, check_existing=True)\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": bpy.data.filepath}, separators=(",", ":")))\n`;
+  return `import bpy\nimport json\nimport os\n\nexpected = ${pathLiteral}\ncurrent = bpy.data.filepath\nif current and os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("refusing mismatched existing scene filepath")\nbpy.ops.wm.save_as_mainfile(filepath=expected, check_existing=False)\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": bpy.data.filepath}, separators=(",", ":")))\n`;
 }
 
 function renderPreflightCode(scenePath) {

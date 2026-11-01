@@ -177,6 +177,7 @@ test('preflight, save, and render code enforce explicit project paths', () => {
   assert.match(preflight, /HARNESS_JSON:/);
   const save = saveCode('//project.blend');
   assert.match(save, /bpy\.ops\.wm\.save_as_mainfile/);
+  assert.match(save, /check_existing=False/);
   assert.match(save, /refusing mismatched existing scene filepath/);
   assert.doesNotMatch(save, /preferences|save_version|save_userpref/);
   const render = renderCode('//project.blend', '//renders/frame.png');
