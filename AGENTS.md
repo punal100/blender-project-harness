@@ -43,16 +43,16 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - Call `status` after every compaction, restart, deny, and completed phase. Follow `nextStep`. Do not
   guess the next action.
 - Keep one bounded change open per project. `begin` requires one observable outcome, exact object
-  names, exact project-relative paths, and `revision` only when authorized. Use `milestone` and
-  requirement IDs for intermediate strict changes, `extend` for added exact scope, `finalize` before
-  sealing, and `final:true` only for the final full-spec change.
+  names, exact project-relative paths, and `revision` only when authorized. Every scene change has a
+  milestone; use requirement IDs for intermediate changes, `extend` for added exact scope,
+  `finalize` before sealing, and `final:true` only for the final full-spec change.
 - A **reviewable change** is a bounded change with at least one apply operation. A change whose
   declared paths are all markdown is document-only: commit and checkpoint it without apply, seal, or
   review. The bootstrap save is not reviewable.
-- Every reviewable change MUST complete: apply tickets, the required WIP look for a strict
-  milestone change, `seal`, `blender_look` on the returned render, review, approval when required,
-  one harness commit per apply batch, the review commit, and `checkpoint`. A tooling/evidence
-  `BLOCKED` retries the grader; it does not open a design revision.
+- Every reviewable change MUST complete: apply tickets, a WIP render every three applies and before
+  seal, `seal`, `blender_look` on the returned render, review, approval when required, one harness
+  commit per apply batch, the review commit, and `checkpoint`. A tooling/evidence `BLOCKED` retries
+  the grader; it does not open a design revision.
 - Apply edits are worker-only. Issue one `apply` ticket containing one operation or an
   `{operations:[...]}` batch of up to 10, pass its token to `blender-worker`, and let the worker call
   `blender_harness_execute`. Reuse one foreground worker task for consecutive tickets by resuming its
@@ -67,8 +67,8 @@ next call. `capabilities` is authoritative for actions, operations, document for
   change, operation, objects, token hash, worker/grader child, timestamps, state, and result in a
   linked `TASK.md` and `SUMMARY.md`. Read it with `blender_document` `{action:"ledger"}`; never edit
   the tracker or task records manually.
-- Seal ONLY after at least one apply. A strict milestone change also requires `finalize`, a WIP
-  render, and `blender_look` on that WIP render. NEVER seal, render, or grade the bootstrap save.
+- Seal ONLY after at least one apply and `finalize`. Every scene change requires a current WIP
+  render and `blender_look` on that WIP render. NEVER seal, render, or grade the bootstrap save.
   Close it with `commit` and `checkpoint`.
 - Inspect every sealed render with `look`. Code output, scene text, and viewport checks do not
   replace the sealed render inspection.
@@ -81,7 +81,8 @@ next call. `capabilities` is authoritative for actions, operations, document for
   successful apply batch, and `commit` for the review. Manual project `git add` and `git commit` are
   blocked. `checkpoint` MUST see a contiguous scoped commit range and a clean project.
 - To stop a project cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause`
-  `{reason}`, then stop Blender. Never leave an open change owned by a dead session.
+  `{reason}`, then stop Blender. A stale expired owner may be transferred only with `reclaim`
+  `{project,reason}`; never leave an open change owned by a dead session.
 - `revision:true` requires a committed prior verdict and stays within configured `max_rounds`.
   Exhausting the cap requires `escalate`, a reason, and re-registration. NEVER override it silently.
 - To change frozen registration records, close the change and call `reregister` `{reason}`. Update

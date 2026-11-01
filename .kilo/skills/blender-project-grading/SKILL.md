@@ -67,8 +67,9 @@ budgets, `max_steps` within the grader ceiling, `max_parallel` within the roster
 
 ## Evidence and round folder
 
-For a strict milestone change, call `finalize`, then issue `wip`, and `blender_look` the WIP render
-before `seal`. A WIP render is not review evidence and stays out of commits.
+For every scene change, call `finalize`, then issue `wip`, and `blender_look` the WIP render before
+`seal`; every third apply also requires a WIP check. A WIP render is not review evidence and stays
+out of commits.
 
 Call `seal` after the reviewable scene is ready. It saves the authoritative scene and captures:
 

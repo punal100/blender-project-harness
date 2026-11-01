@@ -38,7 +38,7 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 2. `begin` `{outcome,objects,paths,milestone?,requirements?,final?,revision?}`. One bounded change;
    exact object names and project-relative paths. Use `milestone` and requirement IDs for
    intermediate changes; use `final:true` only for the final full-spec change. `extend` adds exact
-   scope while the change is open; `finalize` marks a strict change ready to seal.
+   scope while the change is open; `finalize` marks the change ready to seal.
    `revision:true` requires the prior committed verdict.
 3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
    up to 10 operations and executes sequentially under one token. Pass the token to one foreground
@@ -46,9 +46,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    payload. Each operation auto-saves. Strict changes commit each successful apply batch. The
    orchestrator NEVER executes apply.
 4. A change whose declared paths are all markdown is document-only: after editing, use `commit` and
-   `checkpoint` without `apply`, `seal`, or review. A strict scene change requires `finalize`, then
-   `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render. Seal only after
-   that look. `seal` writes immutable evidence, a final PNG, and a manifest.
+   `checkpoint` without `apply`, `seal`, or review. Every scene change requires `finalize`, then
+   `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
+   also requires a WIP check. Seal only after that look. `seal` writes immutable evidence, a final
+   PNG, and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise dispatch every configured grader
    with `grader-ticket` `{name}` and the normal `blender-grader` task. The ticket lists exact
@@ -61,10 +62,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    `checkpoint`. With `Off`, or in Partially Autonomous, `commit` creates the scoped review commit.
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
-   clean project. Then start the next `begin` or report completion. A strict project needs a final
-   full-spec change before completion.
+   clean project. Then start the next `begin` or report completion. Completion needs a final
+   full-spec change before `goal_report`.
 10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
-    then stop Blender. Do not leave an open change owned by a dead session.
+    then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
 
 Bootstrap save: use ticketed `save`, then `commit`, then `checkpoint`. NEVER seal, render, grade, or
 open a review round for the initial empty/default scene.
@@ -88,6 +89,8 @@ open a review round for the initial empty/default scene.
   the exact registration question again. Escalation preserves history.
 - A tooling/evidence `BLOCKED` is not a design failure: retry the blocked grader; do not open a scene
   revision. `CHANGES_REQUIRED` is the design revision path.
+- `schedule_wakeup`/cron and `background_process` are orchestrator-only production tools. Workers and
+  graders cannot use them.
 - `status.nextStep` is authoritative for pending tickets, missing `look`, WIP, review, approval,
   commit, checkpoint, and completion. Do not repeat a completed phase.
 
