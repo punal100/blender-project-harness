@@ -490,6 +490,22 @@ test('recover rejects live writer and recovers expired unconsumed tickets', (t) 
   assert.equal(seal(f).result.change.sealed, true);
 });
 
+test('recover clears an expired unstarted ticket without closing edits', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const expired = f.harness.issue('orchestrator', 'apply', { retry: true });
+  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
+  f.harness.recover('orchestrator');
+  const change = f.harness.transaction((state) => state.projects[f.project].change);
+  assert.equal(change.failure, undefined);
+  assert.equal(change.pending, undefined);
+  assert.ok(change.deadline > Date.now());
+  const retried = issueAndConsume(f, 'orchestrator', 'apply', { retried: true });
+  f.harness.finish(retried.token, { ok: true });
+  assert.equal(f.harness.command('orchestrator', 'status').change.operations, 1);
+});
+
 test('failed apply closes edit route but preserves recovery save and seal', (t) => {
   const f = useFixture(t);
   activate(f);

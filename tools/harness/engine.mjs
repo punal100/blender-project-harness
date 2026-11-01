@@ -392,8 +392,8 @@ export class Harness {
     const p = this.transaction((s) => {
       const owner = this.owner(s, session);
       this.fresh(owner);
-      if (owner.complete || owner.change || !owner.goalActive) deny('launch requires the registered project with an active goal and no open change; stop Blender before changing scope');
-      this.assertCommitted(owner.project, this.snapshot(owner.project));
+      if (owner.complete || !owner.goalActive) deny('launch requires the registered project with an active goal');
+      if (!owner.change) this.assertCommitted(owner.project, this.snapshot(owner.project));
       return { project: owner.project, scene: owner.scene };
     });
     return launchProject({ root: this.root, home: this.home, project: p.project, scene: p.scene, session });
@@ -528,9 +528,12 @@ export class Harness {
     return this.transaction((s) => {
       const p = this.owner(s, session), token = p.change?.pending, t = s.tickets[token];
       if (!t || (t.state === 'running' && (!t.pid || (() => { try { process.kill(t.pid, 0); return true; } catch { return false; } })())) || t.state !== 'running' && Date.now() - t.created <= 60000) deny('no expired/dead operation; never release a live writer');
+      const writerStarted = t.state === 'running';
       t.state = 'abandoned'; delete p.change.pending;
-      p.change.failure = 'Abandoned operation; inspect live scene, save and reseal before proceeding';
-      p.change.deadline = 0;
+      if (writerStarted) {
+        p.change.failure = 'Abandoned operation; inspect live scene, save and reseal before proceeding';
+        p.change.deadline = 0;
+      }
       return this.status(p);
     });
   }

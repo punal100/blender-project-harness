@@ -39,9 +39,10 @@ seal or grade the initial empty/default scene.
 3. After launch, verify with `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])` before editing. Stop on a connection, addon, or file
    mismatch.
-4. Stop with `{action:"stop"}` before switching projects. Never invoke `blender.exe`, a legacy launch
-   script, `--background`, or `--factory-startup` from the shell. The harness owns the run log under
-   the project's ignored `logs/` folder.
+4. Stop with `{action:"stop"}` before switching projects. Relaunching the same project while a change
+   is open is allowed for recovery. Never invoke `blender.exe`, a legacy launch script,
+   `--background`, or `--factory-startup` from the shell. The harness owns the run log under the
+   project's ignored `logs/` folder.
 
 For a new unsaved scene, open a bounded `begin`, use ticketed `save` to the declared project `.blend`,
 verify that path, stage and commit the scene with its declared paths, then close the change with
@@ -104,9 +105,11 @@ prior history and does not silently reset review state.
 
 ## Status and recovery
 
-`status` is the recovery entry point after compaction or restart. The harness keeps workflow state
-outside the repository at `~/.local/state/blender-workflow-harness/<workspace-hash>`; it is not
-editable through an agent and direct edits invalidate captured evidence.
+`status` is the recovery entry point after compaction or restart. `recover` releases an expired or
+dead operation ticket: if the writer never started, edits stay open; if it started, inspect the live
+scene, save, and reseal before continuing. The harness keeps workflow state outside the repository at
+`~/.local/state/blender-workflow-harness/<workspace-hash>`; it is not editable through an agent and
+direct edits invalidate captured evidence.
 
 The harness is a same-user guard, not an OS sandbox. Manual Blender or external-shell edits invalidate
 captured evidence, and unrestricted same-user execution can bypass these controls. Never claim a
