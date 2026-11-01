@@ -127,6 +127,8 @@ function fixture({
     write(root, 'config.json', JSON.stringify(configValue, null, 2));
   }
   git(root, ['init', '--quiet']);
+  git(root, ['config', 'user.name', 'Harness Tests']);
+  git(root, ['config', 'user.email', 'harness-tests@example.invalid']);
   if (commitInitial) commit(root, 'scaffold fixture');
   const harness = new Harness(root, { stateRoot });
   return {
@@ -334,7 +336,11 @@ function reviewAll(f, session = 'orchestrator') {
     'Finding dispositions: none',
     '',
   ].join('\n'));
-  const status = f.harness.command(session, 'review', { notes: 'All fixture findings disposed.' });
+  const status = f.harness.command(session, 'review', {
+    notes: 'All fixture findings disposed.',
+    reason: 'No corrections required; the sealed fixture satisfies the target.',
+    dispositions: 'No blocker or major finding remained.',
+  });
   return { ...sealed, grader, reviewPath, status };
 }
 
@@ -629,7 +635,11 @@ test('review records an expired uncollected grader as BLOCKED', (t) => {
     'Finding dispositions: grader expired without a report',
     '',
   ].join('\n'));
-  const reviewed = f.harness.command('orchestrator', 'review', { notes: 'Expired grader recorded BLOCKED.' });
+  const reviewed = f.harness.command('orchestrator', 'review', {
+    notes: 'Expired grader recorded BLOCKED.',
+    reason: 'The expired grader prevents a pass; aggregate as blocked.',
+    dispositions: 'No correction attempted; grader report is missing.',
+  });
   assert.equal(reviewed.change.verdict, 'BLOCKED');
   assert.match(reviewed.change.graders.visual.error, /deadline/);
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
@@ -673,7 +683,11 @@ test('missing grader report records BLOCKED and allows re-dispatch before review
     'Finding dispositions: none',
     '',
   ].join('\n'));
-  const reviewed = f.harness.command('orchestrator', 'review', { notes: 'Retry passed.' });
+  const reviewed = f.harness.command('orchestrator', 'review', {
+    notes: 'Retry passed.',
+    reason: 'The replacement grader report passes after the missing-report failure.',
+    dispositions: 'Missing report was retried once; no other findings.',
+  });
   assert.equal(reviewed.change.verdict, 'PASS');
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
 });
@@ -687,6 +701,20 @@ test('review record notes can change after registration', (t) => {
   write(f.root, `${f.project}/Documents/REVIEW.md`, 'Mode: Off\nSelected: 2026-10-31\n\nReview notes updated.\n');
   scopedCommit(f, 'record review notes');
   f.harness.command('orchestrator', 'checkpoint');
+});
+
+test('review auto-commits reports and the verdict before checkpoint', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  reviewAll(f);
+  assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
+  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
+  const review = read(f.root, `${f.project}/Documents/Reviews/R01-20261031T110000Z/REVIEW.md`);
+  assert.match(review, /Verdict: PASS/);
+  assert.match(review, /## Reason/);
+  const status = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(status.change, null);
 });
 
 test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {

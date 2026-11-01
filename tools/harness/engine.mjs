@@ -244,6 +244,18 @@ export class Harness {
        change: c ? { id: c.id, outcome: c.outcome, paths: c.paths, sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, approved: Boolean(c.approval), graders: c.graders } : null,
        next: p.escalation ? 'Explicit re-registration required after escalation' : !p.goalActive ? 'Start/resume registered goal' : !c ? 'Begin bounded change' : !c.sealed ? 'Edit; save and seal' : !c.inspected ? 'look(image=<sealed render>)' : !c.verdict ? 'Complete required review' : p.records.workflow === 'Partially Autonomous' && !c.approval ? 'Pause goal and ask approval question' : 'Checkpoint scoped commit' };
   }
+  reviewPaths(p, c) {
+    return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
+  }
+  autoCommit(p, c, message) {
+    if (this.head() !== c.base) deny('review auto-commit requires no prior commit after the change base');
+    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before review auto-commit');
+    const files = [...new Set([...c.paths, p.scene, ...this.reviewPaths(p, c)])]
+      .filter((name) => fs.existsSync(path.join(this.root, ...name.split('/'))));
+    git(this.root, ['add', '--', ...files]);
+    if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no review files changed');
+    git(this.root, ['commit', '-m', message]);
+  }
   command(session, action, args = {}) {
     return this.transaction((s) => {
       if (action === 'status') {
@@ -286,6 +298,10 @@ export class Harness {
         const prior = p.history.at(-1);
          if (args.revision && !prior) deny('revision requires a prior completed review');
          if (args.revision && prior?.verdict === 'PASS' && prior.approval !== 'Request revision') deny('revision requires a failed review or recorded revision request');
+         if (args.revision) {
+           const review = `${p.project}/Documents/Reviews/${prior.round}/REVIEW.md`;
+           if (!git(this.root, ['ls-files', '--', review]).trim()) deny('revision requires the committed verdict document from the prior round');
+         }
          if (prior?.verdict !== undefined && !['PASS', 'BOOTSTRAP'].includes(prior.verdict) && !args.revision) deny('failed review permits correction only');
         const chain = args.revision ? (prior?.chain ?? 0) + 1 : 1;
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
@@ -344,7 +360,8 @@ export class Harness {
         return { token, marker: `HARNESS_GRADER:${token}`, grader: g, report, reportPath, evidencePath, prompt,
           sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, evidence: c.evidence, round: c.round, goal: `${p.project}/${p.goal}` };
       } else if (action === 'review') {
-        if (!c?.inspected || p.records.review === 'Off') deny('sealed inspection required before review');
+        if (!c?.inspected || p.records.review === 'Off' || c.verdict) deny('sealed inspection required once before review');
+        if (!args.notes?.trim() || !args.reason?.trim() || !args.dispositions?.trim()) deny('review requires notes, correction/no-correction reasoning, and finding dispositions');
         for (const roster of p.records.roster) {
           const g = c.graders[roster.name];
           if (g && !g.verdict && (g.error || Date.now() > g.deadline)) {
@@ -356,10 +373,26 @@ export class Harness {
         const verdicts = Object.values(c.graders).map((g) => g.verdict);
         c.verdict = verdicts.every((v) => v === 'PASS') ? 'PASS' : verdicts.includes('BLOCKED') ? 'BLOCKED' : 'CHANGES_REQUIRED';
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
-        const text = fs.readFileSync(contained(this.root, name), 'utf8');
-        if (!text.includes(`Verdict: ${c.verdict}`) || !text.includes(c.sceneHash) || !args.notes?.trim()) deny('aggregate needs exact verdict, scene hash and finding dispositions');
-        c.reports[name] = digest(text); c.notes = args.notes;
+        const text = [
+          '# Review aggregate',
+          `Verdict: ${c.verdict}`,
+          `Scene SHA-256: ${c.sceneHash}`,
+          `Evidence key: ${c.evidenceKey}`,
+          '',
+          '## Reason',
+          args.reason.trim(),
+          '',
+          '## Finding dispositions',
+          args.dispositions.trim(),
+          '',
+          '## Grader verdicts',
+          ...Object.entries(c.graders).map(([grader, g]) => `- ${grader}: ${g.verdict}${g.error ? ` (${g.error})` : ''}`),
+          '',
+        ].join('\n');
+        fs.writeFileSync(contained(this.root, name, true), text);
+        c.reports[name] = digest(text); c.notes = args.notes; c.reason = args.reason; c.dispositions = args.dispositions;
         this.updateManifest(p);
+        this.autoCommit(p, c, `review: ${c.round} ${c.verdict}`);
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
@@ -372,7 +405,7 @@ export class Harness {
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         if (gitText(this.root, ['rev-parse', 'HEAD^']) !== c.base) deny('checkpoint must be exactly one commit after change base');
         const changed = git(this.root, ['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', 'HEAD']).split('\0').filter(Boolean);
-        const reviewed = bootstrap ? [] : [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
+        const reviewed = bootstrap ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, ...reviewed]);
         if (!changed.length || changed.some((name) => !allowed.has(name))) deny('commit contains files outside bounded change');
         for (const name of [p.scene, ...reviewed]) {
