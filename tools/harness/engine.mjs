@@ -4,7 +4,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { instanceStatus, launchProject, stopProject } from './blender.mjs';
-import { describeDocumentFormats, isBootstrapDocument, isBootstrapFile, validateDocument } from './documents.mjs';
+import { describeDocumentFormats, documentOutline, documentSection, isBootstrapDocument, isBootstrapFile, validateDocument } from './documents.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
@@ -29,6 +29,14 @@ export function contained(root, relative, missing = false) {
     if (fs.lstatSync(current).isSymbolicLink()) deny(`linked path rejected: ${relative}`);
   }
   return full;
+}
+
+function documentPath(root, requested) {
+  if (typeof requested !== 'string' || !requested.trim()) deny('document path required');
+  const absolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(root, requested);
+  const clean = path.relative(root, absolute).replaceAll('\\', '/');
+  if (!clean || clean.startsWith('..') || path.isAbsolute(clean)) deny('document path outside project');
+  return { full: contained(root, clean, true), clean };
 }
 
 export function git(root, args, { binary = false, allowExitOne = false } = {}) {
@@ -368,6 +376,67 @@ export class Harness {
       return { project, registered: false, next: 'Commit the exact scaffold documents and filled goal with bootstrap-commit.', nextStep: { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'bootstrap-commit', command: this.wire('bootstrap-commit', { project, message: 'docs: scaffold <project>' }), reason: 'Registration only accepts a clean committed scaffold.' } };
     }
     return { project, registered: false, next: 'Call prepare and answer its exact registration question.', nextStep: { phase: 'prepare', actor: 'orchestrator', action: 'prepare', command: this.wire('prepare', { project, goal, scene: '<project-root>.blend' }), reason: 'The scaffold is committed and valid.' } };
+  }
+  documentRead(session, args, parentSession = null) {
+    return this.transaction((s) => {
+      if (Object.keys(args).some((key) => !['project', 'path', 'section'].includes(key))) deny('document read accepts project, path and section only');
+      if (typeof args.path !== 'string' || !args.path.trim()) deny('document read requires a project-relative path');
+      if (args.section !== undefined && typeof args.section !== 'string') deny('document section must be a heading string');
+      const assignment = this.graderAssignment(s, session);
+      const owned = Object.values(s.projects).find((p) => p.orchestrator === session);
+      const parentOwned = parentSession ? Object.values(s.projects).find((p) => p.orchestrator === parentSession) : null;
+      const registered = Object.values(s.projects).find((p) => p.project === args.project);
+      if (registered && registered.orchestrator !== session && registered.orchestrator !== parentSession && !assignment) deny('document read requires the owning session');
+      const p = assignment?.p ?? owned ?? parentOwned ?? registered ?? null;
+      const project = p?.project ?? args.project;
+      if (!project) deny('document read requires project before registration');
+      if (p && args.project && args.project !== p.project) deny('document read project mismatch');
+      const base = this.projectPath(project);
+      const { full, clean } = documentPath(base, args.path);
+      if (!/\.md$/i.test(clean)) deny('document read accepts project markdown only');
+      if (assignment) {
+        const allowed = new Set([...Object.keys(assignment.p.records.specs),
+          `${assignment.p.project}/README.md`, `${assignment.p.project}/Documents/ASSETS.md`,
+          `${assignment.p.project}/Documents/DECISIONS.md`, `${assignment.p.project}/Documents/REVIEW.md`,
+          `${assignment.p.project}/Documents/README.md`, assignment.g.report]);
+        if (!allowed.has(`${project}/${clean}`)) deny('grader document read outside assigned spec documents');
+      }
+      if (!fs.existsSync(full)) deny(`project document missing: ${clean}`);
+      const content = fs.readFileSync(full, 'utf8');
+      const outline = documentOutline(clean, content);
+      const result = { project, path: clean, ...outline };
+      if (!outline.valid) result.next = 'Invalid document structure; fix the diagnostics through blender_document write using capabilities.documentFormats.';
+      if (!args.section) return result;
+      const section = documentSection(clean, content, args.section);
+      if (!section) deny(`document section not found: ${args.section}; available: ${outline.sections.map((item) => item.heading).join(', ')}`);
+      return { ...result, section };
+    });
+  }
+  documentWrite(session, args) {
+    const assignment = this.transaction((s) => this.graderAssignment(s, session));
+    if (!assignment) {
+      const { project: _project, ...documentArgs } = args;
+      return this.command(session, 'document', documentArgs);
+    }
+    return this.transaction((s) => {
+      const current = this.graderAssignment(s, session);
+      if (!current) deny('grader document assignment missing');
+      const { p, g } = current;
+      if (Object.keys(args).some((key) => !['project', 'path', 'content'].includes(key))) deny('grader document write accepts project, path and content only');
+      if (args.project && args.project !== p.project) deny('grader document write project mismatch');
+      if (g.verdict || Date.now() > g.deadline) deny('grader document write outside the assigned pass budget');
+      if (typeof args.path !== 'string' || typeof args.content !== 'string' || args.content.length > 1_000_000) deny('grader report path and bounded markdown content required');
+      const base = this.projectPath(p.project);
+      const { full, clean } = documentPath(base, args.path);
+      if (`${p.project}/${clean}` !== g.report) deny('grader may write only its assigned report path');
+      try { validateDocument(clean, args.content); } catch (error) { deny(error.message); }
+      const verdicts = [...args.content.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
+      if (verdicts.length !== 1) deny('grader report requires exactly one - Verdict: PASS|CHANGES_REQUIRED|BLOCKED line');
+      if (!args.content.includes(p.change.sceneHash) || !args.content.includes(p.change.evidenceKey)) deny('grader report must cite the assigned scene hash and evidence key');
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, args.content);
+      return { project: p.project, path: g.report, verdict: verdicts[0][1], bytes: args.content.length, next: 'Return the report facts; the orchestrator validates and aggregates.' };
+    });
   }
   reviewPaths(p, c) {
     return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];

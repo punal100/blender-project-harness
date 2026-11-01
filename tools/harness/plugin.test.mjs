@@ -31,8 +31,32 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
   assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
   assert.match(result.commitPolicy, /manual project git/);
+  assert.match(result.documentPolicy, /structured/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);
   assert.equal(result.limits.hardApplyCap, 40);
+});
+
+test('document tool returns structured project reads', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const result = JSON.parse(await h.tool.blender_document.execute(
+    { action: 'read', payload: JSON.stringify({ path: 'Documents/REQUIREMENTS.md' }) },
+    { sessionID: f.session },
+  ));
+  assert.equal(result.content, undefined);
+  assert.equal(result.fields.Status, 'Confirmed');
+  assert.ok(result.sections.some((section) => section.heading === 'Confirmed requirements'));
+  const section = JSON.parse(await h.tool.blender_document.execute(
+    { action: 'read', payload: JSON.stringify({ path: 'Documents/REQUIREMENTS.md', section: 'Confirmed requirements' }) },
+    { sessionID: f.session },
+  ));
+  assert.match(section.section.content, /Fixture confirmed requirements/);
+  f.begin();
+  f.harness.transaction((state) => state.projects[f.project].change.paths.push(`${f.project}/Documents/NEW.md`));
+  await h.tool.blender_document.execute(
+    { action: 'write', payload: JSON.stringify({ path: 'Documents/NEW.md', content: '# New document\n' }) },
+    { sessionID: f.session },
+  );
+  assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'NEW.md')));
 });
 
 test('production worker delegation requires valid read-only limits', async (t) => {
@@ -71,7 +95,7 @@ test('manual creation of new project documents is blocked', async (t) => {
   f.harness.transaction((s) => s.projects[f.project].change.paths.push(`${f.project}/Documents/NEW.md`));
   await assert.rejects(
     before(h, f.session, 'write', { filePath: `${f.project}/Documents/NEW.md`, content: '# New\n' }),
-    /blender_workflow document/,
+    /blender_document/,
   );
 });
 

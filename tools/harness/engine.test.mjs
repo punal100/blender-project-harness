@@ -760,6 +760,62 @@ test('bootstrap documents and commits are harness-owned before registration', (t
   assert.doesNotThrow(() => register(f));
 });
 
+test('document read returns structure and section content without raw full-file reads', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const read = f.harness.documentRead('orchestrator', { path: 'Documents/REQUIREMENTS.md' });
+  assert.equal(read.title, 'Requirements');
+  assert.equal(read.content, undefined);
+  assert.equal(read.valid, true);
+  assert.equal(read.fields.Status, 'Confirmed');
+  assert.deepEqual(read.sections.slice(0, 3).map((section) => section.heading), ['Core value', 'Confirmed requirements', 'Constraints']);
+  const section = f.harness.documentRead('orchestrator', { path: 'Documents/REQUIREMENTS.md', section: 'Confirmed requirements' });
+  assert.match(section.section.content, /Fixture confirmed requirements/);
+  const absolute = f.harness.documentRead('orchestrator', { path: path.join(f.root, f.project, 'Documents', 'WORKFLOW.md') });
+  assert.equal(absolute.title, 'Workflow');
+  gate(() => f.harness.documentRead('orchestrator', { path: 'Documents/REQUIREMENTS.md', section: 'Missing' }), /available/);
+  gate(() => f.harness.documentRead('orchestrator', { path: 'scene.blend' }), /markdown/);
+  write(f.root, `${f.project}/Documents/REQUIREMENTS.md`, '# Requirements\n\nStatus: Confirmed\n');
+  const invalid = f.harness.documentRead('orchestrator', { path: 'Documents/REQUIREMENTS.md' });
+  assert.equal(invalid.valid, false);
+  assert.match(invalid.diagnostics[0], /field|section/);
+  assert.match(invalid.next, /capabilities\.documentFormats/);
+});
+
+test('document read works before registration with an explicit project', (t) => {
+  const f = useFixture(t, { commitInitial: false });
+  const read = f.harness.documentRead('unregistered', { project: f.project, path: 'README.md' });
+  assert.equal(read.title, 'Fixture project');
+  assert.equal(read.content, undefined);
+  assert.ok(read.sections.some((section) => section.heading === 'Purpose'));
+});
+
+test('grader document writes are limited to the assigned report format and path', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  const report = path.join(f.root, ticket.report);
+  f.harness.transaction((state) => { state.projects[f.project].change.graders.visual.child = 'child-grader'; });
+  const content = [
+    '# Grader Report — visual',
+    '',
+    `- Evidence key: ${ticket.evidenceKey}`,
+    `- Target: ${ticket.sceneHash}`,
+    '- Verdict: PASS',
+    '',
+    '## Findings',
+    '',
+    'none',
+    '',
+  ].join('\n');
+  f.harness.documentWrite('child-grader', { path: report, content });
+  assert.ok(fs.existsSync(path.join(f.root, ticket.report)));
+  gate(() => f.harness.documentWrite('child-grader', { path: 'Documents/REQUIREMENTS.md', content: '# Required\n' }), /assigned report/);
+  gate(() => f.harness.documentWrite('child-grader', { path: report, content: '# Missing verdict\n' }), /Verdict/);
+});
+
 test('seal requires at least one apply operation', (t) => {
   const f = useFixture(t);
   activate(f);

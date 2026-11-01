@@ -52,6 +52,8 @@ const capabilities = () => ({
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 40, minutesPerChange: 15, maxRounds: 'configured 1-4' },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; manual project git add or git commit is blocked.',
+  documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
+  documentTool: { actions: ['read', 'write'], read: '{project?,path,section?}', write: '{project?,path,content}' },
 });
 
 export function createHooks(harness, client) {
@@ -131,6 +133,17 @@ export function createHooks(harness, client) {
           return JSON.stringify(result, null, 2);
         },
       },
+      blender_document: {
+        description: 'Structured project-document access. action read returns title, metadata fields, section index and format diagnostics; pass section to read one section. action write creates or updates a declared document or the assigned grader report and rejects invalid format/structure. Use this instead of raw full-file reads and direct edits.',
+        args: { action: z.string(), payload: z.string().default('{}') },
+        async execute(args, context) {
+          const payload = JSON.parse(args.payload);
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
+          if (args.action === 'read') return JSON.stringify(harness.documentRead(context.sessionID, payload, (await identity(context.sessionID)).parentID ?? null), null, 2);
+          if (args.action === 'write') return JSON.stringify(harness.documentWrite(context.sessionID, payload), null, 2);
+          deny('document action must be read or write');
+        },
+      },
     },
     async 'tool.execute.before'(input, output) {
       const tool = input.tool.replace(/^functions\./, '');
@@ -148,6 +161,20 @@ export function createHooks(harness, client) {
         harness.authorize(input.sessionID, args.token, args.operation, args.payload);
         return;
       }
+      if (tool === 'blender_document') {
+        const session = await identity(input.sessionID);
+        if (session.parentID) {
+          const child = await childAssignment(input.sessionID);
+          if (!child) deny('document access requires an assigned child');
+          if (child.worker) {
+            if (args.action === 'write') deny('workers cannot write documents');
+            return;
+          }
+          harness.graderStep(input.sessionID, 'blender_document', args);
+          return;
+        }
+        return;
+      }
       const p = stateFor(input.sessionID);
       const session = await identity(input.sessionID);
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
@@ -160,7 +187,7 @@ export function createHooks(harness, client) {
         }
         const assignment = harness.graderStep(input.sessionID, tool, args);
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
-          if (editPaths(tool, args).some((f) => relative(f) !== assignment.report)) deny('grader may write only assigned report');
+          deny('grader document writes use blender_document only; direct edit is denied');
         } else if (['read', 'glob', 'grep'].includes(tool)) {
           const candidate = args.filePath ?? args.path;
           if (candidate) {
@@ -242,7 +269,7 @@ export function createHooks(harness, client) {
         if (c.round) { allowed.add(`${p.project}/Documents/Reviews/${c.round}/REVIEW.md`); allowed.add(`${p.project}/Documents/Reviews/README.md`); }
         const files = editPaths(tool, args);
         if (files.some((f) => !allowed.has(relative(f)) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
-        if (files.some((f) => relative(f).startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_workflow document after declaring the exact path');
+        if (files.some((f) => relative(f).startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
         harness.fresh(p);
         return;
       }

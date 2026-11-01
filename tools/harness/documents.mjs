@@ -108,12 +108,66 @@ export function describeDocumentFormats() {
 }
 
 const field = (text, key) => [...text.matchAll(new RegExp(`^${key}:[ \\t]*([^\\r\\n]*)`, 'gm'))];
+const normalized = (content) => content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+
+function outline(relative, content) {
+  const text = normalized(content);
+  const lines = text.split('\n');
+  const title = /^#(?!#)[ \t]+(.+?)[ \t]*$/m.exec(text)?.[1] ?? null;
+  const fields = {};
+  const sections = [];
+  let current = null;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    const heading = /^##[ \t]+(.+?)[ \t]*$/.exec(line);
+    if (heading) {
+      current = { heading: heading[1], level: 2, line: index + 1, lines: [] };
+      sections.push(current);
+    } else if (current) current.lines.push(line);
+    else {
+      const match = /^([A-Za-z][A-Za-z0-9 _-]*):[ \t]*(.*)$/.exec(line.trim());
+      if (match) fields[match[1]] = match[2];
+    }
+  }
+  const diagnostics = [];
+  try { validateDocument(relative, content); } catch (error) { diagnostics.push(error.message); }
+  return {
+    title,
+    format: documentFormat(relative)?.id ?? null,
+    fields,
+    sections: sections.map((section) => {
+      const body = section.lines.filter((line) => line.trim());
+      const subheadings = body.map((line) => /^###[ \t]+(.+?)[ \t]*$/.exec(line)?.[1]).filter(Boolean);
+      const excerpt = body.find((line) => !line.startsWith('#'))?.trim().slice(0, 200) ?? '';
+      return { heading: section.heading, line: section.line, lines: body.length, subheadings, excerpt };
+    }),
+    diagnostics,
+    valid: diagnostics.length === 0,
+    bytes: content.length,
+  };
+}
+
+export function documentOutline(relative, content) {
+  if (typeof content !== 'string') throw new Error(`document gate: ${relative} content must be markdown text`);
+  return outline(relative, content);
+}
+
+export function documentSection(relative, content, heading) {
+  if (typeof content !== 'string') throw new Error(`document gate: ${relative} content must be markdown text`);
+  const text = normalized(content);
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => new RegExp(`^##[ \\t]+${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[ \\t]*$`, 'i').test(line));
+  if (start < 0) return null;
+  const end = lines.findIndex((line, index) => index > start && /^##[ \t]+/.test(line));
+  const body = lines.slice(start + 1, end < 0 ? undefined : end).join('\n').trim();
+  return { heading: lines[start].replace(/^##[ \t]+/, '').trim(), line: start + 1, content: body };
+}
 
 export function validateDocument(relative, content) {
   if (typeof content !== 'string') throw new Error(`document gate: ${relative} content must be markdown text`);
   if (!content.trim()) throw new Error(`document gate: ${relative} is empty`);
   if (content.length > 1_000_000) throw new Error(`document gate: ${relative} exceeds 1,000,000 characters`);
-  const text = content.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const text = normalized(content);
   if (text.includes('{{')) throw new Error(`document gate: ${relative} contains unresolved template tokens`);
 
   const headings = [...text.matchAll(/^#(?!#)[ \t]+(.+)$/gm)];
