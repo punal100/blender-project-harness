@@ -678,6 +678,17 @@ test('missing grader report records BLOCKED and allows re-dispatch before review
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
 });
 
+test('review record notes can change after registration', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  seal(f);
+  selfReview(f);
+  write(f.root, `${f.project}/Documents/REVIEW.md`, 'Mode: Off\nSelected: 2026-10-31\n\nReview notes updated.\n');
+  scopedCommit(f, 'record review notes');
+  f.harness.command('orchestrator', 'checkpoint');
+});
+
 test('checkpoint accepts one exact scoped commit and completes goal after PASS', (t) => {
   const f = useFixture(t);
   activate(f);

@@ -134,7 +134,7 @@ export class Harness {
         if (roster.length !== 1) deny('unknown Single grader');
       }
     }
-    const specs = Object.fromEntries(['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', goal].map((name) => [`${project}/${name}`, this.hash(`${project}/${name}`)]));
+    const specs = Object.fromEntries(['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', goal].map((name) => [`${project}/${name}`, this.hash(`${project}/${name}`)]));
     return { workflow, review, roster, maxParallel, maxRounds, specs, goalText };
   }
 
@@ -372,7 +372,7 @@ export class Harness {
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         if (gitText(this.root, ['rev-parse', 'HEAD^']) !== c.base) deny('checkpoint must be exactly one commit after change base');
         const changed = git(this.root, ['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', 'HEAD']).split('\0').filter(Boolean);
-        const reviewed = bootstrap ? [] : [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`];
+        const reviewed = bootstrap ? [] : [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
         const allowed = new Set([...c.paths, p.scene, ...reviewed]);
         if (!changed.length || changed.some((name) => !allowed.has(name))) deny('commit contains files outside bounded change');
         for (const name of [p.scene, ...reviewed]) {
