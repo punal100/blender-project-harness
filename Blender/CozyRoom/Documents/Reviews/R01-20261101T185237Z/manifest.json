@@ -1,0 +1,229 @@
+{
+  "round": "R01-20261101T185237Z",
+  "created": "2026-11-01T18:52:38.167Z",
+  "previous_round": null,
+  "active_goal": "Blender/CozyRoom/Documents/Goals/01-project-brief.md",
+  "base_commit": "a4d8f74e6fec3f9c1be5a5561b9ab2c6a145ef30",
+  "dirty": "M Blender/CozyRoom/Documents/TASKS.md\n M Blender/CozyRoom/cozyroom.blend\n?? Blender/CozyRoom/renders/final/R01-20261101T185237Z.png",
+  "scene": {
+    "path": "Blender/CozyRoom/cozyroom.blend",
+    "sha256": "c37351c7780f2818f45abd019c7e2d4154fac399e253f4529f83fb7b62b2263e"
+  },
+  "specs": {
+    "Blender/CozyRoom/Documents/REQUIREMENTS.md": "75890b0fbd2af340bc03f201ff649b2bc33112befbfe1103b7d036f1244bec1f",
+    "Blender/CozyRoom/Documents/WORKFLOW.md": "3cca7c4ff144a9b59c8e44f1d2058749e1c953a8c69a809e9afb7bd21da9e2e3",
+    "Blender/CozyRoom/Documents/REVIEW.md": "bbd55c3981b2711a38df7894cb2b44225c7c065b15b85bcb1f4ace8c9e53e3fb",
+    "Blender/CozyRoom/Documents/Goals/01-project-brief.md": "a359572c7257e73417ed3621acafacfd97e158cc09a7069415b9c7526df0f052"
+  },
+  "evidence": {
+    "Blender/CozyRoom/renders/final/R01-20261101T185237Z.png": "ee4babc6dc74bdcf1f011b53fb48c8aebd1bb5cc78f7d7a00010ac42415f943a",
+    "Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/_evidence/camera.png": "ee4babc6dc74bdcf1f011b53fb48c8aebd1bb5cc78f7d7a00010ac42415f943a",
+    "Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/_evidence/scene.txt": "d9c3888544e6a7b56f9f600c724be84ee5c2205e03f1c7b44a7350cb52ecac3c"
+  },
+  "evidence_key": "9d7b483914d97e9e80064607d7adca5cfb1c5ee58ebeaca32ce4f0cb2de095f7",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "max_minutes": 5,
+      "max_steps": 10
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "c5ac1ea5-f6b5-4ef9-94d1-35feebaa73c4",
+      "report": "Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793559620588,
+      "steps": 0,
+      "verdict": "BLOCKED",
+      "error": "grader deadline exceeded before collection: visual"
+    },
+    "technical": {
+      "token": "4bedd43a-85a7-472a-a7f0-761a4571b49c",
+      "report": "Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/technical/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793559620859,
+      "steps": 10,
+      "child": "ses_e6786e695ffe7uQ2BIfgrVbySO",
+      "verdict": "BLOCKED",
+      "error": "grader report missing: Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/technical/REPORT.md"
+    },
+    "spec": {
+      "token": "150932cb-3e61-49bc-a4fd-5919f03acdd4",
+      "report": "Blender/CozyRoom/Documents/Reviews/R01-20261101T185237Z/spec/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793559621148,
+      "steps": 9,
+      "child": "ses_e67869b5dffe1TPREA0P23Ojch",
+      "verdict": "BLOCKED"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T002",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x10",
+      "objects": [
+        "Cube",
+        "Light",
+        "Camera",
+        "Floor",
+        "Ceiling",
+        "Wall_Back_L",
+        "Wall_Back_R",
+        "Wall_Back_Below",
+        "Wall_Back_Above",
+        "Wall_Left"
+      ],
+      "tokenHash": "fbfb350435c2",
+      "worker": "blender-worker",
+      "state": "done",
+      "created": "2026-11-01T18:29:19.430Z",
+      "finished": "2026-11-01T18:29:56.718Z",
+      "result": "ok (10 ops)"
+    },
+    {
+      "id": "T003",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x10",
+      "objects": [
+        "Wall_Right",
+        "Wall_Front",
+        "Wall_Back_L",
+        "Wall_Back_R",
+        "Wall_Back_Below",
+        "Wall_Back_Above",
+        "Wall_Left",
+        "Floor",
+        "Ceiling",
+        "Window_Frame_Top",
+        "Window_Frame_Bottom",
+        "Window_Frame_Left",
+        "Window_Frame_Right",
+        "Window_Mullion_V"
+      ],
+      "tokenHash": "c235bf8114fd",
+      "worker": "blender-worker",
+      "state": "done",
+      "created": "2026-11-01T18:31:06.468Z",
+      "finished": "2026-11-01T18:31:46.390Z",
+      "result": "ok (10 ops)"
+    },
+    {
+      "id": "T004",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x10",
+      "objects": [
+        "Window_Sill",
+        "Window_Dusk",
+        "Curtain_L",
+        "Curtain_R",
+        "Window_Frame_Top",
+        "Window_Frame_Bottom",
+        "Window_Frame_Left",
+        "Window_Frame_Right",
+        "Window_Mullion_V",
+        "Light_Window",
+        "Light_Ceiling",
+        "Light_Fill"
+      ],
+      "tokenHash": "59bc40f970c9",
+      "worker": "blender-worker",
+      "state": "done",
+      "created": "2026-11-01T18:34:09.322Z",
+      "finished": "2026-11-01T18:34:55.891Z",
+      "result": "ok (10 ops)"
+    },
+    {
+      "id": "T005",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x8",
+      "objects": [
+        "Baseboard_Back",
+        "Baseboard_Left",
+        "Baseboard_Right",
+        "Baseboard_Front",
+        "Camera_Hero"
+      ],
+      "tokenHash": "311bc4f4d4a9",
+      "worker": "blender-worker",
+      "state": "done",
+      "created": "2026-11-01T18:36:47.809Z",
+      "finished": "2026-11-01T18:37:36.977Z",
+      "result": "ok (8 ops)"
+    },
+    {
+      "id": "T006",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x6",
+      "objects": [
+        "Window_Frame_Top",
+        "Window_Frame_Bottom",
+        "Window_Frame_Left",
+        "Window_Frame_Right",
+        "Window_Mullion_V",
+        "Camera_Hero"
+      ],
+      "tokenHash": "81cfc46d20c6",
+      "worker": "ses_e67a00f84ffe3CeZwehPLfyWP7",
+      "state": "abandoned",
+      "created": "2026-11-01T18:40:29.483Z",
+      "finished": "2026-11-01T18:46:45.882Z",
+      "result": "expired before execution"
+    },
+    {
+      "id": "T007",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "apply x6",
+      "objects": [
+        "Window_Frame_Top",
+        "Window_Frame_Bottom",
+        "Window_Frame_Left",
+        "Window_Frame_Right",
+        "Window_Mullion_V",
+        "Camera_Hero"
+      ],
+      "tokenHash": "14117405ffd5",
+      "worker": "blender-worker",
+      "state": "done",
+      "created": "2026-11-01T18:47:43.262Z",
+      "finished": "2026-11-01T18:48:23.767Z",
+      "result": "ok (6 ops)"
+    },
+    {
+      "id": "T008",
+      "change": "b0d032f1-cebc-41b2-87ff-61957efdd7a4",
+      "operation": "seal",
+      "objects": [],
+      "tokenHash": "6a6478588399",
+      "worker": "orchestrator",
+      "state": "done",
+      "created": "2026-11-01T18:52:04.705Z",
+      "finished": "2026-11-01T18:52:38.237Z",
+      "result": "ok"
+    }
+  ],
+  "verdict": "BLOCKED"
+}
