@@ -35,7 +35,8 @@ starts. Kilo removes `question` during an active goal.
    successful start.
 8. On the next goal turn, inspect `blender_workflow` `status` and continue with its `nextStep`.
 
-NEVER start a goal to ask questions. NEVER create or edit project documents outside the harness.
+NEVER start a goal to ask questions. NEVER create new project documents outside the harness. Update
+existing documents only inside declared change paths.
 
 ## Return to paused project
 
