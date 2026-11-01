@@ -43,17 +43,18 @@ existing documents only inside declared change paths.
 
 1. Read `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, the active goal, requirements, assets, and
    decisions needed for the pending work.
-2. On a genuine later return, ask both mode questions in ordinary chat and record exact answers.
-   Routine approval, clarification, manual-edit pauses, automatic goal turns, and compaction are
-   continuations: do not reask modes for those.
+2. On a genuine later return, ask both mode questions only before registration. Once registered,
+   requirements, workflow, review mode, and the active goal are frozen; do not reask or record a mode
+   change inside the run. Routine approval, clarification, manual-edit pauses, automatic goal turns,
+   and compaction are continuations: do not reask modes for those.
 3. Confirm records remain current. Registration-changing edits require supported re-registration
    through `prepare`; current re-registration is limited to the capped-review escalation path. If the
    required path is unavailable, STOP and report the tooling blocker. Never edit external harness
    state.
 4. Resume only when the pending answer permits continuation:
    `goal(action="resume")` for an unchanged objective. End the turn.
-5. Changed scope requires an updated goal document through `document` inside an authorized change,
-   followed by supported re-registration. NEVER resume a stale objective.
+5. Changed scope MUST stop production and report the need for explicit re-registration. Do not edit
+   the active goal or other registration documents inside a change. NEVER resume a stale objective.
 
 ## Required goal content
 

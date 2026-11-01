@@ -79,6 +79,9 @@ open a review round for the initial empty/default scene.
   `{action:"write"}` or `document` `{path,content}`.
 - Existing documents update only within the declared change paths. Direct edit is permitted but
   discouraged; the harness re-validates on the next lifecycle command.
+- Registration documents are frozen after `prepare`: `Documents/REQUIREMENTS.md`,
+  `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, and the active goal. NEVER write them inside a
+  bounded change. Stop and report a requested change for explicit re-registration.
 - Each grader writes only its assigned `REPORT.md` through `blender_document` `{action:"write"}`.
   Direct report edits are denied. The harness generates the aggregate `REVIEW.md`.
 - Project commits: `bootstrap-commit` before registration; `commit` after registration. One bounded

@@ -57,6 +57,15 @@ test('document tool returns structured project reads', async (t) => {
     { sessionID: f.session },
   );
   assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'NEW.md')));
+  f.harness.transaction((state) => state.projects[f.project].change.paths.push(`${f.project}/Documents/REQUIREMENTS.md`));
+  const requirements = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'REQUIREMENTS.md'), 'utf8');
+  await assert.rejects(
+    h.tool.blender_document.execute(
+      { action: 'write', payload: JSON.stringify({ path: 'Documents/REQUIREMENTS.md', content: requirements }) },
+      { sessionID: f.session },
+    ),
+    /frozen/,
+  );
 });
 
 test('production worker delegation requires valid read-only limits', async (t) => {

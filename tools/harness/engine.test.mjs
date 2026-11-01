@@ -869,6 +869,26 @@ test('harness document action creates declared markdown only', (t) => {
   gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/UNDECLARED.md', content: 'outside' }));
 });
 
+test('registered changes cannot rewrite registration documents', (t) => {
+  const f = useFixture(t);
+  const goal = f.goal.slice(f.project.length + 1);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', goal, 'Documents/DECISIONS.md'] });
+  const requirements = read(f.root, `${f.project}/Documents/REQUIREMENTS.md`);
+  const workflow = read(f.root, `${f.project}/Documents/WORKFLOW.md`);
+  const review = read(f.root, `${f.project}/Documents/REVIEW.md`);
+  const goalText = read(f.root, f.goal);
+  for (const [name, content] of [['Documents/REQUIREMENTS.md', requirements], ['Documents/WORKFLOW.md', workflow], ['Documents/REVIEW.md', review], [goal, goalText]]) {
+    gate(() => f.harness.command('orchestrator', 'document', { path: name, content }), /frozen/);
+  }
+  assert.equal(read(f.root, `${f.project}/Documents/REQUIREMENTS.md`), requirements);
+  assert.equal(read(f.root, `${f.project}/Documents/REVIEW.md`), review);
+  assert.equal(read(f.root, f.goal), goalText);
+  assert.doesNotThrow(() => f.harness.command('orchestrator', 'document', {
+    path: 'Documents/DECISIONS.md', content: read(f.root, `${f.project}/Documents/DECISIONS.md`) + 'Registered change.\n',
+  }));
+});
+
 test('partial review waits for approval before committing the reviewed change', (t) => {
   const f = useFixture(t, { workflow: 'Partially Autonomous', review: 'All' });
   activate(f);

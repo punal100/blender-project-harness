@@ -37,13 +37,14 @@ complete.
 8. On confirmation, record the exact user words and scope. Create or update
    `Documents/REQUIREMENTS.md` with `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
    `Confirmation: <exact response and scope>`, and a change-log row. Use `bootstrap-document` before
-   registration or `document` inside a bounded change.
+   registration. After registration, requirements are frozen; do not use `document` for them.
 9. New project: collect workflow mode with `blender-project-workflow` and review mode with
    `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
    `prepare` and start the goal.
-10. Existing project: update requirements, README, decisions, and the active goal before changing
-    scope. Registration-changing edits require supported re-registration; otherwise STOP and report
-    the blocker.
+10. Existing project: registration documents are frozen after registration. If the user requests a
+    requirements change, STOP and report the need for explicit re-registration. Do not edit
+    `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, or the active goal
+    inside a bounded change.
 
 ## Research
 
@@ -78,5 +79,6 @@ contain exactly the required fields and sections, including:
 - `Core value`, `Confirmed requirements`, `Constraints`, `Deferred`, `Out of scope`,
   `Open questions`, `Research notes`, and `Change log`
 
-A malformed or unconfirmed record blocks `prepare`. Fix it through `bootstrap-document` or
-`document`; never edit around the harness.
+A malformed or unconfirmed record blocks `prepare`. Fix it through `bootstrap-document` before
+registration; never edit around the harness. After registration, stop and report the malformed
+record instead of writing the frozen document.

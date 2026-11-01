@@ -28,8 +28,8 @@ replace the orchestrator's mandatory `blender_look` inspection.
 `Documents/REVIEW.md` MUST contain one `Mode:` value (`Off`, `All`, or `Single`), one `Selected:`
 date, and for `Single` one `Single grader:` name. Ask the mode in ordinary chat before the goal
 starts and on a genuine later return. Do not reask for routine approval or continuation pauses.
-Switch modes only after explicit user direction; update the record and re-register when registration
-facts change.
+Switch modes only after explicit user direction. After registration, the review record is frozen;
+stop and report the need for explicit re-registration instead of editing it inside a bounded change.
 
 ## Config
 

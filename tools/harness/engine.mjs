@@ -512,6 +512,7 @@ export class Harness {
         const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
         if (!/\.md$/i.test(clean) || clean.startsWith('Documents/Reviews/')) deny('document action writes project markdown outside runtime review artifacts only');
         if (!c.paths.includes(`${p.project}/${clean}`)) deny('document path must be declared in the open change paths');
+        if (Object.hasOwn(p.records.specs, `${p.project}/${clean}`) || `${p.project}/${clean}` === `${p.project}/Documents/REVIEW.md`) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
         try { validateDocument(clean, args.content); } catch (error) { deny(error.message); }
         fs.mkdirSync(path.dirname(full), { recursive: true });
         fs.writeFileSync(full, args.content);

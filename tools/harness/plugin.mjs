@@ -52,7 +52,7 @@ const capabilities = () => ({
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 40, minutesPerChange: 15, maxRounds: 'configured 1-4' },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; manual project git add or git commit is blocked.',
-  documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
+  documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after registration; stop for explicit re-registration. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write'], read: '{project?,path,section?}', write: '{project?,path,content}' },
 });
 

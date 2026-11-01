@@ -29,8 +29,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   exact question; then start or resume the goal. Do not launch before that sequence.
 - NEVER start a goal to ask questions or run discovery. Kilo removes `question` while a goal is
   active.
-- Requirements, workflow mode, and review mode change only after explicit user confirmation.
-  Update records through the harness and re-register when registration facts change.
+- Requirements, workflow mode, review mode, and the active goal are frozen after registration.
+  A requested change MUST stop production and report the need for explicit re-registration. NEVER
+  edit a registration document inside a bounded change.
 - In Partially Autonomous mode, obtain approval for every reviewable change before its commit.
   NEVER record confirmation, direction, or approval the user did not give. If a question cannot be
   asked, stop and report the pending input.
@@ -93,9 +94,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - Use relative paths from the `.blend` (`//assets/...`). Before commit or delivery of a `.blend`,
   inspect packed and embedded third-party data even when source binaries are ignored.
 - Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
-- Keep `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`,
-  `Documents/ASSETS.md`, and `Documents/DECISIONS.md` current inside the change that changes them.
-  Do not add a late documentation commit.
+- Keep `README.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and other non-registration
+  documents current inside the change that changes them. Registration documents are frozen; stop for
+  re-registration instead of editing them. Do not add a late documentation commit.
 
 ## Skills
 

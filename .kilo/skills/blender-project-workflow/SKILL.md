@@ -69,19 +69,16 @@ options:
 - "Review requirements"
 ```
 
-Record the exact answer and date in `WORKFLOW.md` even when retaining the mode. Complete review-mode
-selection through `blender-project-grading` before resume. If `Review requirements` is chosen,
-resolve requirements before either record or the goal is current.
+Continue in the existing mode without rewriting the frozen records. If `Switch to <other mode>` or
+`Review requirements` is chosen after registration, stop and report the need for explicit
+re-registration before resume.
 
 ## Mode switch
 
 1. Obtain explicit user direction.
-2. Update `Documents/WORKFLOW.md`, `Documents/DECISIONS.md`, and the active goal through harness
-   document actions.
-3. Resolve registration facts through supported tooling. If re-registration is unavailable, stop and
-   report the exact blocker; do not resume stale work.
-4. When switching to Partially Autonomous, ask whether the user wants to review the current scene
-   first. Complete required review before any change approval question.
+2. After registration, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, and the active goal are frozen.
+   Do not edit them inside a bounded change.
+3. Stop and report the need for explicit re-registration before any production work resumes.
 
 ## Manual edits
 
