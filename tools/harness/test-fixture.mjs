@@ -62,7 +62,8 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   write(`${project}/${goal}`, objective);
   write(scene, 'fixture blend bytes\n');
   write(`${project}/Documents/Reviews/README.md`, '# Review Index\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
-  write('.gitignore', '**/_evidence/**\n/config.json\n');
+  write('.gitignore', '**/_evidence/**\n**/renders/wip/**\n/config.json\n');
+  write(`${project}/.gitignore`, 'renders/wip/**\n');
   const config = { blender_subagents: { workers: {
     agent: 'blender-worker', provider: 'fixture-provider', model: 'fixture-model', variant: 'fixture-variant',
     max_minutes: 10, max_steps: 18, max_failed_attempts: 2, max_parallel: 1,

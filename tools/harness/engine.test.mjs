@@ -123,7 +123,7 @@ function createProject(root, {
   ].join('\n'));
   write(root, `${project}/Documents/Reviews/README.md`, '# Review rounds\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
   write(root, `${project}/Documents/Reviews/.gitignore`, '_evidence/\ntmp/\n');
-  write(root, `${project}/.gitignore`, 'logs/\n');
+  write(root, `${project}/.gitignore`, 'logs/\nrenders/wip/**\n');
   write(root, `${project}/.gitattributes`, '*.md text eol=crlf\n');
   write(root, scene, Buffer.from('fixture blend bytes\n'));
   write(root, `${project}/notes.txt`, 'initial notes\n');
@@ -279,6 +279,9 @@ function begin(f, session = 'orchestrator', options = {}) {
     objects: options.objects ?? ['FixtureCube'],
     paths: options.paths ?? ['notes.txt'],
     ...(options.revision === undefined ? {} : { revision: options.revision }),
+    ...(options.milestone === undefined ? {} : { milestone: options.milestone }),
+    ...(options.requirements === undefined ? {} : { requirements: options.requirements }),
+    ...(options.final === undefined ? {} : { final: options.final }),
   };
   return f.harness.command(session, 'begin', args);
 }
@@ -488,7 +491,7 @@ test('tickets require hook authorization and reject forged, replayed, cross-sess
   gate(() => f.harness.finish(issued.token, { ok: true }));
 
   const expired = f.harness.issue('orchestrator', 'save', ticketPayload(f, { second: true }));
-  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
+  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 600_001; });
   gate(() => f.harness.authorize('orchestrator', expired.token, 'save', expired.payload));
 });
 
@@ -527,7 +530,7 @@ test('recover rejects live writer and recovers expired unconsumed tickets', (t) 
   gate(() => f.harness.recover('orchestrator'));
   f.harness.finish(issued.token, { ok: false, error: 'controlled upstream failure' });
   const expired = f.harness.issue('orchestrator', 'save', {});
-  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
+  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 600_001; });
   const recovered = f.harness.recover('orchestrator');
   assert.equal(recovered.change.sealed, false);
   finishSave(f);
@@ -539,7 +542,7 @@ test('recover clears an expired unstarted ticket without closing edits', (t) => 
   activate(f);
   begin(f);
   const expired = f.harness.issue('orchestrator', 'apply', { retry: true });
-  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 60_001; });
+  f.harness.transaction((state) => { state.tickets[expired.token].created = Date.now() - 600_001; });
   f.harness.recover('orchestrator');
   const change = f.harness.transaction((state) => state.projects[f.project].change);
   assert.equal(change.failure, undefined);
@@ -759,8 +762,33 @@ test('review records an expired uncollected grader as BLOCKED', (t) => {
     dispositions: 'No correction attempted; grader report is missing.',
   });
   assert.equal(reviewed.change.verdict, 'BLOCKED');
+  assert.equal(reviewed.change.blockingKind, 'tooling');
   assert.match(reviewed.change.graders.visual.error, /deadline/);
-  gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
+  f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.equal(f.harness.command('orchestrator', 'status').change.graders.visual.attempt, 2);
+});
+
+test('grader tickets expose exact evidence paths and refuse tampered evidence', (t) => {
+  const first = useFixture(t, { review: 'All' });
+  activate(first);
+  begin(first);
+  const sealed = seal(first);
+  const ticket = first.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.equal(ticket.evidenceFiles.length, 3);
+  assert.match(ticket.prompt, /camera\.png/);
+  assert.match(ticket.prompt, /scene\.txt/);
+  assert.match(ticket.prompt, /manifest\.json/);
+  assert.doesNotMatch(ticket.prompt, /Evidence: .*_evidence\n/);
+  first.harness.bindGrader('orchestrator', 'child-evidence', `Review ${ticket.marker}`, { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' });
+  first.harness.transaction((s) => { s.projects[first.project].change.graders.visual.steps = 999; });
+  assert.doesNotThrow(() => first.harness.graderStep('child-evidence', 'blender_document', { action: 'write' }));
+
+  const second = useFixture(t, { review: 'All' });
+  activate(second);
+  begin(second);
+  const sealedSecond = seal(second);
+  fs.rmSync(path.join(second.root, second.project, 'Documents', 'Reviews', sealedSecond.round, '_evidence', 'camera.png'));
+  gate(() => second.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }), /missing path|frozen evidence/);
 });
 
 test('missing grader report records BLOCKED and allows re-dispatch before review', (t) => {
@@ -1121,6 +1149,42 @@ test('goal completion requires active goal after a clean checkpoint', (t) => {
   assert.equal(f.harness.command('orchestrator', 'status').complete, true);
 });
 
+test('strict milestone commits each apply, requires finalize/WIP look, and accepts a commit range', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { milestone: 'Fixture milestone', requirements: ['R1'], final: true });
+  for (let index = 0; index < 2; index += 1) {
+    const issued = issueAndConsume(f, 'orchestrator', 'apply', { index });
+    if (index === 0) f.harness.bindWorker('orchestrator', 'child-worker', `Ticket: ${issued.token}`);
+    f.harness.finish(issued.token, { ok: true, completed: 1, operationResults: [{ index: 1, operation: 'create_mesh', ok: true }] });
+  }
+  let status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.change.commits.length, 2);
+  assert.equal(status.nextStep.phase, 'apply');
+  const tracker = read(f.root, `${f.project}/Documents/TASKS.md`);
+  assert.match(tracker, /^# Task Tracker — Test/);
+  assert.match(tracker, /Tasks\/T001\/TASK\.md/);
+  assert.match(read(f.root, `${f.project}/Documents/Tasks/T001/TASK.md`), /Child session: child-worker/);
+  assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Tasks', 'T001', 'SUMMARY.md')));
+  f.harness.command('orchestrator', 'finalize');
+  status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'wip');
+  const wipPath = `${f.project}/renders/wip/WIP-test.png`;
+  write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const wip = issueAndConsume(f, 'orchestrator', 'wip');
+  f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'wip-inspect');
+  f.harness.inspect('orchestrator', path.resolve(f.root, wipPath), true);
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'seal');
+  seal(f);
+  selfReview(f);
+  f.harness.command('orchestrator', 'commit', { message: 'feat: strict fixture change' });
+  const closed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(closed.change, null);
+  assert.ok(f.harness.transaction((s) => s.projects[f.project].history.at(-1).strict));
+  assert.equal(f.harness.command('orchestrator', 'goal-complete').complete, true);
+});
+
 test('checkpoint rejects unrelated files and multiple commits', (t) => {
   const unrelated = useFixture(t);
   activate(unrelated);
@@ -1160,6 +1224,18 @@ test('state survives Harness restart and state lock blocks writers', (t) => {
     return copy;
   };
   assert.deepEqual(stableStatus(again.command('orchestrator', 'status')), stableStatus(started));
+});
+
+test('pause is explicit, requires a closed change, and stops the active goal', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  gate(() => f.harness.command('orchestrator', 'pause', { reason: 'User requested stop.' }), /close the open change/);
+  f.harness.transaction((s) => { s.projects[f.project].change = null; });
+  const paused = f.harness.command('orchestrator', 'pause', { reason: 'User requested stop.' });
+  assert.equal(paused.goalActive, false);
+  assert.equal(paused.nextStep.phase, 'goal');
+  gate(() => begin(f));
 });
 
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {

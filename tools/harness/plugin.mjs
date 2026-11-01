@@ -5,11 +5,11 @@ import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.m
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 
-const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
+const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause']);
 const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:-launcher)?(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
 const BLENDER_VERSION = /^\s*(?:&\s*)?["']?(?:[^"'\r\n]*[\\/])?blender(?:\.exe)?["']?\s+--version\s*$/i;
 function shellSegments(command) {
@@ -61,6 +61,8 @@ const BOOTSTRAP_DOCUMENTS = [
   'Documents/ASSETS.md',
   'Documents/DECISIONS.md',
   'Documents/TASKS.md',
+  'Documents/TASKSTRACKER.md',
+  'Documents/Tasks/README.md',
   'Documents/Goals/README.md',
   'Documents/Goals/<NN>-<slug>.md',
   'Documents/References/README.md',
@@ -85,12 +87,14 @@ const capabilities = () => ({
     { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
     { name: 'reregister', actor: 'orchestrator', phase: 'paused project', payload: '{reason}' },
     { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
-    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,revision?}' },
-    { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation,payload}' },
+    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,milestone?,requirements?,revision?}' },
+    { name: 'extend', actor: 'orchestrator', phase: 'open change', payload: '{objects?,paths}' },
+    { name: 'finalize', actor: 'orchestrator', phase: 'open change', payload: '{}' },
+    { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation:apply|save|seal|wip,payload}' },
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
     { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
-    { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?} or escalation fields' },
+    { name: 'recover|escalate|pause', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, or {reason}' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; a markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
@@ -154,7 +158,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -170,7 +174,7 @@ export function createHooks(harness, client) {
             const p = stateFor(context.sessionID);
             if (!p) deny('no registered project for this session; call blender_workflow prepare and complete its registration question first');
             if (payload.operation === 'apply') operationBatchCode(payload.payload, p.change?.objects ?? []);
-            else if (stable(payload.payload) !== '{}') deny('save/seal payload must be empty object');
+            else if (stable(payload.payload) !== '{}') deny('save/seal/wip payload must be empty object');
             result = harness.issue(context.sessionID, payload.operation, payload.payload);
           } else {
             if (!PUBLIC_ACTIONS.has(args.action)) deny('internal workflow action unavailable');
@@ -320,7 +324,7 @@ export function createHooks(harness, client) {
         const allowed = new Set(c.paths);
         const names = editPaths(tool, args).map(relative);
         if (names.some((f) => Object.hasOwn(p.records.specs, f) || f === `${p.project}/Documents/REVIEW.md`)) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
-        if (names.some((f) => f === `${p.project}/Documents/TASKS.md`)) deny('the task ledger is harness-owned; ticket issue and completion update it');
+        if (names.some((f) => f === `${p.project}/Documents/TASKS.md` || f === `${p.project}/Documents/TASKSTRACKER.md` || f.startsWith(`${p.project}/Documents/Tasks/`))) deny('the task tracker is harness-owned; ticket issue and completion update it');
         if (names.some((f) => f.startsWith(`${p.project}/Documents/Reviews/`))) deny('review artifacts are harness-owned; use review, self-review, or grader tools');
         if (names.some((f) => !allowed.has(f) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
         if (names.some((f) => f.startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
@@ -353,13 +357,18 @@ export function createHooks(harness, client) {
         harness.inspect(input.sessionID, path.resolve(harness.root, input.args.image), Boolean(successful(output) && imageResult));
       }
       if (tool === 'task' && taskArgs.has(input.callID)) {
-        taskArgs.delete(input.callID);
+        const args = taskArgs.get(input.callID); taskArgs.delete(input.callID);
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
-        if (!child) deny('grader task result lacks child session ID');
-        harness.collectGrader(input.sessionID, child);
+        const token = args?.prompt?.match(/HARNESS_GRADER:([a-f0-9-]{36})/)?.[1];
+        if (!child || !successful(output)) {
+          if (token) harness.failGraderByToken(input.sessionID, token, output.output ?? 'grader task failed before child session');
+          else deny('grader task result lacks child session ID');
+        } else {
+          harness.collectGrader(input.sessionID, child);
+        }
       } else if (tool === 'task' && input.args?.subagent_type === 'blender-worker' && successful(output)) {
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
-        if (child) harness.bindWorker(input.sessionID, child);
+        if (child) harness.bindWorker(input.sessionID, child, input.args?.prompt ?? '');
       }
       if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(harness.command(input.sessionID, 'status'))}`;
     },

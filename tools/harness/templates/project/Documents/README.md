@@ -12,7 +12,8 @@ deliverable.
 | `Reviews/` | Timestamped grader rounds: manifests, verdicts, findings, ignored evidence. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
-| `TASKS.md` | Harness-owned task ledger: one row per operation ticket, token hash, state, and result. |
+| `TASKSTRACKER.md` | Harness-owned task tracker: links to per-task `TASK.md` and `SUMMARY.md` records. |
+| `Tasks/` | Harness-owned per-task records and summaries. |
 | `References/` | Moodboards, screenshots, links, and visual references. |
 | `../README.md` | Project purpose, requirements summary, scope, deliverables, and status. |
 
@@ -50,4 +51,4 @@ deliverable.
   register entry.
 - Update `README.md`, `ASSETS.md`, and `DECISIONS.md` when non-registration project facts change.
   Registration documents remain frozen after registration.
-- `TASKS.md` is harness-owned. Never edit it manually; ticket issue and completion update it.
+- `TASKSTRACKER.md` and `Tasks/` are harness-owned. Never edit them manually; ticket issue and completion update them.

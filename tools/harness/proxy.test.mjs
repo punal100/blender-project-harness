@@ -94,6 +94,16 @@ test('proxy executes one batched apply ticket and saves each operation', async (
   assert.match(ledger, /done/);
 });
 
+test('proxy renders a WIP image without creating review evidence', async (t) => {
+  const f = fixture(t); f.begin();
+  const p = new BlenderProxy(f.harness, upstream(f));
+  await execute(f, p, 'apply', meshOperation);
+  const wip = JSON.parse((await execute(f, p, 'wip')).content[0].text);
+  assert.ok(wip.change.wipRender.path.startsWith(`${f.project}/renders/wip/`));
+  assert.ok(fs.existsSync(path.join(f.root, wip.change.wipRender.path)));
+  assert.equal(wip.change.evidence, undefined);
+});
+
 test('proxy camera preflight fails before creating round artifacts and keeps recovery available', async (t) => {
   const f = fixture(t); f.begin();
   const noCamera = upstream(f);

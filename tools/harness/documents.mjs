@@ -69,6 +69,12 @@ export const DOCUMENT_FORMATS = Object.freeze([
     sections: ['Tasks'],
   },
   {
+    id: 'task-tracker',
+    path: 'Documents/TASKSTRACKER.md',
+    fields: ['Status', 'Last updated'],
+    sections: ['Tasks'],
+  },
+  {
     id: 'goal',
     pattern: /^Documents\/Goals\/\d+-[a-z0-9-]+\.md$/,
     fields: [],

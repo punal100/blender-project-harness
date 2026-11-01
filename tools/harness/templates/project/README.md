@@ -48,7 +48,8 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
     REVIEW.md
     ASSETS.md
     DECISIONS.md
-    TASKS.md
+    TASKSTRACKER.md
+    Tasks/
     Goals/
     Reviews/
     References/

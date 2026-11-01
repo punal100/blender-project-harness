@@ -6,8 +6,8 @@ import { operationBatchCode, preflightCode, saveCode, renderCode, renderPrefligh
 export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
 export const EXECUTE_TOOL = {
   name: 'harness_execute',
-  description: 'Execute one ticketed bounded Blender apply batch, save, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
-  inputSchema: { type: 'object', properties: { token: { type: 'string' }, operation: { type: 'string', enum: ['apply', 'save', 'seal'] },
+  description: 'Execute one ticketed bounded Blender apply batch, save, WIP render, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
+  inputSchema: { type: 'object', properties: { token: { type: 'string' }, operation: { type: 'string', enum: ['apply', 'save', 'seal', 'wip'] },
     payload: { type: 'object' }, user_prompt: { type: 'string' } }, required: ['token', 'operation', 'payload', 'user_prompt'], additionalProperties: false },
 };
 export const textOf = (result) => (result.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
@@ -51,6 +51,7 @@ export class BlenderProxy {
     let indexLine = null;
     let roundCreated = false;
     let completed = 0;
+    const operationResults = [];
     try {
       const addon = await this.upstream.callTool({ name: 'get_addon_status', arguments: { user_prompt: args.user_prompt } });
       if (addon.isError || firstJson(textOf(addon)).up_to_date !== true) deny('addon mismatch or unavailable');
@@ -61,12 +62,19 @@ export class BlenderProxy {
         if (before.is_dirty) deny('live scene has unsaved changes; save or recover before applying a guarded operation');
         if (!before.filepath) deny('save initial scene before editing');
         const operations = operationBatchCode(args.payload, context.change.objects);
-        for (const operation of operations) {
-          await this.run(operation, args.user_prompt);
+        const names = Array.isArray(args.payload?.operations) ? args.payload.operations.map((operation) => operation.operation) : [args.payload?.operation ?? 'apply'];
+        for (const [index, operation] of operations.entries()) {
+          try {
+            await this.run(operation, args.user_prompt);
+          } catch (error) {
+            operationResults.push({ index: index + 1, operation: names[index], ok: false, error: String(error.message) });
+            throw error;
+          }
           await this.run(saveCode(scenePath), args.user_prompt);
+          operationResults.push({ index: index + 1, operation: names[index], ok: true });
           completed += 1;
         }
-        const result = this.harness.finish(args.token, { ok: true, completed });
+        const result = this.harness.finish(args.token, { ok: true, completed, operationResults });
         return this.result(result);
       }
       await this.run(saveCode(scenePath), args.user_prompt);
@@ -74,6 +82,16 @@ export class BlenderProxy {
       if (saved.is_dirty || saved.filepath !== scenePath) deny('authoritative scene save not verified');
       if (args.operation === 'save') return this.result(this.harness.finish(args.token, { ok: true }));
       await this.run(renderPreflightCode(scenePath), args.user_prompt);
+      if (args.operation === 'wip') {
+        const relativeRender = `renders/wip/WIP-${Date.now()}.png`;
+        const wipPath = `${context.project}/${relativeRender}`;
+        contained(this.harness.root, wipPath, true);
+        fs.mkdirSync(path.dirname(path.join(this.harness.root, wipPath)), { recursive: true });
+        await this.run(renderCode(scenePath, `//${relativeRender}`), args.user_prompt);
+        const image = fs.readFileSync(contained(this.harness.root, wipPath));
+        if (!image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) deny('WIP render is not PNG');
+        return this.result(this.harness.finish(args.token, { ok: true, renderPath: wipPath }));
+      }
        round = this.makeRound(context.project, context.change.failedRounds ?? []);
        const relativeRender = `renders/final/${round}.png`;
        renderPath = `${context.project}/${relativeRender}`;
@@ -118,7 +136,7 @@ export class BlenderProxy {
       if (renderPath) {
         try { fs.rmSync(contained(this.harness.root, renderPath), { force: true }); } catch { /* Preserve evidence for manual recovery. */ }
       }
-      try { this.harness.finish(args.token, { ok: false, error: String(error.message), round, completed }); } catch { /* A sealed state remains fail-closed if manifest publication failed. */ }
+      try { this.harness.finish(args.token, { ok: false, error: String(error.message), round, completed, operationResults }); } catch { /* A sealed state remains fail-closed if manifest publication failed. */ }
       throw error;
     }
   }
