@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
-import { operationCode, preflightCode, saveCode, renderCode } from './blender-operations.mjs';
+import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode } from './blender-operations.mjs';
 
 export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
 export const EXECUTE_TOOL = {
   name: 'harness_execute',
-  description: 'Execute one ticketed bounded Blender operation, save, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
+  description: 'Execute one ticketed bounded Blender apply batch, save, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
   inputSchema: { type: 'object', properties: { token: { type: 'string' }, operation: { type: 'string', enum: ['apply', 'save', 'seal'] },
     payload: { type: 'object' }, user_prompt: { type: 'string' } }, required: ['token', 'operation', 'payload', 'user_prompt'], additionalProperties: false },
 };
@@ -50,6 +50,7 @@ export class BlenderProxy {
     let indexPath = null;
     let indexLine = null;
     let roundCreated = false;
+    let completed = 0;
     try {
       const addon = await this.upstream.callTool({ name: 'get_addon_status', arguments: { user_prompt: args.user_prompt } });
       if (addon.isError || firstJson(textOf(addon)).up_to_date !== true) deny('addon mismatch or unavailable');
@@ -59,16 +60,20 @@ export class BlenderProxy {
       if (args.operation === 'apply') {
         if (before.is_dirty) deny('live scene has unsaved changes; save or recover before applying a guarded operation');
         if (!before.filepath) deny('save initial scene before editing');
-        await this.run(operationCode(args.payload, context.change.objects), args.user_prompt);
-        // Each operation saves before handoff, even when several operations form one logical change.
-        await this.run(saveCode(scenePath), args.user_prompt);
-        const result = this.harness.finish(args.token, { ok: true });
+        const operations = operationBatchCode(args.payload, context.change.objects);
+        for (const operation of operations) {
+          await this.run(operation, args.user_prompt);
+          await this.run(saveCode(scenePath), args.user_prompt);
+          completed += 1;
+        }
+        const result = this.harness.finish(args.token, { ok: true, completed });
         return this.result(result);
       }
       await this.run(saveCode(scenePath), args.user_prompt);
       const saved = await this.run(preflightCode(scenePath), args.user_prompt);
       if (saved.is_dirty || saved.filepath !== scenePath) deny('authoritative scene save not verified');
       if (args.operation === 'save') return this.result(this.harness.finish(args.token, { ok: true }));
+      await this.run(renderPreflightCode(scenePath), args.user_prompt);
        round = this.makeRound(context.project, context.change.failedRounds ?? []);
        const relativeRender = `renders/final/${round}.png`;
        renderPath = `${context.project}/${relativeRender}`;
@@ -91,7 +96,7 @@ export class BlenderProxy {
       const manifest = { round, created: new Date().toISOString(), previous_round: context.previousRound, active_goal: `${context.project}/${context.goal}`,
         base_commit: context.change.base, dirty: git(this.harness.root, ['status', '--porcelain', '--', context.project]).trim(),
         scene: { path: context.scene, sha256: this.harness.hash(context.scene) }, specs: context.records.specs,
-        evidence, evidence_key: evidenceKey, graders: context.records.roster, tasks: {} };
+        evidence, evidence_key: evidenceKey, graders: context.records.roster, tasks: {}, operation_tasks: context.operationTasks ?? [] };
       fs.writeFileSync(contained(this.harness.root, `${roundRoot}/manifest.json`, true), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
        indexPath = `${context.project}/Documents/Reviews/README.md`;
        indexLine = `\n- ${round}: ${context.change.outcome}; evidence ${evidenceKey}\n`;
@@ -113,7 +118,7 @@ export class BlenderProxy {
       if (renderPath) {
         try { fs.rmSync(contained(this.harness.root, renderPath), { force: true }); } catch { /* Preserve evidence for manual recovery. */ }
       }
-      try { this.harness.finish(args.token, { ok: false, error: String(error.message), round }); } catch { /* A sealed state remains fail-closed if manifest publication failed. */ }
+      try { this.harness.finish(args.token, { ok: false, error: String(error.message), round, completed }); } catch { /* A sealed state remains fail-closed if manifest publication failed. */ }
       throw error;
     }
   }

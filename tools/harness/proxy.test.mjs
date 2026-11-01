@@ -74,10 +74,45 @@ test('proxy seals immutable evidence, manifest and PNG, then checkpoint succeeds
   const manifest = JSON.parse(fs.readFileSync(path.join(f.root, seal.manifest), 'utf8'));
   assert.equal(manifest.active_goal, `${f.project}/${f.goal}`);
   assert.equal(manifest.verdict, 'PASS');
+  assert.equal(manifest.operation_tasks.some((task) => Object.hasOwn(task, 'token')), false);
   const { git } = await import('./engine.mjs');
   git(f.root, ['add', '--', f.project]); f.commit();
   assert.equal(f.harness.command(f.session, 'checkpoint').change, null);
   assert.equal(f.harness.command(f.session, 'goal-complete').complete, true);
+});
+
+test('proxy executes one batched apply ticket and saves each operation', async (t) => {
+  const f = fixture(t); f.begin();
+  const p = new BlenderProxy(f.harness, upstream(f));
+  const applied = JSON.parse((await execute(f, p, 'apply', { operations: [
+    meshOperation,
+    { operation: 'transform', name: 'Cube', location: [0, 0, 1] },
+  ] })).content[0].text);
+  assert.equal(applied.change.operations, 1);
+  const ledger = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'TASKS.md'), 'utf8');
+  assert.match(ledger, /apply x2/);
+  assert.match(ledger, /done/);
+});
+
+test('proxy camera preflight fails before creating round artifacts and keeps recovery available', async (t) => {
+  const f = fixture(t); f.begin();
+  const noCamera = upstream(f);
+  const baseCall = noCamera.callTool.bind(noCamera);
+  noCamera.callTool = async (call) => {
+    if (call.name === 'execute_blender_code' && call.arguments.code.includes('scene camera is not set')) {
+      return { isError: true, content: [{ type: 'text', text: 'RuntimeError: scene camera is not set' }] };
+    }
+    return baseCall(call);
+  };
+  const p = new BlenderProxy(f.harness, noCamera);
+  await execute(f, p, 'apply', meshOperation);
+  await assert.rejects(execute(f, p, 'seal'), /camera/);
+  const status = f.harness.command(f.session, 'status');
+  assert.equal(status.change.sealed, false);
+  assert.equal(status.nextStep.phase, 'recover');
+  assert.equal(fs.existsSync(path.join(f.root, f.project, 'renders', 'final')), false);
+  const reopened = f.harness.recover(f.session, { reopen: true });
+  assert.equal(reopened.change.reopen, true);
 });
 
 test('proxy fails closed on addon mismatch and preserves recovery', async (t) => {
