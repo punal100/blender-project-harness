@@ -6,6 +6,7 @@ import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
+const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
 const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'self-review', 'review', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
 const BLENDER_SHELL = /start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
@@ -45,10 +46,11 @@ export function createHooks(harness, client) {
     if (!info.parentID) return null;
     const messages = await client.session.messages({ path: { id: session }, query: { limit: 100 }, throwOnError: true });
     if (!Array.isArray(messages.data)) deny('child session messages unavailable');
-    const first = messages.data.find((m) => m.info?.role === 'user' && m.parts?.some((p) => p.type === 'text' && p.text?.includes('HARNESS_GRADER:')));
+    const first = messages.data.find((m) => m.info?.role === 'user' && m.parts?.some((p) => p.type === 'text' && p.text?.trim()));
     const user = first?.info;
     const prompt = first?.parts?.filter((p) => p.type === 'text' && !p.synthetic && !p.ignored).map((p) => p.text).join('\n');
-    if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned grader children allowed during production');
+    if (user?.agent === 'blender-worker') return { worker: true };
+    if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
     const existing = harness.transaction((s) => harness.graderAssignment(s, session));
     const assistant = messages.data.findLast((m) => m.info?.role === 'assistant' && !m.info.summary)?.info;
     if (!assistant) deny('grader runtime model metadata unavailable');
@@ -134,7 +136,13 @@ export function createHooks(harness, client) {
       const p = stateFor(input.sessionID);
       const session = await identity(input.sessionID);
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
-        await childAssignment(input.sessionID);
+        const child = await childAssignment(input.sessionID);
+        if (child?.worker) {
+          if (['write', 'edit', 'apply_patch', 'bash', 'task', 'agent_manager', 'question', 'goal', 'goal_report'].includes(tool)
+            || (tool.startsWith('blender_') && !WORKER_BLENDER_READ.has(tool))
+            || (!READ_ONLY.has(tool) && !WORKER_BLENDER_READ.has(tool) && !tool.startsWith('context7_'))) deny('worker child is read-only and cannot use this tool');
+          return;
+        }
         const assignment = harness.graderStep(input.sessionID, tool, args);
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
           if (editPaths(tool, args).some((f) => relative(f) !== assignment.report)) deny('grader may write only assigned report');

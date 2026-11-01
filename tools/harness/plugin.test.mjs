@@ -62,6 +62,24 @@ test('production worker delegation requires valid read-only limits', async (t) =
   );
 });
 
+test('worker children stay read-only after delegation', async (t) => {
+  const f = fixture(t);
+  f.begin();
+  const h = createHooks(f.harness, {
+    session: {
+      get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-worker' } }),
+      messages: async () => ({ data: [{ info: { role: 'user', agent: 'blender-worker' }, parts: [{ type: 'text', text: 'Inspect scene' }] }] }),
+    },
+  });
+  await before(h, 'ses_worker', 'read', { filePath: path.join(f.root, f.project, 'README.md') });
+  await before(h, 'ses_worker', 'blender_get_scene_info', {});
+  await assert.rejects(
+    before(h, 'ses_worker', 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'edited' }),
+    /read-only/,
+  );
+  await assert.rejects(before(h, 'ses_worker', 'blender_workflow', { action: 'status' }), /read-only/);
+});
+
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await before(h, f.session, 'read', { filePath: path.join(f.root, f.project, 'README.md') });
