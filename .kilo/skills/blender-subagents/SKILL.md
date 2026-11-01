@@ -131,8 +131,9 @@ Dispatch only after seal and successful sealed-render `look`:
 4. Dispatch batches no larger than `max_parallel`.
 
 One pass per grader per round. One failed or missing report permits one replacement ticket; a
-second failure aggregates as `BLOCKED`. A single substantiated blocker fails the round. `review`
-writes the final verdict and dispositions; graders never loop.
+second failure aggregates as `BLOCKED`. A tooling/evidence `BLOCKED` is retried without a scene
+revision; a design `BLOCKED`/`CHANGES_REQUIRED` follows the review path. A single substantiated
+blocker fails the round. `review` writes the final verdict and dispositions; graders never loop.
 
 ## Task output
 

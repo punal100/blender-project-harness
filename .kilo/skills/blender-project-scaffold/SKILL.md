@@ -32,7 +32,8 @@ template itself when exact contents matter.
 
 1. Create or update `README.md`, `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`,
    `Documents/REVIEW.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`,
-   `Documents/TASKS.md`, and the filled goal with `bootstrap-document` `{project,path,content}`. Use
+   `Documents/TASKSTRACKER.md`, the `Documents/Tasks/` index, and the filled goal with
+   `bootstrap-document` `{project,path,content}`. Use
    `capabilities.documentFormats`; malformed documents are rejected.
 2. Commit the exact scaffold with `bootstrap-commit` `{project,message}`. It accepts only
    documentation and metadata, never `.blend`, renders, evidence, or asset binaries.

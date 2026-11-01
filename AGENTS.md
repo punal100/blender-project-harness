@@ -43,27 +43,33 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - Call `status` after every compaction, restart, deny, and completed phase. Follow `nextStep`. Do not
   guess the next action.
 - Keep one bounded change open per project. `begin` requires one observable outcome, exact object
-  names, exact project-relative paths, and `revision` only when authorized.
+  names, exact project-relative paths, and `revision` only when authorized. Use `milestone` and
+  requirement IDs for intermediate strict changes, `extend` for added exact scope, `finalize` before
+  sealing, and `final:true` only for the final full-spec change.
 - A **reviewable change** is a bounded change with at least one apply operation. A change whose
   declared paths are all markdown is document-only: commit and checkpoint it without apply, seal, or
   review. The bootstrap save is not reviewable.
-- Every reviewable change MUST complete: apply tickets, `seal`, `blender_look` on the returned
-  render, review, approval when required, exactly one harness commit (review's auto-commit or
-  `commit`), and `checkpoint`.
+- Every reviewable change MUST complete: apply tickets, the required WIP look for a strict
+  milestone change, `seal`, `blender_look` on the returned render, review, approval when required,
+  one harness commit per apply batch, the review commit, and `checkpoint`. A tooling/evidence
+  `BLOCKED` retries the grader; it does not open a design revision.
 - Apply edits are worker-only. Issue one `apply` ticket containing one operation or an
   `{operations:[...]}` batch of up to 10, pass its token to `blender-worker`, and let the worker call
   `blender_harness_execute`. Reuse one foreground worker task for consecutive tickets by resuming its
-  `task_id`; never run parallel writers. The orchestrator executes `save` and `seal` only and MUST
-  NOT execute apply.
-- At most 20 apply tickets per change; 15 minutes without a successful apply. Reopen a failed or
-  expired reviewable change with `recover {reopen:true}` before another apply. A failed or expired
+  `task_id`; never run parallel writers. The orchestrator executes `save`, `seal`, and `wip` only and
+  MUST NOT execute apply.
+- At most 20 apply tickets per change; an operation ticket expires after 10 minutes and the change
+  window is 15 minutes without a successful apply. Reopen a failed or expired reviewable change with
+  `recover {reopen:true}` before another apply. A failed or expired
   change may be preserved with `commit {mode:"wip"}` and then checkpointed. Recovery `save` and
   `seal` remain available after the apply budget. Unsupported operations stop until reviewed.
-- The harness owns `Documents/TASKS.md`; each ticket records its task ID, change, operation, objects,
-  token hash, worker role, timestamps, state, and result. Read it with `blender_document`
-  `{action:"ledger"}`; never edit it manually.
-- Seal ONLY after at least one apply. NEVER seal, render, or grade the bootstrap save. Close it with
-  `commit` and `checkpoint`.
+- The harness owns `Documents/TASKSTRACKER.md` and `Documents/Tasks/`; each task records its ID,
+  change, operation, objects, token hash, worker/grader child, timestamps, state, and result in a
+  linked `TASK.md` and `SUMMARY.md`. Read it with `blender_document` `{action:"ledger"}`; never edit
+  the tracker or task records manually.
+- Seal ONLY after at least one apply. A strict milestone change also requires `finalize`, a WIP
+  render, and `blender_look` on that WIP render. NEVER seal, render, or grade the bootstrap save.
+  Close it with `commit` and `checkpoint`.
 - Inspect every sealed render with `look`. Code output, scene text, and viewport checks do not
   replace the sealed render inspection.
 - Use `blender_document` `{action:"read"}` for structured title, field, and section access. Direct
@@ -71,9 +77,11 @@ next call. `capabilities` is authoritative for actions, operations, document for
   `bootstrap-document`; use `blender_document` `{action:"write"}` or `document` during a registered
   change. Update existing documents only inside declared change paths. Invalid known formats are
   rejected with diagnostics; direct edits are revalidated on the next lifecycle command.
-- Commit atomically through the harness: `bootstrap-commit` before registration and `commit` after.
-  Manual project `git add` and `git commit` are blocked. One bounded message; `checkpoint` MUST see
-  exactly one scoped commit and a clean project.
+- Commit atomically through the harness: `bootstrap-commit` before registration, one commit per
+  successful apply batch, and `commit` for the review. Manual project `git add` and `git commit` are
+  blocked. `checkpoint` MUST see a contiguous scoped commit range and a clean project.
+- To stop a project cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause`
+  `{reason}`, then stop Blender. Never leave an open change owned by a dead session.
 - `revision:true` requires a committed prior verdict and stays within configured `max_rounds`.
   Exhausting the cap requires `escalate`, a reason, and re-registration. NEVER override it silently.
 - To change frozen registration records, close the change and call `reregister` `{reason}`. Update

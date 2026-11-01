@@ -67,6 +67,9 @@ budgets, `max_steps` within the grader ceiling, `max_parallel` within the roster
 
 ## Evidence and round folder
 
+For a strict milestone change, call `finalize`, then issue `wip`, and `blender_look` the WIP render
+before `seal`. A WIP render is not review evidence and stays out of commits.
+
 Call `seal` after the reviewable scene is ready. It saves the authoritative scene and captures:
 
 - a final camera PNG;
@@ -77,7 +80,7 @@ Call `seal` after the reviewable scene is ready. It saves the authoritative scen
 Immediately call `blender_look` on the returned absolute render path. The runtime records the
 inspection receipt. NEVER substitute an image, rewrite sealed evidence, or change the manifest.
 
-The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied. Read `operation_tasks` in the manifest and `Documents/TASKS.md` as process evidence; `blender_document {action:"ledger"}` returns the structured rows. Never edit either.
+The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied. The ticket prompt lists exact evidence files with hashes; the grader must read those exact paths, not an evidence folder, and may use only its assigned report. Read `operation_tasks` in the manifest and `Documents/TASKSTRACKER.md` with `Documents/Tasks/<id>/` as process evidence; `blender_document {action:"ledger"}` returns the structured rows. Never edit either.
 
 ## Dispatch
 
@@ -96,8 +99,10 @@ The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the n
    focus are unchanged.
 
 A missing or failed report permits one replacement `grader-ticket` before `review`; the replacement
-gets a fresh pass budget. A second failure aggregates as `BLOCKED`. Graders never loop or ask the
-user.
+gets a fresh pass budget. A tooling/evidence `BLOCKED` report is retryable without a scene revision;
+a second failure aggregates as `BLOCKED` and `nextStep` returns `retry-grader`, not `begin`.
+Graders never loop or ask the user. The assigned report write is exempt from the step budget so a
+grader can always record its verdict.
 
 ## Aggregate and dispose
 
@@ -110,7 +115,8 @@ user.
    preference is not a waiver.
 5. Call `review` `{notes,reason,dispositions}`. The harness validates reports, computes the verdict,
    writes `REVIEW.md`, and auto-commits in Fully Autonomous mode. In Partially Autonomous mode it
-   writes the verdict and waits for approval; `commit` then creates the single commit.
+   writes the verdict and waits for approval; `commit` then creates the review commit. A tooling
+   `BLOCKED` verdict is not auto-committed; retry the blocked grader instead.
 6. Call `checkpoint` after the scoped commit. NEVER create or commit review documents manually.
 
 Verdicts:

@@ -35,50 +35,61 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 
 1. `launch` `{}`. Verify `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
-2. `begin` `{outcome,objects,paths,revision?}`. One bounded change; exact object names and
-   project-relative paths. `revision:true` requires the prior committed verdict.
+2. `begin` `{outcome,objects,paths,milestone?,requirements?,final?,revision?}`. One bounded change;
+   exact object names and project-relative paths. Use `milestone` and requirement IDs for
+   intermediate changes; use `final:true` only for the final full-spec change. `extend` adds exact
+   scope while the change is open; `finalize` marks a strict change ready to seal.
+   `revision:true` requires the prior committed verdict.
 3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
    up to 10 operations and executes sequentially under one token. Pass the token to one foreground
    `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
-   payload. Each operation auto-saves. The orchestrator NEVER executes apply.
+   payload. Each operation auto-saves. Strict changes commit each successful apply batch. The
+   orchestrator NEVER executes apply.
 4. A change whose declared paths are all markdown is document-only: after editing, use `commit` and
-   `checkpoint` without `apply`, `seal`, or review. Otherwise issue
-   `ticket` `{operation:"save"|"seal",payload:{}}`. Seal only after at least one apply. `seal`
-   writes immutable evidence, a final PNG, and a manifest.
+   `checkpoint` without `apply`, `seal`, or review. A strict scene change requires `finalize`, then
+   `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render. Seal only after
+   that look. `seal` writes immutable evidence, a final PNG, and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise dispatch every configured grader
-   with `grader-ticket` `{name}` and the normal `blender-grader` task. Aggregate with
-   `review` `{notes,reason,dispositions}`. The harness computes the verdict and writes `REVIEW.md`.
+   with `grader-ticket` `{name}` and the normal `blender-grader` task. The ticket lists exact
+   evidence files; read those paths, not a folder. A tooling-blocked grader is retried without a
+   scene revision. Aggregate with `review` `{notes,reason,dispositions}`. The harness computes the
+   verdict and writes `REVIEW.md`.
 7. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
-   `question`. Approval is required before the change commit.
-8. `commit` `{message}`. In Fully Autonomous with `All` or `Single`, `review` already auto-committed
-   the reviewed change and artifacts; skip to `checkpoint`. With `Off`, or in Partially Autonomous,
-   `commit` creates the single scoped commit after approval/self-review. NEVER use manual Git for
-   project paths.
-9. `checkpoint` `{}`. It requires exactly one commit after the change base and a clean project.
-   Then start the next `begin` or report completion.
+   `question`. Approval is required before the review commit.
+8. In Fully Autonomous with `All` or `Single`, `review` auto-commits reports and the verdict; skip to
+   `checkpoint`. With `Off`, or in Partially Autonomous, `commit` creates the scoped review commit.
+   Apply batches are already committed. NEVER use manual Git for project paths.
+9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
+   clean project. Then start the next `begin` or report completion. A strict project needs a final
+   full-spec change before completion.
+10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
+    then stop Blender. Do not leave an open change owned by a dead session.
 
 Bootstrap save: use ticketed `save`, then `commit`, then `checkpoint`. NEVER seal, render, grade, or
 open a review round for the initial empty/default scene.
 
 ## Limits and recovery
 
-- Maximum 20 apply tickets per change, each carrying up to 10 operations. The window is 15 minutes
-  without a successful apply. Recovery `save` and `seal` remain available after the apply budget or
-  a failed apply.
+- Maximum 20 apply tickets per change, each carrying up to 10 operations. Operation tickets expire
+  after 10 minutes; the change window is 15 minutes without a successful apply. Recovery `save` and
+  `seal` remain available after the apply budget or a failed apply.
 - `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
   save, and reseal. NEVER release a live writer.
 - `recover {reopen:true}` clears a failed or expired reviewable change so repair applies can run.
   It does not reopen a sealed or bootstrap change, and it keeps the failed round history.
 - `commit {mode:"wip"}` preserves a failed or expired change and closes it at the next `checkpoint`
   with verdict `WIP`; it is not a review substitute and does not set a completion render.
-- `status.change` reports `appliesRemaining` and `deadlineRemainingMs`. `Documents/TASKS.md` is
-  harness-owned and records every ticket's task ID, token hash, state, and result. Read it with
+- `status.change` reports `appliesRemaining`, `deadlineRemainingMs`, `commits`, `wipRender`, and
+  `wipLook`. `Documents/TASKSTRACKER.md` and `Documents/Tasks/<id>/` are harness-owned and record
+  every task's ID, token hash, child session, state, and result. Read them with
   `blender_document {action:"ledger"}`; never write it directly.
 - `max_rounds` is configured 1-4. A capped review requires `escalate` `{reason,max_rounds?}`, then
   the exact registration question again. Escalation preserves history.
-- `status.nextStep` is authoritative for pending tickets, missing `look`, review, approval, commit,
-  checkpoint, and completion. Do not repeat a completed phase.
+- A tooling/evidence `BLOCKED` is not a design failure: retry the blocked grader; do not open a scene
+  revision. `CHANGES_REQUIRED` is the design revision path.
+- `status.nextStep` is authoritative for pending tickets, missing `look`, WIP, review, approval,
+  commit, checkpoint, and completion. Do not repeat a completed phase.
 
 ## Documents and commits
 
