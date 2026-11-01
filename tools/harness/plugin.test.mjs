@@ -28,6 +28,9 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
+  assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
+  assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
+  assert.match(result.commitPolicy, /manual project git/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);
   assert.equal(result.limits.hardApplyCap, 40);
 });
@@ -121,26 +124,44 @@ test('plugin allows recovery reads but rejects unscoped file writes', async (t) 
 
 test('unregistered sessions cannot write project files or run mutating shell commands', async (t) => {
   const f = fixture(t), h = hooks(f);
-  await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'bypass' }), /registered project/);
+  await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'README.md'), content: 'bypass' }), /harness-owned/);
+  await before(h, 'unregistered', 'write', { filePath: path.join(f.root, 'Blender', 'README.md'), content: 'collection docs' });
   await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /retired/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: `git add -- "${f.project}/README.md"` }), /bootstrap-commit/);
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
 });
 
-test('unregistered sessions may draft scaffold docs for a new project only', async (t) => {
+test('unregistered sessions must create and commit scaffold documents through the harness', async (t) => {
   const f = fixture(t), h = hooks(f);
   const fresh = 'Blender/New Project';
-  for (const name of ['README.md', 'Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md',
-    'Documents/ASSETS.md', 'Documents/DECISIONS.md', 'Documents/Goals/01-brief.md', 'Documents/Reviews/README.md']) {
-    await before(h, 'unregistered', 'write', { filePath: path.join(f.root, fresh, name), content: 'draft' });
-  }
-  for (const name of [`${fresh}/scene.blend`, `${fresh}/renders/final/hero.png`, `${fresh}/assets/models/chair.fbx`,
-    `${fresh}/Documents/Reviews/R01-20261031T110000Z/visual/REPORT.md`]) {
-    await assert.rejects(
-      before(h, 'unregistered', 'write', { filePath: path.join(f.root, name), content: 'x' }),
-      (error) => /registered project/.test(error.message) && /blender_workflow prepare/.test(error.message),
-    );
-  }
-  await assert.rejects(before(h, 'unregistered', 'write', { filePath: path.join(f.root, f.project, 'Documents/REQUIREMENTS.md'), content: 'tamper' }), /registered project/);
+  const freshRoot = path.join(f.root, fresh);
+  fs.cpSync(path.join(f.root, f.project), freshRoot, { recursive: true });
+  fs.rmSync(path.join(freshRoot, 'scene.blend'));
+  await assert.rejects(
+    before(h, 'unregistered', 'write', { filePath: path.join(freshRoot, 'README.md'), content: 'bypass' }),
+    /harness-owned/,
+  );
+  await assert.rejects(
+    h.tool.blender_workflow.execute(
+      { action: 'bootstrap-document', payload: JSON.stringify({ project: fresh, path: 'Documents/References/note.md', content: 'No heading\n' }) },
+      { sessionID: 'unregistered' },
+    ),
+    /level-1 heading/,
+  );
+  await h.tool.blender_workflow.execute(
+    { action: 'bootstrap-document', payload: JSON.stringify({ project: fresh, path: 'Documents/References/note.md', content: '# Reference note\n' }) },
+    { sessionID: 'unregistered' },
+  );
+  const committed = JSON.parse(await h.tool.blender_workflow.execute(
+    { action: 'bootstrap-commit', payload: JSON.stringify({ project: fresh, message: 'docs: scaffold new project' }) },
+    { sessionID: 'unregistered' },
+  ));
+  assert.match(committed.next, /prepare/);
+  const status = JSON.parse(await h.tool.blender_workflow.execute(
+    { action: 'status', payload: JSON.stringify({ project: fresh }) },
+    { sessionID: 'unregistered' },
+  ));
+  assert.match(status.nextStep.command, /prepare/);
 });
 
 test('launch requires an active goal and shell Blender commands are retired', async (t) => {

@@ -97,11 +97,10 @@ async function main() {
     else {
       process.stdout.write(`Created Blender project: ${result.destination}\n\n`);
       process.stdout.write('Next:\n');
-      process.stdout.write('1. Write confirmed requirements and confirmation evidence to Documents/REQUIREMENTS.md.\n');
-      process.stdout.write('2. Record the selected workflow mode and exact response in Documents/WORKFLOW.md.\n');
-      process.stdout.write('3. Record the selected review mode in Documents/REVIEW.md; name the grader for Single mode.\n');
-      process.stdout.write('4. Fill README.md and the goal file, commit them, then call blender_workflow prepare.\n');
-      process.stdout.write(`5. After registration and goal start, launch with blender_workflow {action:"launch"}.\n`);
+      process.stdout.write('1. Fill confirmed records through blender_workflow bootstrap-document; use capabilities.documentFormats.\n');
+      process.stdout.write('2. Commit the exact scaffold through blender_workflow bootstrap-commit; do not use manual project Git.\n');
+      process.stdout.write('3. Call blender_workflow prepare, answer its exact question, then start or resume the goal.\n');
+      process.stdout.write(`4. After registration and goal start, call blender_workflow {action:"status",payload:"{\\"project\\":\\"Blender/<Name>\\"}"} and follow nextStep.\n`);
     }
     return undefined;
   }

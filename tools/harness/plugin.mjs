@@ -1,14 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.mjs';
+import { describeDocumentFormats } from './documents.mjs';
 import { OPERATION_NAMES, PRIMITIVES, operationCode } from './blender-operations.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate']);
 const BLENDER_SHELL = /start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1)|blender(?:\.exe)?(?:\s|$)/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
@@ -24,13 +25,33 @@ const BOOTSTRAP_DOCUMENTS = [
   'Documents/References/README.md',
   'Documents/References/<name>.md',
   'Documents/Reviews/README.md',
+  'assets/**/*.md',
+  'renders/README.md',
+  'exports/README.md',
+  'scenes/README.md',
+  'scripts/README.md',
+  'backups/README.md',
 ];
-const BOOTSTRAP_DOC = /^(?:README\.md|Documents\/(?:README|REQUIREMENTS|WORKFLOW|REVIEW|ASSETS|DECISIONS|Goals\/README|References\/README|Reviews\/README)\.md|Documents\/Goals\/\d+-[a-z0-9-]+\.md|Documents\/References\/[A-Za-z0-9._-]+\.md)$/;
 const capabilities = () => ({
   operations: [...OPERATION_NAMES],
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
+  documentFormats: describeDocumentFormats(),
+  actions: [
+    { name: 'status', actor: 'orchestrator', phase: 'any', payload: '{project?:string}' },
+    { name: 'bootstrap-document', actor: 'orchestrator', phase: 'before registration', payload: '{project,path,content}' },
+    { name: 'bootstrap-commit', actor: 'orchestrator', phase: 'before registration', payload: '{project,message}' },
+    { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
+    { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
+    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,revision?}' },
+    { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation,payload}' },
+    { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
+    { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
+    { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
+    { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: 'see docs' },
+  ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 40, minutesPerChange: 15, maxRounds: 'configured 1-4' },
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; manual project git add or git commit is blocked.',
 });
 
 export function createHooks(harness, client) {
@@ -79,14 +100,10 @@ export function createHooks(harness, client) {
     contained(harness.root, name, true);
     return name;
   }
-  function bootstrapDoc(name) {
-    const match = /^Blender\/[^/]+\/(.+)$/.exec(name);
-    return Boolean(match) && BOOTSTRAP_DOC.test(match[1]);
-  }
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, prepare, status, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Launch and stop Blender only through launch/stop; never invoke Blender or legacy scripts from the shell. Runtime owns approvals/evidence; never edit state.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, launch, stop, begin, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.string().default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -95,6 +112,8 @@ export function createHooks(harness, client) {
           if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
           let result;
           if (args.action === 'capabilities') result = capabilities();
+          else if (args.action === 'bootstrap-document') result = harness.bootstrapDocument(context.sessionID, payload);
+          else if (args.action === 'bootstrap-commit') result = harness.bootstrapCommit(context.sessionID, payload);
           else if (args.action === 'prepare') result = harness.prepare(context.sessionID, payload);
           else if (args.action === 'ticket') {
             const p = stateFor(context.sessionID);
@@ -174,11 +193,18 @@ export function createHooks(harness, client) {
         if (['write', 'edit', 'apply_patch'].includes(tool)) {
           const files = editPaths(tool, args).map(relative);
           if (files.some((f) => path.resolve(harness.root, f).startsWith(harness.home))) deny('harness state is runtime-owned; never write it directly');
-          const registered = new Set(harness.transaction((s) => Object.keys(s.projects)));
-          const blocked = files.filter((f) => f.startsWith('Blender/') && (!bootstrapDoc(f) || registered.has(f.split('/').slice(0, 2).join('/'))));
-          if (blocked.length) deny(`production files require a registered project: ${blocked.join(', ')}. Before registration, write only scaffold documentation (README.md; Documents/REQUIREMENTS.md, WORKFLOW.md, REVIEW.md, ASSETS.md, DECISIONS.md; Documents/Goals/<NN>-<slug>.md). Commit those files, call blender_workflow prepare, and complete its registration question before scene, asset, render, evidence, and manifest writes. Do not bypass this with shell redirection or temp-file copies.`);
+          const blocked = files.filter((f) => /^Blender\/[^/]+\//.test(f));
+          if (blocked.length) deny(`project files are harness-owned: ${blocked.join(', ')}. Before registration use blender_workflow bootstrap-document for markdown and bootstrap-commit for the exact scaffold; scaffold the folder with node tools/harness/cli.mjs scaffold. Do not write project files directly.`);
         }
-        if (tool === 'bash' && BLENDER_SHELL.test(args.command ?? '') && !/--version/.test(args.command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
+        if (tool === 'bash') {
+          const command = args.command ?? '';
+          if (BLENDER_SHELL.test(command) && !/--version/.test(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
+          if (/^git add\b/.test(command) && /(?:^|[\s"'])Blender[\\/][^\\/"']+[\\/]/i.test(command)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+          if (/^git commit\b/.test(command)) {
+            const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
+            if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+          }
+        }
         return;
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;

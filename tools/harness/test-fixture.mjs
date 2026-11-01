@@ -16,16 +16,51 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
     fs.writeFileSync(full, text);
     return full;
   };
-  const objective = '# Test Goal\n' + 'Confirmed fixture requirements and observable acceptance checks. '.repeat(4);
-  write(`${project}/README.md`, '# Fixture\n');
-  write(`${project}/Documents/REQUIREMENTS.md`, 'Status: Confirmed\nConfirmed: 2026-10-31\nConfirmation: Confirm fixture requirements.\n');
-  write(`${project}/Documents/WORKFLOW.md`, `Mode: ${partial ? 'Partially' : 'Fully'} Autonomous\nSelected: 2026-10-31\n`);
-  write(`${project}/Documents/REVIEW.md`, `Mode: ${review}\nSelected: 2026-10-31\nSingle grader: visual\n`);
-  write(`${project}/Documents/ASSETS.md`, '# No external assets\n');
+  const objectiveText = '# Test Goal\n' + 'Confirmed fixture requirements and observable acceptance checks. '.repeat(4);
+  write(`${project}/README.md`, [
+    '# Fixture project',
+    'Status: Confirmed',
+    'Last updated: 2026-10-31',
+    '',
+    ...['Purpose', 'What this project is', 'Requirements', 'Visual direction', 'Deliverables', 'Project structure', 'Blender', 'Workflow', 'External assets', 'Goals', 'References', 'Open questions', 'Next steps'].flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']),
+  ].join('\n'));
+  write(`${project}/Documents/REQUIREMENTS.md`, [
+    '# Requirements',
+    'Status: Confirmed',
+    'Defined: 2026-10-31',
+    'Last updated: 2026-10-31',
+    'Confirmed: 2026-10-31',
+    'Confirmation: Confirm fixture requirements.',
+    '',
+    ...['Core value', 'Confirmed requirements', 'Constraints', 'Deferred', 'Out of scope', 'Open questions', 'Research notes', 'Change log'].flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']),
+  ].join('\n'));
+  write(`${project}/Documents/WORKFLOW.md`, [
+    '# Workflow',
+    `Mode: ${partial ? 'Partially' : 'Fully'} Autonomous`,
+    'Selected: 2026-10-31',
+    'Last changed: 2026-10-31',
+    '',
+    ...['Current mode', 'Rules', 'Change log'].flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']),
+  ].join('\n'));
+  write(`${project}/Documents/REVIEW.md`, [
+    '# Review Mode',
+    `Mode: ${review}`,
+    'Selected: 2026-10-31',
+    'Last changed: 2026-10-31',
+    'Single grader: visual',
+    '',
+    ...['Modes', 'Change log'].flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']),
+  ].join('\n'));
+  write(`${project}/Documents/ASSETS.md`, '# No external assets\n\n## Rules\n\nFixture asset rules.\n');
   write(`${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
+  const goalBody = objectiveText.replace(/^#\s+.*\r?\n/, '');
+  const objective = [
+    '# Goal: Fixture',
+    ...['Mission', 'Project', 'Visual outcome', 'Scope', 'Deliverables', 'Acceptance', 'Workflow', 'Done'].flatMap((name) => [`## ${name}`, goalBody, '']),
+  ].join('\n');
   write(`${project}/${goal}`, objective);
   write(scene, 'fixture blend bytes\n');
-  write(`${project}/Documents/Reviews/README.md`, '# Review Index\n');
+  write(`${project}/Documents/Reviews/README.md`, '# Review Index\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
   write('.gitignore', '**/_evidence/**\n/config.json\n');
   if (review !== 'Off') write('config.json', JSON.stringify({ blender_subagents: { graders: {
     enabled: true, agent: 'blender-grader', max_parallel: 1, max_rounds: 2,

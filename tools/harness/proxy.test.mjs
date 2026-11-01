@@ -38,6 +38,13 @@ async function execute(f, proxy, operation, payload = {}) {
   f.harness.authorize(f.session, token, operation, payload);
   return proxy.call('harness_execute', { token, operation, payload, user_prompt: 'Create fixture scene.' });
 }
+const meshOperation = {
+  operation: 'create_mesh',
+  name: 'Cube',
+  primitive: 'cube',
+  location: [0, 0, 0],
+  scale: [1, 1, 1],
+};
 
 test('proxy hides raw mutation tools and rejects direct calls', async (t) => {
   const f = fixture(t), p = new BlenderProxy(f.harness, upstream(f));
@@ -56,6 +63,7 @@ test('proxy needs hook receipt even when issued ticket exists', async (t) => {
 test('proxy seals immutable evidence, manifest and PNG, then checkpoint succeeds', async (t) => {
   const f = fixture(t); f.begin();
   const upstreamMock = upstream(f), p = new BlenderProxy(f.harness, upstreamMock);
+  await execute(f, p, 'apply', meshOperation);
   await execute(f, p, 'save');
   const seal = JSON.parse((await execute(f, p, 'seal')).content[0].text);
   assert.ok(fs.existsSync(seal.render));
@@ -91,6 +99,7 @@ test('failed seal removes incomplete round artifacts and reserves its sequence',
     return upstream(f).callTool(call);
   };
   const p = new BlenderProxy(f.harness, bad);
+  await execute(f, p, 'apply', meshOperation);
   await execute(f, p, 'save');
   await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
   const failed = f.harness.command(f.session, 'status').change;

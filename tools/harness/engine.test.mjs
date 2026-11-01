@@ -79,28 +79,48 @@ function createProject(root, {
     'Acceptance: every ticket, review, approval, and checkpoint gate must validate exact state.',
   ].join('\n');
 
-  write(root, `${project}/README.md`, '# Fixture project\n');
-  write(root, `${project}/Documents/REQUIREMENTS.md`, [
+  const sections = (names) => names.flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']);
+  write(root, `${project}/README.md`, [
+    '# Fixture project',
     'Status: Confirmed',
+    'Last updated: 2026-10-31',
+    '',
+    ...sections(['Purpose', 'What this project is', 'Requirements', 'Visual direction', 'Deliverables', 'Project structure', 'Blender', 'Workflow', 'External assets', 'Goals', 'References', 'Open questions', 'Next steps']),
+  ].join('\n'));
+  write(root, `${project}/Documents/REQUIREMENTS.md`, [
+    '# Requirements',
+    'Status: Confirmed',
+    'Defined: 2026-10-31',
+    'Last updated: 2026-10-31',
     'Confirmed: 2026-10-31',
     'Confirmation: Fixture requirements confirmed for adversarial workflow tests.',
     '',
+    ...sections(['Core value', 'Confirmed requirements', 'Constraints', 'Deferred', 'Out of scope', 'Open questions', 'Research notes', 'Change log']),
   ].join('\n'));
   write(root, `${project}/Documents/WORKFLOW.md`, [
+    '# Workflow',
     `Mode: ${workflow}`,
     'Selected: 2026-10-31',
+    'Last changed: 2026-10-31',
     '',
+    ...sections(['Current mode', 'Rules', 'Change log']),
   ].join('\n'));
   write(root, `${project}/Documents/REVIEW.md`, [
+    '# Review Mode',
     `Mode: ${review}`,
     'Selected: 2026-10-31',
-    ...(review === 'Single' ? ['Single grader: visual'] : []),
+    'Last changed: 2026-10-31',
+    `Single grader: ${review === 'Single' ? 'visual' : '—'}`,
     '',
+    ...sections(['Modes', 'Change log']),
   ].join('\n'));
-  write(root, `${project}/Documents/ASSETS.md`, '# Fixture assets\n');
+  write(root, `${project}/Documents/ASSETS.md`, '# Fixture assets\n\n## Rules\n\nFixture asset rules.\n');
   write(root, `${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
-  write(root, `${project}/Documents/Goals/01-test-goal.md`, `${prompt}\n`);
-  write(root, `${project}/Documents/Reviews/README.md`, '# Review rounds\n');
+  write(root, `${project}/Documents/Goals/01-test-goal.md`, [
+    '# Goal: Fixture',
+    ...['Mission', 'Project', 'Visual outcome', 'Scope', 'Deliverables', 'Acceptance', 'Workflow', 'Done'].flatMap((name) => [`## ${name}`, prompt, '']),
+  ].join('\n'));
+  write(root, `${project}/Documents/Reviews/README.md`, '# Review rounds\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
   write(root, `${project}/Documents/Reviews/.gitignore`, '_evidence/\ntmp/\n');
   write(root, `${project}/.gitignore`, 'logs/\n');
   write(root, `${project}/.gitattributes`, '*.md text eol=crlf\n');
@@ -215,6 +235,7 @@ test('bootstrap save closes with checkpoint and cannot be sealed or graded', (t)
   commit(f.root, 'test: remove fixture scene', [f.project]);
   activate(f);
   begin(f, 'orchestrator', { paths: ['Documents/DECISIONS.md'] });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'bootstrap-save');
   gate(() => f.harness.issue('orchestrator', 'seal', {}), /bootstrap save/);
   fs.writeFileSync(path.join(f.root, f.scene), 'saved scene bytes\n');
   finishSave(f);
@@ -270,6 +291,11 @@ function finishSave(f, session = 'orchestrator') {
 }
 
 function seal(f, session = 'orchestrator', { round = 'R01-20261031T110000Z', inspect = true } = {}) {
+  const change = f.harness.transaction((s) => s.projects[f.project].change);
+  if (change && change.operations === 0 && !change.failure && Date.now() <= change.deadline) {
+    const issued = issueAndConsume(f, session, 'apply', { sealFixture: true });
+    f.harness.finish(issued.token, { ok: true });
+  }
   const renderPath = `${f.project}/renders/final/${round}.png`;
   const evidenceRoot = `${f.project}/Documents/Reviews/${round}/_evidence`;
   const evidenceNames = [
@@ -699,7 +725,7 @@ test('review record notes can change after registration', (t) => {
   begin(f);
   seal(f);
   selfReview(f);
-  write(f.root, `${f.project}/Documents/REVIEW.md`, 'Mode: Off\nSelected: 2026-10-31\n\nReview notes updated.\n');
+  fs.appendFileSync(path.join(f.root, f.project, 'Documents', 'REVIEW.md'), '\nReview notes updated.\n');
   scopedCommit(f, 'record review notes');
   f.harness.command('orchestrator', 'checkpoint');
 });
@@ -715,6 +741,68 @@ test('escalation can extend the review cap before re-registration', (t) => {
   assert.equal(f.harness.transaction((s) => s.projects[f.project].records.maxRounds), 4);
 });
 
+test('bootstrap documents and commits are harness-owned before registration', (t) => {
+  const f = useFixture(t, { commitInitial: false });
+  fs.rmSync(path.join(f.root, f.scene));
+  fs.rmSync(path.join(f.root, f.project, 'notes.txt'));
+  const status = f.harness.command('orchestrator', 'status', { project: f.project });
+  assert.match(status.next, /bootstrap-commit/);
+  assert.match(status.nextStep.command, /bootstrap-commit/);
+  gate(() => f.harness.bootstrapDocument('orchestrator', { project: f.project, path: 'Documents/References/note.md', content: 'No heading\n' }));
+  assert.doesNotThrow(() => f.harness.bootstrapDocument('orchestrator', {
+    project: f.project,
+    path: 'Documents/References/note.md',
+    content: '# Reference note\n',
+  }));
+  const committed = f.harness.bootstrapCommit('orchestrator', { project: f.project, message: 'docs: scaffold fixture' });
+  assert.equal(committed.next.includes('prepare'), true);
+  assert.match(f.harness.command('orchestrator', 'status', { project: f.project }).nextStep.command, /prepare/);
+  assert.doesNotThrow(() => register(f));
+});
+
+test('seal requires at least one apply operation', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  gate(() => f.harness.issue('orchestrator', 'seal', {}), /at least one apply/);
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { seal: true });
+  f.harness.finish(applied.token, { ok: true });
+  assert.doesNotThrow(() => seal(f, 'orchestrator', { inspect: false }));
+});
+
+test('bootstrap commit rejects scene and binary deliverables', (t) => {
+  const f = useFixture(t, { commitInitial: false });
+  gate(() => f.harness.bootstrapCommit('orchestrator', { project: f.project, message: 'docs: invalid scaffold' }));
+  assert.doesNotThrow(() => {
+    fs.rmSync(path.join(f.root, f.scene));
+    fs.rmSync(path.join(f.root, f.project, 'notes.txt'));
+    f.harness.bootstrapCommit('orchestrator', { project: f.project, message: 'docs: valid scaffold' });
+  });
+});
+
+test('status returns an exact next call for every registered phase', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /action:"begin"/);
+  begin(f);
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /action:"ticket"/);
+  const issued = f.harness.issue('orchestrator', 'apply', { retry: true });
+  const pending = f.harness.command('orchestrator', 'status');
+  assert.equal(pending.nextStep.actor, 'blender-worker');
+  assert.match(pending.nextStep.command, new RegExp(issued.token));
+  f.harness.authorize('orchestrator', issued.token, 'apply', { retry: true });
+  f.harness.consume(issued.token, 'apply', { retry: true });
+  f.harness.finish(issued.token, { ok: true });
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /action:"ticket"/);
+  const sealed = seal(f, 'orchestrator', { inspect: false });
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /blender_look/);
+  f.harness.inspect('orchestrator', sealed.absoluteRender, true);
+  selfReview(f);
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /action:"commit"/);
+  f.harness.command('orchestrator', 'commit', { message: 'feat: fixture change' });
+  assert.match(f.harness.command('orchestrator', 'status').nextStep.command, /action:"checkpoint"/);
+});
+
 test('harness document action creates declared markdown only', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -723,6 +811,23 @@ test('harness document action creates declared markdown only', (t) => {
   assert.equal(read(f.root, `${f.project}/Documents/NEW.md`), '# New document\n');
   gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/Reviews/R01/REVIEW.md', content: 'manual' }));
   gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/UNDECLARED.md', content: 'outside' }));
+});
+
+test('partial review waits for approval before committing the reviewed change', (t) => {
+  const f = useFixture(t, { workflow: 'Partially Autonomous', review: 'All' });
+  activate(f);
+  begin(f);
+  reviewAll(f);
+  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '1');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'approval');
+  const approval = f.harness.command('orchestrator', 'approval');
+  f.harness.question('orchestrator', {
+    questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
+  }, [['Approve change']]);
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'commit');
+  f.harness.command('orchestrator', 'commit', { message: 'feat: approved fixture change' });
+  f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(git(f.root, ['rev-list', '--count', 'HEAD']).trim(), '2');
 });
 
 test('review auto-commits reports and the verdict before checkpoint', (t) => {
