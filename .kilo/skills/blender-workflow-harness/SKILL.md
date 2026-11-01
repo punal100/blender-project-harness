@@ -27,8 +27,8 @@ under `Blender/<Name>/`. Scene, asset, render, evidence, and manifest paths stay
 an already-registered project stay blocked. A denial means a lifecycle step is missing; never work
 around it with shell redirection, temp-file copies, or direct edits.
 
-A bootstrap save change may be staged, committed, and closed with `checkpoint` before review. Never
-seal or grade the initial empty/default scene.
+A bootstrap save change uses the harness `commit` action and closes with `checkpoint` before review.
+Never seal or grade the initial empty/default scene.
 
 ## Launch and stop
 
