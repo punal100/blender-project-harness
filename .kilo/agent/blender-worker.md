@@ -107,7 +107,8 @@ Stop immediately and return `PARTIAL` or `BLOCKED` when:
 - the task requires a path outside the allowed set;
 - an acceptance check cannot be run.
 
-Leave the scene unchanged and report what remains. Do not start another task or edit external harness state.
+Leave the scene unchanged and report what remains. Do not start another ticket on your own or edit
+external harness state.
 
 ## Output
 

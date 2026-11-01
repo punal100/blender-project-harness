@@ -539,6 +539,32 @@ test('recover clears an expired unstarted ticket without closing edits', (t) => 
   assert.equal(f.harness.command('orchestrator', 'status').change.operations, 1);
 });
 
+test('recover reopens a failed or expired reviewable change for repair', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((state) => {
+    const change = state.projects[f.project].change;
+    change.failure = 'Cannot render, no camera';
+    change.deadline = 0;
+  });
+  const failed = f.harness.command('orchestrator', 'status');
+  assert.equal(failed.nextStep.phase, 'recover');
+  assert.equal(failed.change.failure, true);
+  assert.equal(failed.change.appliesRemaining, 20);
+  const reopened = f.harness.recover('orchestrator', { reopen: true });
+  assert.equal(reopened.change.failure, false);
+  assert.equal(reopened.change.reopen, true);
+  assert.match(reopened.nextStep.command, /action:"ticket"/);
+  assert.ok(reopened.change.deadlineRemainingMs > 0);
+  const repaired = issueAndConsume(f, 'orchestrator', 'apply', { repair: true });
+  f.harness.finish(repaired.token, { ok: true });
+  const repairedStatus = f.harness.command('orchestrator', 'status');
+  assert.equal(repairedStatus.change.reopen, false);
+  assert.equal(repairedStatus.change.operations, 1);
+  assert.ok(repairedStatus.change.deadlineRemainingMs > 0);
+});
+
 test('failed apply closes edit route but preserves recovery save and seal', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -997,7 +1023,12 @@ test('state survives Harness restart and state lock blocks writers', (t) => {
   f.harness.transaction(() => gate(() => restarted.command('orchestrator', 'status')));
   const started = begin(f);
   const again = new Harness(f.root, { stateRoot: f.stateRoot });
-  assert.deepEqual(again.command('orchestrator', 'status'), started);
+  const stableStatus = (status) => {
+    const copy = structuredClone(status);
+    if (copy.change) delete copy.change.deadlineRemainingMs;
+    return copy;
+  };
+  assert.deepEqual(stableStatus(again.command('orchestrator', 'status')), stableStatus(started));
 });
 
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {

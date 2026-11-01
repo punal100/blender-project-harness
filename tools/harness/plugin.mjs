@@ -48,9 +48,9 @@ const capabilities = () => ({
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
     { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
-    { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: 'see docs' },
+    { name: 'recover|escalate', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?} or escalation fields' },
   ],
-  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 40, minutesPerChange: 15, maxRounds: 'configured 1-4' },
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, minutesWithoutApply: 15, maxRounds: 'configured 1-4' },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Commits use bootstrap-commit/commit; manual project git add or git commit is blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after registration; stop for explicit re-registration. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write'], read: '{project?,path,section?}', write: '{project?,path,content}' },
@@ -125,7 +125,7 @@ export function createHooks(harness, client) {
             result = harness.issue(context.sessionID, payload.operation, payload.payload);
           } else {
             if (!PUBLIC_ACTIONS.has(args.action)) deny('internal workflow action unavailable');
-            result = args.action === 'recover' ? harness.recover(context.sessionID)
+            result = args.action === 'recover' ? harness.recover(context.sessionID, payload)
               : args.action === 'launch' ? await harness.launch(context.sessionID)
                 : args.action === 'stop' ? await harness.stop(context.sessionID)
                   : harness.command(context.sessionID, args.action, payload);
@@ -243,9 +243,6 @@ export function createHooks(harness, client) {
         if (args.status === 'complete') {
           if (p.change || p.history.at(-1)?.verdict !== 'PASS' || !p.lastRender || harness.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion blocked by missing checkpoint/PASS/render');
           harness.assertCommitted(p.project, harness.snapshot(p.project));
-        } else if (args.status === 'blocked') {
-          try { harness.assertCommitted(p.project, harness.snapshot(p.project)); }
-          catch { deny('commit the exact project files before ending a blocked turn: stage only the current change paths, scene, render, reports, manifest, and review index, then commit once'); }
         }
         return;
       }

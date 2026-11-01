@@ -10,7 +10,9 @@ commits. `blender-worker` executes one assigned apply ticket and returns. `blend
 read-only and writes one assigned report.
 
 Use the normal `task` tool. Do not create Agent Manager sessions or worktrees for this work. Only one
-Blender writer runs.
+Blender writer runs. Reuse one foreground worker task for consecutive apply tickets in the same
+change: issue the next ticket, then resume the same task with its `task_id`. One ticket per worker
+call, one writer at a time. Start a new worker only after the worker is blocked or the change ends.
 
 ## Config validation
 
@@ -107,9 +109,10 @@ Stop at the first of:
 - a required file or object outside the allowed set;
 - an acceptance check that cannot run.
 
-On stop, leave the scene unchanged and return `PARTIAL` or `BLOCKED`. Do not start another task.
-The orchestrator independently inspects the scene, runs `look`, seals, reviews, obtains approval,
-commits through the harness, and checkpoints. Inspect `status.nextStep` before the next action.
+On stop, leave the scene unchanged and return `PARTIAL` or `BLOCKED`. Do not start another ticket on
+your own; the orchestrator may resume this same task with the next ticket. The orchestrator
+independently inspects the scene, runs `look`, seals, reviews, obtains approval, commits through the
+harness, and checkpoints. Inspect `status.nextStep` before the next action.
 
 ## Grader
 

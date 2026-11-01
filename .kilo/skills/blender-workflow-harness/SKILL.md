@@ -60,10 +60,13 @@ open a review round for the initial empty/default scene.
 
 ## Limits and recovery
 
-- Maximum 20 applies per change before checkpoint; hard cap 40; 15 minutes. Recovery `save` and
-  `seal` remain available after the apply budget or a failed apply.
+- Maximum 20 applies per change. The window is 15 minutes without a successful apply. Recovery
+  `save` and `seal` remain available after the apply budget or a failed apply.
 - `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
   save, and reseal. NEVER release a live writer.
+- `recover {reopen:true}` clears a failed or expired reviewable change so one repair apply can run.
+  It does not reopen a sealed or bootstrap change, and it keeps the failed round history.
+  `status.change` reports `appliesRemaining` and `deadlineRemainingMs`.
 - `max_rounds` is configured 1-4. A capped review requires `escalate` `{reason,max_rounds?}`, then
   the exact registration question again. Escalation preserves history.
 - `status.nextStep` is authoritative for pending tickets, missing `look`, review, approval, commit,

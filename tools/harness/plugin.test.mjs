@@ -33,7 +33,8 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.match(result.commitPolicy, /manual project git/);
   assert.match(result.documentPolicy, /structured/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);
-  assert.equal(result.limits.hardApplyCap, 40);
+  assert.equal(result.limits.hardApplyCap, 20);
+  assert.equal(result.limits.minutesWithoutApply, 15);
 });
 
 test('document tool returns structured project reads', async (t) => {
@@ -236,13 +237,26 @@ test('plugin permits matching ticket once, blocks cross-session ticket', async (
   await assert.rejects(before(h, f.session, 'blender_harness_execute', ticket), /replayed/);
 });
 
-test('blocked goal report requires committed project files', async (t) => {
+test('blocked goal report does not require a commit', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'uncommitted work\n');
-  await assert.rejects(before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' }), /commit the exact project files/);
-  git(f.root, ['add', '--', '.']);
-  f.commit('test: commit pending readme');
   await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+});
+
+test('recover reopens a failed change through the tool', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  f.harness.transaction((state) => {
+    const change = state.projects[f.project].change;
+    change.failure = 'Cannot render, no camera';
+    change.deadline = 0;
+  });
+  const result = JSON.parse(await h.tool.blender_workflow.execute(
+    { action: 'recover', payload: JSON.stringify({ reopen: true }) },
+    { sessionID: f.session },
+  ));
+  assert.equal(result.change.failure, false);
+  assert.equal(result.change.reopen, true);
+  assert.equal(result.nextStep.phase, 'apply');
 });
 
 test('plugin blocks early completion, fake internal commands and wrong goal', async (t) => {

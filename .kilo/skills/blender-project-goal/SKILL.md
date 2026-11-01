@@ -76,8 +76,9 @@ The filled goal MUST contain:
 Kilo has no `question` during an active goal.
 
 1. If work cannot continue because approval or a decision is missing, call
-   `goal_report(status="blocked", reason=<pending input>)` after committing exact project files with
-   the harness. End the turn with the decision needed and the next change proposed for the user.
+   `goal_report(status="blocked", reason=<pending input>)` with the exact evidence. A blocked report
+   does not require a commit. End the turn with the decision needed and the next change proposed for
+   the user.
 2. On the next ordinary user turn, ask the required `question` before resuming.
 3. For approval, call `blender_workflow` `approval` and use its exact question and labels. Freeform
    direction does not replace the runtime receipt.
@@ -88,7 +89,8 @@ Kilo has no `question` during an active goal.
 ## Rules
 
 - Production MUST NOT start before registration, active goal, and committed valid records.
-- Requirements change only after explicit user confirmation and a harness-recorded update.
+- Requirements are frozen after registration; a requested change stops production for explicit
+  re-registration.
 - Partially Autonomous approval is mandatory after every reviewable change before its commit.
 - `review` mode `All` or `Single` requires configured grader receipts before approval or commit.
 - Use harness document and commit actions. Manual project document writes and Git commits are

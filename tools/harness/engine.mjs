@@ -321,7 +321,9 @@ export class Harness {
     }
     if (c.bootstrap && !c.saved) return { phase: 'bootstrap-save', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'save', payload: {} }), reason: 'Save the initial scene to the declared project-root .blend; never apply, seal, or grade the bootstrap save.' };
     if (c.bootstrap && c.saved && !c.operations) return { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<bounded bootstrap message>' }), reason: 'Close the bootstrap save with the harness commit, then checkpoint; never seal or grade the initial scene.' };
-    if (c.operations === 0 && !c.failure && Date.now() <= c.deadline) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<supported operation>' }), reason: 'Seal requires at least one apply operation; issue an apply ticket and delegate it to blender-worker.' };
+    if (c.failure || Date.now() > c.deadline) return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it explicitly before another apply.' };
+    if (c.reopen) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<supported operation>' }), reason: 'The change was reopened; issue one repair apply and delegate it to blender-worker.' };
+    if (c.operations === 0) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<supported operation>' }), reason: 'Seal requires at least one apply operation; issue an apply ticket and delegate it to blender-worker.' };
     if (!c.sealed) return { phase: 'seal', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'seal', payload: {} }), reason: 'Save and seal the changed scene, then inspect the returned render.' };
     if (!c.inspected) return { phase: 'inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.renderPath}"}`, reason: 'Inspect the exact sealed render before review.' };
     if (!c.verdict) {
@@ -337,7 +339,7 @@ export class Harness {
     const c = p.change;
     const step = this.nextStep(p, state);
     return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
-       change: c ? { id: c.id, outcome: c.outcome, paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, pending: c.pending ? 'operation in progress' : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, outcome: c.outcome, paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, round: c.round, evidenceKey: c.evidenceKey, operations: c.operations, appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), pending: c.pending ? 'operation in progress' : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   bootstrapStatus(session, project, state) {
@@ -697,7 +699,7 @@ export class Harness {
          if (result.round) c.failedRounds = [...new Set([...(c.failedRounds ?? []), result.round])];
          return;
        }
-        if (t.operation === 'apply') { delete c.failure; c.operations++; c.saved = true; c.sceneHash = this.hash(p.scene); }
+        if (t.operation === 'apply') { delete c.failure; delete c.reopen; c.operations++; c.deadline = Date.now() + 900000; c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'save') { c.saved = true; c.sceneHash = this.hash(p.scene); }
       else {
         c.sealed = true; c.saved = true; c.sceneHash = this.hash(p.scene);
@@ -772,9 +774,21 @@ export class Harness {
     });
   }
 
-  recover(session) {
+  recover(session, args = {}) {
     return this.transaction((s) => {
-      const p = this.owner(s, session), token = p.change?.pending, t = s.tickets[token];
+      if (Object.keys(args).some((key) => key !== 'reopen') || (args.reopen !== undefined && args.reopen !== true)) deny('recover accepts reopen:true only');
+      const p = this.owner(s, session);
+      this.fresh(p);
+      if (args.reopen) {
+        const c = p.change;
+        if (!c || c.sealed || c.pending || c.bootstrap) deny('reopen requires an unsealed reviewable change with no pending operation');
+        if (!c.failure && Date.now() <= c.deadline) deny('change has no failure or expired window to reopen');
+        delete c.failure;
+        c.reopen = true;
+        c.deadline = Date.now() + 900000;
+        return this.status(p, s);
+      }
+      const token = p.change?.pending, t = s.tickets[token];
       if (!t || (t.state === 'running' && (!t.pid || (() => { try { process.kill(t.pid, 0); return true; } catch { return false; } })())) || t.state !== 'running' && Date.now() - t.created <= 60000) deny('no expired/dead operation; never release a live writer');
       const writerStarted = t.state === 'running';
       t.state = 'abandoned'; delete p.change.pending;
