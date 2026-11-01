@@ -210,6 +210,15 @@ test('status reports an unregistered phase instead of denying', (t) => {
   assert.match(status.next, /prepare/);
 });
 
+test('unregistered status asks prepare when multiple goal documents exist', (t) => {
+  const f = useFixture(t);
+  write(f.root, `${f.project}/Documents/Goals/02-extra.md`, '# Goal: Extra\n\n## Mission\n\nFixture extra goal.\n');
+  commit(f.root, 'test: add extra goal', [f.project]);
+  const status = f.harness.command('orchestrator', 'status', { project: f.project });
+  assert.equal(status.nextStep.phase, 'prepare');
+  assert.match(status.nextStep.command, /01-test-goal/);
+});
+
 test('prepare is idempotent and replaces its own expired challenge', (t) => {
   const f = useFixture(t);
   const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
@@ -237,6 +246,7 @@ test('bootstrap save closes with checkpoint and cannot be sealed or graded', (t)
   activate(f);
   begin(f, 'orchestrator', { paths: ['Documents/DECISIONS.md'] });
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'bootstrap-save');
+  gate(() => f.harness.issue('orchestrator', 'apply', {}), /bootstrap change accepts save only/);
   gate(() => f.harness.issue('orchestrator', 'seal', {}), /bootstrap save/);
   fs.writeFileSync(path.join(f.root, f.scene), 'saved scene bytes\n');
   finishSave(f);
@@ -587,6 +597,7 @@ test('task ledger records batched tickets and WIP commit preserves a failed chan
   assert.equal(staged.nextStep.phase, 'checkpoint');
   const checkpointed = f.harness.command('orchestrator', 'checkpoint');
   assert.equal(checkpointed.change, null);
+  assert.equal(checkpointed.nextStep.phase, 'begin');
   const history = f.harness.transaction((state) => state.projects[f.project].history.at(-1));
   assert.equal(history.verdict, 'WIP');
   assert.doesNotThrow(() => begin(f));
@@ -618,6 +629,16 @@ test('failed apply closes edit route but preserves recovery save and seal', (t) 
   gate(() => f.harness.issue('orchestrator', 'apply', { next: true }));
   finishSave(f);
   assert.equal(seal(f).result.change.sealed, true);
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'self-review');
+  assert.equal(status.change.failure, false);
+  assert.equal(status.change.reopen, false);
+});
+
+test('checkpoint without an open change is rejected', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  gate(() => f.harness.command('orchestrator', 'checkpoint'), /no open change/);
 });
 
 test('sealed render must be inspected before self-review can pass', (t) => {
@@ -937,6 +958,41 @@ test('harness document action creates declared markdown only', (t) => {
   assert.equal(read(f.root, `${f.project}/Documents/NEW.md`), '# New document\n');
   gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/Reviews/R01/REVIEW.md', content: 'manual' }));
   gate(() => f.harness.command('orchestrator', 'document', { path: 'Documents/UNDECLARED.md', content: 'outside' }));
+});
+
+test('document-only changes commit without sealing and close at checkpoint', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['README.md', 'Documents/DECISIONS.md'] });
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'commit');
+  gate(() => f.harness.issue('orchestrator', 'apply', {}), /document-only/);
+  gate(() => f.harness.issue('orchestrator', 'seal', {}), /document-only/);
+  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'Document-only change.\n');
+  const committed = f.harness.command('orchestrator', 'commit', { message: 'docs: update fixture readme' });
+  assert.equal(committed.nextStep.phase, 'checkpoint');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+  assert.equal(checkpointed.nextStep.phase, 'begin');
+  assert.equal(f.harness.transaction((state) => state.projects[f.project].history.at(-1).verdict), 'DOCUMENT');
+  assert.doesNotThrow(() => begin(f));
+});
+
+test('document-only checkpoint preserves a prior PASS for completion', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  seal(f);
+  selfReview(f);
+  f.harness.command('orchestrator', 'commit', { message: 'feat: fixture pass' });
+  f.harness.command('orchestrator', 'checkpoint');
+  begin(f, 'orchestrator', { paths: ['README.md'] });
+  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'Document-only completion note.\n');
+  f.harness.command('orchestrator', 'commit', { message: 'docs: fixture completion note' });
+  f.harness.command('orchestrator', 'checkpoint');
+  const complete = f.harness.command('orchestrator', 'goal-complete');
+  assert.equal(complete.complete, true);
+  assert.equal(complete.nextStep.phase, 'complete');
 });
 
 test('registered changes cannot rewrite registration documents', (t) => {

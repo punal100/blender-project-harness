@@ -41,8 +41,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    up to 10 operations and executes sequentially under one token. Pass the token to one foreground
    `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
    payload. Each operation auto-saves. The orchestrator NEVER executes apply.
-4. The orchestrator executes `ticket` `{operation:"save"|"seal",payload:{}}`. Seal only after at
-   least one apply. `seal` writes immutable evidence, a final PNG, and a manifest.
+4. A change whose declared paths are all markdown is document-only: after editing, use `commit` and
+   `checkpoint` without `apply`, `seal`, or review. Otherwise issue
+   `ticket` `{operation:"save"|"seal",payload:{}}`. Seal only after at least one apply. `seal`
+   writes immutable evidence, a final PNG, and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise dispatch every configured grader
    with `grader-ticket` `{name}` and the normal `blender-grader` task. Aggregate with

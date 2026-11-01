@@ -44,8 +44,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   guess the next action.
 - Keep one bounded change open per project. `begin` requires one observable outcome, exact object
   names, exact project-relative paths, and `revision` only when authorized.
-- A **reviewable change** is a bounded change with at least one apply operation. The bootstrap save
-  is not reviewable.
+- A **reviewable change** is a bounded change with at least one apply operation. A change whose
+  declared paths are all markdown is document-only: commit and checkpoint it without apply, seal, or
+  review. The bootstrap save is not reviewable.
 - Every reviewable change MUST complete: apply tickets, `seal`, `blender_look` on the returned
   render, review, approval when required, exactly one harness commit (review's auto-commit or
   `commit`), and `checkpoint`.

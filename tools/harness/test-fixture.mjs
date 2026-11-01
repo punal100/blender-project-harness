@@ -78,7 +78,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   harness.question(session, questionArgs(registration.question, registration.labels), [['Confirm registration']]);
   const begin = () => {
     harness.command(session, 'goal-active', { objective });
-    return harness.command(session, 'begin', { outcome: 'Create fixture composition', objects: ['Cube'], paths: ['README.md', 'Documents/DECISIONS.md'] });
+    return harness.command(session, 'begin', { outcome: 'Create fixture composition', objects: ['Cube'], paths: ['notes.txt', 'Documents/DECISIONS.md'] });
   };
   return { root, project, scene, goal, objective, write, commit, harness, session, questionArgs, begin };
 }
