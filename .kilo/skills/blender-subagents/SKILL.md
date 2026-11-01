@@ -78,12 +78,12 @@ Task ID:
 Project:
 Orchestrator goal:
 User prompt: verbatim user words for Blender MCP user_prompt
-Outcome: one apply operation
+Outcome: one apply ticket (one operation or up to 10 operations)
 Allowed: exact objects, collections, files, paths
 Authoritative .blend: exact saved path, open and verified
 Inputs: project documents and references by path
 Preflight: requirements/workflow/review status and validated config
-Ticket: exact token and apply payload
+Ticket: exact token and full apply payload
 Acceptance: observable checks
 Commands / views: exact checks, including look views
 Budget: {max_minutes} minutes, {max_steps} steps, {max_failed_attempts} failed attempts
@@ -93,7 +93,8 @@ Output: DONE|PARTIAL|BLOCKED + evidence, <= 12 lines
 ```
 
 The worker calls `blender_harness_execute` with the exact token, `operation:"apply"`, matching
-payload, and the user's verbatim prompt. Each apply auto-saves. It MUST NOT save, seal, review,
+payload, and the user's verbatim prompt. Each operation in the batch auto-saves; the harness stops
+on the first failure. It MUST NOT save, seal, review,
 approve, commit, launch, stop, spawn subagents, ask the user, generate assets, or edit project files.
 
 A worker MAY inspect the assigned scene with `blender_get_scene_info` and `blender_look` and return

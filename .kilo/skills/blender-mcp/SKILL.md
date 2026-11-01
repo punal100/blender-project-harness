@@ -33,7 +33,7 @@ This skill is required before any Blender scene operation. `AGENTS.md` defines h
 | `blender_get_scene_info` | Text summary: objects, placement, materials, topology, weights, settings |
 | `blender_workflow` | Orchestrator lifecycle and review actions; payload is a JSON string |
 | `blender_document` | Structured document read; declared document or assigned grader-report write |
-| `blender_harness_execute` | Execute one ticketed apply/save/seal operation |
+| `blender_harness_execute` | Execute one ticketed apply batch/save/seal operation |
 | `blender_look` | Inspect an exact image: sealed render, viewport, camera, angles, frames |
 | `blender_search_assets` | Search asset libraries |
 | `blender_execute_blender_code` | Blocked raw Python; never a fallback or diagnostic route |
@@ -48,7 +48,7 @@ Use the exposed `blender_` prefix. Pass the user's exact words in `user_prompt` 
 
 - The orchestrator issues an `apply` ticket and passes it to `blender-worker`. The worker calls
   `blender_harness_execute` with the exact token and payload.
-- The orchestrator executes `save` and `seal` only. Each apply auto-saves.
+- The orchestrator executes `save` and `seal` only. Each operation in an apply batch auto-saves.
 - After `seal`, inspect the returned absolute PNG with `blender_look`. Viewport checks do not replace
   the sealed render.
 - Review, approve, commit, and checkpoint through the harness. Never stage or commit project files

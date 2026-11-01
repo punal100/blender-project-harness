@@ -48,6 +48,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
     REVIEW.md
     ASSETS.md
     DECISIONS.md
+    TASKS.md
     Goals/
     Reviews/
     References/
@@ -89,8 +90,8 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
   rounds live in [`Documents/Reviews/`](Documents/Reviews/README.md).
 - Collect both answers after requirements confirmation and before scaffolding; persist their exact
   records after scaffolding and before filling and starting the goal. Launch only after that.
-- On a genuine later return, ask both mode questions before resume. Routine approval, clarification,
-  or manual-edit pauses within the same active task retain the selected modes without reasking.
+- After registration, workflow and review modes are frozen. A requested mode change stops production
+  for explicit re-registration; routine approval, clarification, or manual-edit pauses retain them.
 - In Partially Autonomous mode, the agent seals, inspects, completes required grading, and obtains
   approval or revision direction before the next reviewable change commits. In either mode, the agent
   manages goal handoffs and continuation; users provide inputs and decisions.

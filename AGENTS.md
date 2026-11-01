@@ -49,13 +49,18 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - Every reviewable change MUST complete: apply tickets, `seal`, `blender_look` on the returned
   render, review, approval when required, exactly one harness commit (review's auto-commit or
   `commit`), and `checkpoint`.
-- Apply edits are worker-only. Issue an `apply` ticket, pass its token to `blender-worker`, and let
-  the worker call `blender_harness_execute`. Reuse one foreground worker task for consecutive tickets
-  by resuming its `task_id`; never run parallel writers. The orchestrator executes `save` and `seal`
-  only and MUST NOT execute apply.
-- At most 20 apply operations per change; 15 minutes without a successful apply. Reopen a failed or
-  expired reviewable change with `recover {reopen:true}` before another apply. Recovery `save` and
+- Apply edits are worker-only. Issue one `apply` ticket containing one operation or an
+  `{operations:[...]}` batch of up to 10, pass its token to `blender-worker`, and let the worker call
+  `blender_harness_execute`. Reuse one foreground worker task for consecutive tickets by resuming its
+  `task_id`; never run parallel writers. The orchestrator executes `save` and `seal` only and MUST
+  NOT execute apply.
+- At most 20 apply tickets per change; 15 minutes without a successful apply. Reopen a failed or
+  expired reviewable change with `recover {reopen:true}` before another apply. A failed or expired
+  change may be preserved with `commit {mode:"wip"}` and then checkpointed. Recovery `save` and
   `seal` remain available after the apply budget. Unsupported operations stop until reviewed.
+- The harness owns `Documents/TASKS.md`; each ticket records its task ID, change, operation, objects,
+  token hash, worker role, timestamps, state, and result. Read it with `blender_document`
+  `{action:"ledger"}`; never edit it manually.
 - Seal ONLY after at least one apply. NEVER seal, render, or grade the bootstrap save. Close it with
   `commit` and `checkpoint`.
 - Inspect every sealed render with `look`. Code output, scene text, and viewport checks do not

@@ -12,6 +12,7 @@ deliverable.
 | `Reviews/` | Timestamped grader rounds: manifests, verdicts, findings, ignored evidence. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
+| `TASKS.md` | Harness-owned task ledger: one row per operation ticket, token hash, state, and result. |
 | `References/` | Moodboards, screenshots, links, and visual references. |
 | `../README.md` | Project purpose, requirements summary, scope, deliverables, and status. |
 
@@ -23,8 +24,8 @@ deliverable.
   `Confirmation:` response and scope in `REQUIREMENTS.md`.
 - Before Blender work, ensure a goal is active, a workflow mode is selected, and the review mode is
   not `Unset`.
-- Requirements may be added or changed at any time only after user confirmation; append the change
-  log in `REQUIREMENTS.md`.
+- After registration, requirements, workflow mode, review mode, and the active goal are frozen. Stop
+  and report a requested change for explicit re-registration; do not edit the frozen records.
 - Record sources used during requirements in `REQUIREMENTS.md`; user confirmation, not research,
   decides scope.
 - In Partially Autonomous mode, seal, inspect, complete required grading, and obtain approval or
@@ -34,8 +35,8 @@ deliverable.
   questions, objective updates, and resume. Users provide inputs, never goal commands. Pause,
   cancellation, unanswered questions, and manual editing keep work stopped until continuation is
   authorized.
-- Ask workflow and review modes before resuming a genuine later return; routine approval or manual
-  pauses within the same active task retain modes without reasking.
+- Do not reask or rewrite workflow and review modes after registration; a mode change stops for
+  explicit re-registration. Routine approval or manual pauses retain the frozen modes.
 - Grade saved work with the configured graders when review mode is `All` or `Single`; the harness
   commits each round's verdict, manifest, reports, and index with the reviewed change. Only
   `_evidence/` and `tmp/` under review rounds are ignored. Require final applicable `PASS` with no
@@ -47,5 +48,6 @@ deliverable.
 - Use relative paths from the `.blend` file; never commit machine-specific absolute paths. Packed or
   embedded third-party data in a tracked `.blend` still needs redistribution permission and an asset
   register entry.
-- Update README, `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`, `ASSETS.md`, and `DECISIONS.md`
-  when scope, workflow, review mode, assets, or visual direction changes.
+- Update `README.md`, `ASSETS.md`, and `DECISIONS.md` when non-registration project facts change.
+  Registration documents remain frozen after registration.
+- `TASKS.md` is harness-owned. Never edit it manually; ticket issue and completion update it.

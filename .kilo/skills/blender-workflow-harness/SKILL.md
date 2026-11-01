@@ -37,9 +37,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
 2. `begin` `{outcome,objects,paths,revision?}`. One bounded change; exact object names and
    project-relative paths. `revision:true` requires the prior committed verdict.
-3. Issue `ticket` `{operation:"apply",payload:<supported operation>}`. Pass the token to one
-   foreground `blender-worker`; the worker calls `blender_harness_execute` with the exact token,
-   operation, and payload. Each apply auto-saves. The orchestrator NEVER executes apply.
+3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
+   up to 10 operations and executes sequentially under one token. Pass the token to one foreground
+   `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
+   payload. Each operation auto-saves. The orchestrator NEVER executes apply.
 4. The orchestrator executes `ticket` `{operation:"save"|"seal",payload:{}}`. Seal only after at
    least one apply. `seal` writes immutable evidence, a final PNG, and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
@@ -60,13 +61,18 @@ open a review round for the initial empty/default scene.
 
 ## Limits and recovery
 
-- Maximum 20 applies per change. The window is 15 minutes without a successful apply. Recovery
-  `save` and `seal` remain available after the apply budget or a failed apply.
+- Maximum 20 apply tickets per change, each carrying up to 10 operations. The window is 15 minutes
+  without a successful apply. Recovery `save` and `seal` remain available after the apply budget or
+  a failed apply.
 - `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
   save, and reseal. NEVER release a live writer.
-- `recover {reopen:true}` clears a failed or expired reviewable change so one repair apply can run.
+- `recover {reopen:true}` clears a failed or expired reviewable change so repair applies can run.
   It does not reopen a sealed or bootstrap change, and it keeps the failed round history.
-  `status.change` reports `appliesRemaining` and `deadlineRemainingMs`.
+- `commit {mode:"wip"}` preserves a failed or expired change and closes it at the next `checkpoint`
+  with verdict `WIP`; it is not a review substitute and does not set a completion render.
+- `status.change` reports `appliesRemaining` and `deadlineRemainingMs`. `Documents/TASKS.md` is
+  harness-owned and records every ticket's task ID, token hash, state, and result. Read it with
+  `blender_document {action:"ledger"}`; never write it directly.
 - `max_rounds` is configured 1-4. A capped review requires `escalate` `{reason,max_rounds?}`, then
   the exact registration question again. Escalation preserves history.
 - `status.nextStep` is authoritative for pending tickets, missing `look`, review, approval, commit,

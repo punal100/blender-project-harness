@@ -77,7 +77,7 @@ Call `seal` after the reviewable scene is ready. It saves the authoritative scen
 Immediately call `blender_look` on the returned absolute render path. The runtime records the
 inspection receipt. NEVER substitute an image, rewrite sealed evidence, or change the manifest.
 
-The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied.
+The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied. Read `operation_tasks` in the manifest and `Documents/TASKS.md` as process evidence; `blender_document {action:"ledger"}` returns the structured rows. Never edit either.
 
 ## Dispatch
 
@@ -138,8 +138,8 @@ with evidence, then adds new findings. NEVER permit peer report reads or rewrite
 - Completion requires a clean `checkpoint`, current records, inspected sealed render, and final
   applicable `PASS` or recorded `Off` self-review with no unresolved blocker or major.
 - Commit policy: `bootstrap-commit` before registration, `commit` after registration. Manual project
-  Git commands are blocked. Failed rounds commit before fixes; `checkpoint` verifies exactly one
-  scoped commit after the change base.
+  Git commands are blocked. Failed/expired changes use `recover` for repairs or `commit {mode:"wip"}`
+  to preserve them; `checkpoint` verifies exactly one scoped commit after the change base.
 
 ## References
 
