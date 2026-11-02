@@ -909,8 +909,12 @@ test('grader tickets expose exact evidence paths and refuse tampered evidence', 
   assert.match(ticket.prompt, /manifest\.json/);
   assert.doesNotMatch(ticket.prompt, /Evidence: .*_evidence\n/);
   first.harness.bindGrader('orchestrator', 'child-evidence', `Review ${ticket.marker}`, { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' });
-  first.harness.transaction((s) => { s.projects[first.project].change.graders.visual.steps = 999; });
+  first.harness.transaction((s) => {
+    s.projects[first.project].change.graders.visual.steps = 999;
+    s.projects[first.project].change.graders.visual.deadline = Date.now() - 1;
+  });
   assert.doesNotThrow(() => first.harness.graderStep('child-evidence', 'blender_document', { action: 'write' }));
+  gate(() => first.harness.graderStep('child-evidence', 'read', {}), /budget/);
 
   const second = useFixture(t, { review: 'All' });
   activate(second);
@@ -1061,6 +1065,26 @@ test('grader document writes are limited to the assigned report format and path'
   assert.ok(fs.existsSync(path.join(f.root, ticket.report)));
   gate(() => f.harness.documentWrite('child-grader', { path: 'Documents/REQUIREMENTS.md', content: '# Required\n' }), /assigned report/);
   gate(() => f.harness.documentWrite('child-grader', { path: report, content: '# Missing verdict\n' }), /Verdict/);
+});
+
+test('graders may read their own prior report but not peer reports', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-grader',
+    `Review assignment ${ticket.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  const prior = 'R00-20261031T100000Z';
+  write(f.root, `${f.project}/Documents/Reviews/${prior}/visual/REPORT.md`, '# Visual prior report\n');
+  write(f.root, `${f.project}/Documents/Reviews/${prior}/technical/REPORT.md`, '# Technical prior report\n');
+  const own = f.harness.documentRead('child-grader', { path: `Documents/Reviews/${prior}/visual/REPORT.md` });
+  assert.equal(own.path, `Documents/Reviews/${prior}/visual/REPORT.md`);
+  gate(() => f.harness.documentRead('child-grader', { path: `Documents/Reviews/${prior}/technical/REPORT.md` }), /outside assigned/);
 });
 
 test('seal requires at least one apply operation', (t) => {

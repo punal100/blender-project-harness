@@ -700,7 +700,13 @@ export class Harness {
           `${assignment.p.project}/README.md`, `${assignment.p.project}/Documents/ASSETS.md`,
           `${assignment.p.project}/Documents/DECISIONS.md`, `${assignment.p.project}/Documents/REVIEW.md`,
           `${assignment.p.project}/${TASKSTRACKER_DOCUMENT}`, `${assignment.p.project}/Documents/README.md`, assignment.g.report]);
-        if (!allowed.has(`${project}/${clean}`)) deny('grader document read outside assigned spec documents');
+        const reportPrefix = 'Documents/Reviews/';
+        const reportSuffix = `/${assignment.name}/REPORT.md`;
+        const round = clean.startsWith(reportPrefix) && clean.endsWith(reportSuffix)
+          ? clean.slice(reportPrefix.length, clean.length - reportSuffix.length)
+          : '';
+        const ownPriorReport = Boolean(round) && !round.includes('/');
+        if (!allowed.has(`${project}/${clean}`) && !ownPriorReport) deny('grader document read outside assigned spec documents');
       }
       if (!fs.existsSync(full)) deny(`project document missing: ${clean}`);
       const content = fs.readFileSync(full, 'utf8');
@@ -1351,7 +1357,7 @@ export class Harness {
       this.fresh(p);
       const cfg = p.records.roster.find((v) => v.name === name);
       const reportWrite = tool === 'blender_document' && args?.action === 'write';
-      if (g.verdict || Date.now() > g.deadline || (!reportWrite && ++g.steps > cfg.max_steps)) deny('grader pass budget exhausted');
+      if (g.verdict || (!reportWrite && (Date.now() > g.deadline || ++g.steps > cfg.max_steps))) deny('grader pass budget exhausted');
       this.updateManifest(p);
       return { project: p.project, report: g.report, sceneHash: p.change.sceneHash, evidenceKey: p.change.evidenceKey };
     });
