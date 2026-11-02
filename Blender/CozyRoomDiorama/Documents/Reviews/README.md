@@ -52,3 +52,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R02-20261102T190051Z: Replace the curtain slabs with layered hanging panels below the rod and re-center the hero camera framing; evidence d3f6bbe37eb922d94734c5558dbb5103b19533a7091b775d5045f5dc8be80c8f
 
 - R03-20261102T191946Z: Add the desk, monitor, keyboard, mouse, PC tower, chair, desk lamp, rug, wall art, plant, and warm/cool lighting so the computer desk reads as the focal point; evidence 1d928e332eb3604fc9085de235b65e8e5e3877deddf332459144cffa131f75b7
+
+- R04-20261102T193004Z: Add a floor lamp and rainy window backdrop, deepen the teal accents, mute the wood palette, fix the chair back, and tighten the hero framing; evidence 74069afb488af29618b0c22d8acd61de3f908a252478bae7ebae5301d9401567
