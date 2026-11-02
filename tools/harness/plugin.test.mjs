@@ -69,6 +69,7 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.documentFormats.some((format) => format.id === 'goal' && format.sections.includes('Acceptance')));
   assert.ok(result.actions.some((action) => action.name === 'bootstrap-commit'));
   assert.ok(result.actions.some((action) => action.name === 'reregister'));
+  assert.ok(result.actions.some((action) => action.name.includes('grader-fail')));
   assert.match(result.commitPolicy, /manual project git/i);
   assert.match(result.documentPolicy, /structured/);
   assert.equal(result.limits.appliesBeforeCheckpoint, 20);

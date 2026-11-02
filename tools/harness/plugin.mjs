@@ -12,7 +12,7 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
@@ -55,7 +55,7 @@ const capabilities = () => ({
     { name: 'finalize', actor: 'orchestrator', phase: 'open change', payload: '{}' },
     { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation:apply|save|seal|wip,payload}' },
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
-    { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
+    { name: 'self-review|review|grader-ticket|grader-fail', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
     { name: 'recover|escalate|pause|reclaim|preserve', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, {project,reason}, or {reason} for a sealed tooling block' },
   ],
@@ -268,7 +268,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);

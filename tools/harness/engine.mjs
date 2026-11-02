@@ -602,7 +602,19 @@ export class Harness {
     if (!c.inspected) return { phase: 'inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.renderPath}"}`, reason: 'Inspect the exact sealed render before review.' };
     if (!c.verdict) {
       if (p.records.review === 'Off') return { phase: 'self-review', actor: 'orchestrator', action: 'self-review', command: this.wire('self-review', { notes: '<what the sealed render proves>' }), reason: 'Record the required self-review after inspecting the sealed render.' };
-      const missing = p.records.roster.find((g) => !c.graders[g.name]?.verdict)?.name ?? '<grader>';
+      const pending = p.records.roster.filter((g) => !c.graders[g.name]?.verdict);
+      const exhausted = pending.length > 0 && pending.every((g) => {
+        const assignment = c.graders[g.name];
+        return assignment && (assignment.attempt ?? 0) >= 2 && (!assignment.child || Date.now() > assignment.deadline);
+      });
+      const expired = pending.length > 0 && pending.every((g) => {
+        const assignment = c.graders[g.name];
+        return assignment && Date.now() > assignment.deadline;
+      });
+      if (!pending.length || exhausted || expired) {
+        return { phase: 'review', actor: 'orchestrator', action: 'review', command: this.wire('review', { notes: '<inspection notes>', reason: '<why no further grader retry is possible>', dispositions: '<finding dispositions>' }), reason: 'All available grader results are ready; aggregate the round and record any missing or expired grader as a tooling block.' };
+      }
+      const missing = pending[0].name;
       return { phase: 'grader-ticket', actor: 'orchestrator', action: 'grader-ticket', command: this.wire('grader-ticket', { name: missing }), reason: 'Dispatch every configured grader, then aggregate their reports.' };
     }
     if (c.verdict === 'BLOCKED' && c.blockingKind === 'tooling') {
@@ -764,8 +776,8 @@ export class Harness {
     c.commits.push(this.head());
     p.lastCommit = this.head();
   }
-  commitTaskArtifacts(p, c, message) {
-    const files = [this.taskDocument(p), ...this.taskFiles(p, c), c.manifestPath]
+  commitTaskArtifacts(p, c, message, { manifest = true } = {}) {
+    const files = [this.taskDocument(p), ...this.taskFiles(p, c), ...(manifest ? [c.manifestPath] : [])]
       .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/'))));
     if (!files.length) return null;
     const dirty = gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', ...files]);
@@ -914,7 +926,7 @@ export class Harness {
         return this.reregisterStatus(p);
       }
       const c = p.change;
-      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
+      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
       this.fresh(p, { allowRosterDrift });
       if (action === 'goal-active') {
         if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
@@ -1018,9 +1030,10 @@ export class Harness {
         const retryable = existing && (existing.error || existing.kind === 'tooling' || existing.verdict === 'BLOCKED' || (!existing.verdict && Date.now() > existing.deadline));
         if (existing && !retryable) deny('grader already dispatched');
         if (retryable && attempt >= 2) deny('grader retry budget exhausted; aggregate the round as blocked');
-        if (Object.values(c.graders).filter((g) => !g.verdict && !g.error && Date.now() <= g.deadline).length >= p.records.maxParallel) deny('grader parallel limit reached');
+        if (Object.values(c.graders).filter((g) => g.child && !g.verdict && !g.error && Date.now() <= g.deadline).length >= p.records.maxParallel) deny('grader parallel limit reached');
         const token = crypto.randomUUID();
         const report = existing?.report ?? `${p.project}/Documents/Reviews/${c.round}/${g.name}/REPORT.md`;
+        if (c.reports) delete c.reports[report];
         fs.mkdirSync(path.dirname(contained(this.root, report, true)), { recursive: true });
         const full = contained(this.root, report, true);
         if (fs.existsSync(full)) fs.rmSync(full);
@@ -1065,14 +1078,33 @@ export class Harness {
         ].join('\n');
         return { token, marker: `HARNESS_GRADER:${token}`, grader: g, model: modelSummary(g), report, reportPath, evidenceFiles: evidenceLines, prompt, taskId: task.id,
           sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, evidence: c.evidence, round: c.round, goal: `${p.project}/${p.goal}` };
+      } else if (action === 'grader-fail') {
+        if (Object.keys(args).some((key) => !['name', 'reason'].includes(key))) deny('grader-fail accepts name and reason only');
+        if (!c?.sealed || c.verdict || p.records.review === 'Off') deny('grader failure requires an unaggregated sealed review');
+        if (typeof args.name !== 'string' || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 500) deny('grader-fail requires name and one bounded reason');
+        const g = p.records.roster.find((item) => item.name === args.name);
+        if (!g) deny('unknown grader');
+        const assignment = c.graders[g.name];
+        if (!assignment) deny('grader has not been dispatched');
+        if (assignment.verdict) deny('grader already has a verdict');
+        assignment.verdict = 'BLOCKED';
+        assignment.error = args.reason.trim();
+        assignment.kind = 'tooling';
+        const task = p.tasks?.find((item) => item.token === assignment.token);
+        if (task) this.recordTaskFinished(p, assignment.token, { ok: false, error: assignment.error });
+        this.updateManifest(p);
+        if (task) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`, { manifest: false });
+        return this.status(p, s);
       } else if (action === 'review') {
         if (!c?.inspected || p.records.review === 'Off' || c.verdict) deny('sealed inspection required once before review');
         if (!args.notes?.trim() || !args.reason?.trim() || !args.dispositions?.trim()) deny('review requires notes, correction/no-correction reasoning, and finding dispositions');
         for (const roster of p.records.roster) {
           const g = c.graders[roster.name];
-          if (g && !g.verdict && (g.error || Date.now() > g.deadline)) {
+          if (g && !g.verdict && (g.error || Date.now() > g.deadline || ((g.attempt ?? 0) >= 2 && !g.child))) {
             g.verdict = 'BLOCKED';
-            g.error ??= `grader deadline exceeded before collection: ${roster.name}`;
+            g.error ??= `grader deadline exceeded or retries exhausted before collection: ${roster.name}`;
+            const task = p.tasks?.find((item) => item.token === g.token);
+            if (task) this.recordTaskFinished(p, g.token, { ok: false, error: g.error });
           }
         }
         if (p.records.roster.some((g) => !c.graders[g.name]?.verdict)) deny('required grader reports incomplete');
@@ -1381,6 +1413,8 @@ export class Harness {
       if (verdicts[0][1] === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) return fail(`PASS report contains blocker/major finding: ${g.report}`);
       g.verdict = verdicts[0][1];
       g.kind = g.verdict === 'BLOCKED' ? 'tooling' : 'review';
+      p.change.reports ??= {};
+      delete p.change.reports[g.report];
       p.change.reports[g.report] = digest(text);
       const task = p.tasks?.find((item) => item.token === g.token);
       if (task) this.recordTaskFinished(p, g.token, { ok: g.verdict !== 'BLOCKED', error: g.verdict === 'BLOCKED' ? 'grader returned BLOCKED' : undefined });

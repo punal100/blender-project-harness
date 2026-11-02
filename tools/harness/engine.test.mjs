@@ -971,6 +971,79 @@ test('missing grader report records BLOCKED and allows re-dispatch before review
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
 });
 
+test('retrying a collected BLOCKED report clears the stale evidence hash', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${first.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  write(f.root, first.report, [
+    '# Visual report',
+    '- Verdict: BLOCKED',
+    `Scene hash: ${first.sceneHash}`,
+    `Evidence key: ${first.evidenceKey}`,
+    '',
+  ].join('\n'));
+  f.harness.collectGrader('orchestrator', 'child-one');
+  assert.ok(f.harness.transaction((s) => s.projects[f.project].change.reports[first.report]));
+
+  const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.attempt), 2);
+  assert.equal(fs.existsSync(path.join(f.root, retry.report)), false);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.reports[retry.report]), undefined);
+  f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+
+  const reviewed = f.harness.command('orchestrator', 'review', {
+    notes: 'The retry produced no report.',
+    reason: 'The grader is tooling-blocked and cannot provide a report.',
+    dispositions: 'No design finding was assessed.',
+  });
+  assert.equal(reviewed.change.verdict, 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'preserve');
+  const preserved = f.harness.command('orchestrator', 'preserve', { reason: 'Preserve the blocked round for a later retry.' });
+  assert.equal(preserved.change.verdict, 'WIP');
+  assert.equal(preserved.nextStep.phase, 'checkpoint');
+  assert.doesNotThrow(() => f.harness.command('orchestrator', 'checkpoint'));
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+});
+
+test('a failed grader start is recorded and exhausts the retry budget', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.command('orchestrator', 'grader-fail', { name: 'visual', reason: 'task failed before child session' });
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.verdict), 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'review');
+  const firstReview = f.harness.command('orchestrator', 'review', {
+    notes: 'The first dispatch produced no child.',
+    reason: 'The grader task failed before it could report.',
+    dispositions: 'No design finding was assessed.',
+  });
+  assert.equal(firstReview.change.verdict, 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'retry-grader');
+
+  const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.notEqual(retry.token, first.token);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.attempt), 2);
+  f.harness.command('orchestrator', 'grader-fail', { name: 'visual', reason: 'retry failed before child session' });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'review');
+  const reviewed = f.harness.command('orchestrator', 'review', {
+    notes: 'The retry also produced no child.',
+    reason: 'Both grader attempts failed before binding a child.',
+    dispositions: 'No design finding was assessed.',
+  });
+  assert.equal(reviewed.change.verdict, 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'preserve');
+});
+
 test('review registration record is frozen after registration', (t) => {
   const f = useFixture(t);
   activate(f);
