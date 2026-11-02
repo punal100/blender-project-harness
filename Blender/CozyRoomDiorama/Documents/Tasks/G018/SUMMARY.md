@@ -1,0 +1,15 @@
+# G018 — Summary
+
+- Change: 4a7b306c-b91c-4c3d-b763-89b71e5b6259
+- Operation: grader:visual
+- State: failed
+- Actor: blender-grader
+- Capability: grade
+- Child session: ses_e625c8322ffewJUQS2Li0HxCzp
+- Created: 2026-11-02T19:01:06.059Z
+- Finished: 2026-11-02T19:07:18.154Z
+- Result: grader report missing: Blender/CozyRoomDiorama/Documents/Reviews/R02-20261102T190051Z/visual/REPORT.md
+
+## Operation Results
+
+- —
