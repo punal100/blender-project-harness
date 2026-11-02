@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -54,6 +55,7 @@ function validGraderConfig(overrides = {}) {
           provider: 'fixture-provider',
           model: 'fixture-model',
           variant: 'fixture-variant',
+          backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
           max_minutes: 1,
           max_steps: 4,
         }],
@@ -434,6 +436,54 @@ test('records reject invalid modes and grader configurations before registration
   }
 });
 
+test('worker and grader backups validate and bind as the configured fallback', (t) => {
+  const config = validGraderConfig();
+  config.blender_subagents.workers = {
+    agent: 'blender-worker', provider: 'fixture-provider', model: 'fixture-model', variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
+    max_minutes: 10, max_steps: 18, max_failed_attempts: 2, max_parallel: 1,
+  };
+  config.blender_subagents.graders.graders[0].backup = { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' };
+  const f = useFixture(t, { review: 'All', configValue: config });
+  write(f.root, '.kilo/agent/blender-worker.md', '---\nsteps: 20\n---\n');
+  assert.equal(f.harness.workerConfig().backup.model, 'backup-model');
+  activate(f);
+  begin(f);
+  const sealed = seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.equal(ticket.model.backup.model, 'backup-model');
+  assert.match(ticket.prompt, /backup backup-provider \/ backup-model \/ backup-variant/);
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-backup',
+    `Review assignment ${ticket.marker}`,
+    { providerID: 'backup-provider', modelID: 'backup-model', variant: 'backup-variant' },
+  );
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.modelRole), 'backup');
+  assert.equal(f.harness.command('orchestrator', 'status').models.graders[0].backup.model, 'backup-model');
+  assert.equal(sealed.round, ticket.round);
+});
+
+test('partial backup configuration is rejected before registration', (t) => {
+  const grader = validGraderConfig();
+  grader.blender_subagents.graders.graders[0].backup = { provider: 'backup-provider', model: 'backup-model' };
+  const graderFixture = useFixture(t, { review: 'All', configValue: grader });
+  gate(() => graderFixture.harness.prepare('orchestrator', {
+    project: graderFixture.project,
+    goal: graderFixture.goal.slice(graderFixture.project.length + 1),
+    scene: graderFixture.sceneName,
+  }), /backup|reasoning/);
+
+  const worker = validGraderConfig();
+  worker.blender_subagents.workers = {
+    agent: 'blender-worker', provider: 'fixture-provider', model: 'fixture-model', variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model' },
+    max_minutes: 10, max_steps: 18, max_failed_attempts: 2, max_parallel: 1,
+  };
+  const workerFixture = useFixture(t, { review: 'Off', configValue: worker });
+  gate(() => workerFixture.harness.workerConfig(), /backup|reasoning/);
+});
+
 test('registration accepts only exact runtime question and goal prompt', (t) => {
   const f = useFixture(t);
   const unregistered = (session = 'orchestrator') => assert.equal(f.harness.command(session, 'status').project, null);
@@ -776,6 +826,75 @@ test('review records an expired uncollected grader as BLOCKED', (t) => {
   assert.match(reviewed.change.graders.visual.error, /deadline/);
   f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
   assert.equal(f.harness.command('orchestrator', 'status').change.graders.visual.attempt, 2);
+});
+
+test('a sealed tooling block can be preserved, checkpointed, and paused', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const runBlockedRound = () => {
+    const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+    f.harness.bindGrader(
+      'orchestrator',
+      `child-${ticket.token}`,
+      `Review assignment ${ticket.marker}`,
+      { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+    );
+    f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+    return f.harness.command('orchestrator', 'review', {
+      notes: 'The grader did not produce a report.',
+      reason: 'The provider remained unavailable, so the review is tooling-blocked.',
+      dispositions: 'No design finding was assessed.',
+    });
+  };
+  assert.equal(runBlockedRound().change.verdict, 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'retry-grader');
+  assert.equal(runBlockedRound().change.verdict, 'BLOCKED');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'preserve');
+  const preserved = f.harness.command('orchestrator', 'preserve', { reason: 'Preserve the sealed round for a later provider retry.' });
+  assert.equal(preserved.change.wip, true);
+  assert.equal(preserved.change.verdict, 'WIP');
+  assert.match(preserved.change.preserved.reason, /later provider retry/);
+  assert.equal(preserved.nextStep.phase, 'checkpoint');
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+  f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'WIP');
+  const paused = f.harness.command('orchestrator', 'pause', { reason: 'Provider unavailable; paused after preserving evidence.' });
+  assert.equal(paused.goalActive, false);
+});
+
+test('shell approvals commit atomically in project or generic scope', (t) => {
+  const record = () => ({
+    id: crypto.randomUUID(),
+    status: 'approved',
+    session: 'orchestrator',
+    command: 'npm run diagnostics',
+    reasoning: 'Run the bounded workspace diagnostic before changing tooling.',
+    cwd: 'D:\\Projects\\_Templates\\Blender',
+    created: new Date().toISOString(),
+    approvedAt: new Date().toISOString(),
+  });
+
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const projectRecord = record();
+  const project = f.harness.commitShellApproval('orchestrator', f.project, projectRecord);
+  assert.equal(project.path, `Documents/Commands/${projectRecord.id}.md`);
+  assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Commands', `${projectRecord.id}.md`)));
+  assert.match(git(f.root, ['log', '-1', '--format=%s']), /shell approval/);
+  seal(f);
+  selfReview(f);
+  f.harness.command('orchestrator', 'commit', { message: 'feat: fixture with command record' });
+  assert.equal(f.harness.command('orchestrator', 'checkpoint').change, null);
+
+  const generic = useFixture(t);
+  const genericRecord = record();
+  const root = generic.harness.commitShellApproval('generic-session', null, genericRecord);
+  assert.equal(root.path, `Commands/${genericRecord.id}.md`);
+  assert.ok(fs.existsSync(path.join(generic.root, 'Commands', `${genericRecord.id}.md`)));
+  assert.equal(git(generic.root, ['status', '--porcelain']).trim(), '');
 });
 
 test('grader tickets expose exact evidence paths and refuse tampered evidence', (t) => {
@@ -1146,6 +1265,18 @@ test('checkpoint accepts a scoped commit range and completes goal after PASS', (
   assert.equal(complete.change, null);
 });
 
+test('a paused or cleared goal keeps an open change resumable', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const paused = f.harness.command('orchestrator', 'goal-inactive');
+  assert.equal(paused.goalActive, false);
+  assert.equal(paused.nextStep.phase, 'resume-goal');
+  assert.match(paused.nextStep.command, /goal \{action:"resume"\}/);
+  f.harness.command('orchestrator', 'goal-active', {});
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'apply');
+});
+
 test('goal completion requires active goal after a clean checkpoint', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -1171,6 +1302,7 @@ test('strict milestone commits each apply, requires finalize/WIP look, and accep
   let status = f.harness.command('orchestrator', 'status');
   assert.equal(status.change.commits.length, 2);
   assert.equal(status.nextStep.phase, 'apply');
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
   const tracker = read(f.root, `${f.project}/Documents/TASKSTRACKER.md`);
   assert.match(tracker, /^# Task Tracker — Test/);
   assert.match(tracker, /Tasks\/T001\/TASK\.md/);
@@ -1213,7 +1345,7 @@ test('every third apply requires a WIP render before continuing', (t) => {
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'apply');
 });
 
-test('a failed worker task produces a task summary without closing the change', (t) => {
+test('a failed worker task commits its task metadata and leaves the project clean', (t) => {
   const f = useFixture(t);
   activate(f);
   begin(f);
@@ -1223,7 +1355,23 @@ test('a failed worker task produces a task summary without closing the change', 
   assert.equal(task.state, 'failed');
   assert.match(task.result, /worker crashed/);
   assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 1);
   assert.notEqual(f.harness.command('orchestrator', 'status').change, null);
+});
+
+test('a failed apply commits task metadata without committing the failed scene', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = issueAndConsume(f, 'orchestrator', 'apply', { fail: true });
+  f.harness.bindWorkerByToken('orchestrator', 'child-worker', issued.token);
+  f.harness.finish(issued.token, { ok: false, error: 'controlled apply failure' });
+  const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.id === issued.taskId));
+  assert.equal(task.state, 'failed');
+  assert.ok(task.child);
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 1);
 });
 
 test('checkpoint rejects unrelated files and accepts scoped commit ranges', (t) => {

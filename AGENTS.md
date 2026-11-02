@@ -14,6 +14,12 @@ next call. `capabilities` is authoritative for actions, operations, document for
   read-only inspection is allowed.
 - Launch and stop Blender ONLY through `blender_workflow` `launch`/`stop`. NEVER invoke
   `blender.exe`, a legacy script, `--background`, or `--factory-startup` from the shell.
+- Read-only shell inspection is allowed. Every other non-project shell command first returns a
+  warning, then runs only when the exact command is repeated with a reason and a
+  `[HARNESS_SHELL:<id>]` confirmation. The harness commits the command and reason atomically under
+  `<project>/Documents/Commands/` when the session owns a project, or `Commands/` at the workspace
+  root for a generic session. Command output is never captured or committed. Blender launches,
+  command substitution, and project mutations stay blocked.
 - State at `~/.local/state/blender-workflow-harness/<workspace-hash>` is runtime-owned. NEVER edit
   it. Manual Blender or external-shell edits invalidate evidence.
 - This is a design workspace. Do not create `PLAN/`, plan-check, or verifier records. Tooling tests
@@ -63,6 +69,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   `recover {reopen:true}` before another apply. A failed or expired
   change may be preserved with `commit {mode:"wip"}` and then checkpointed. Recovery `save` and
   `seal` remain available after the apply budget. Unsupported operations stop until reviewed.
+- A sealed `BLOCKED` tooling change whose grader retry budget is exhausted uses
+  `preserve {reason}`, then `checkpoint`; it preserves the render, reports, review, and task records
+  as WIP so the project can pause or reregister without manual Git.
 - The harness owns `Documents/TASKSTRACKER.md` and `Documents/Tasks/`; each task records its ID,
   change, operation, objects, token hash, worker/grader child, timestamps, state, and result in a
   linked `TASK.md` and `SUMMARY.md`. Read it with `blender_document` `{action:"ledger"}`; never edit
@@ -93,8 +102,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
 
 - Read `blender-subagents` before delegating and `blender-project-grading` for review modes,
   evidence, and aggregation.
-- Validate `config.json` through the harness before delegation. NEVER guess, substitute, or borrow a
-  model or budget.
+- Validate `config.json` through the harness before delegation. Every worker and grader MUST define a
+  backup provider/model/reasoning variant; runtime matching accepts primary or backup only. NEVER
+  guess, substitute, or borrow a model or budget.
 - With review mode `All` or `Single`, every reviewable change MUST be graded before commit. Missing
   or disabled grader configuration stops production. NEVER downgrade silently to self-review.
 - Graders are read-only. Each writes only its assigned `REPORT.md`, through `blender_document`
@@ -135,6 +145,15 @@ not list workspace-local skills, read the file directly.
 | `blender-project-readme` | Project README structure. |
 | `blender-assets` | Asset licensing, paths, packing, delivery. |
 | `blender-mcp` | Blender MCP operations, rendering, API gaps. |
+
+## Goal state
+
+- Kilo stores the real goal under session metadata `kilo.goal`. A rejected tool call marks it
+  `blocked`; `goal_report` is unavailable until the goal is resumed with
+  `goal {action:"resume"}`. `status` exposes `kiloGoal` and returns `resume-goal` instead of
+  proposing a call that cannot run.
+- Treat a goal denial as a state desync, not permission to bypass the harness. Resume, then follow the
+  next `status.nextStep`.
 
 ## Done
 

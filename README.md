@@ -114,6 +114,9 @@ goals as the work changes.
   script directly for workspace work.
 - Project documents and project commits go through the harness; manual project Git commits are
   blocked.
+- Read-only shell inspection is allowed. Other non-project shell commands require a reasoned,
+  two-step approval committed under the project's `Documents/Commands/` or the root `Commands/`.
+- Every worker and grader uses a configured primary model plus a backup model and reasoning variant.
 - Run only one Blender instance from this workspace at a time.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.

@@ -51,6 +51,11 @@ Read `blender_subagents.graders` from the gitignored workspace `config.json`; th
           "provider": "provider-id",
           "model": "model-name",
           "variant": "reasoning-variant",
+          "backup": {
+            "provider": "backup-provider-id",
+            "model": "backup-model-name",
+            "variant": "backup-reasoning-variant"
+          },
           "max_minutes": 5,
           "max_steps": 10
         }
@@ -60,10 +65,12 @@ Read `blender_subagents.graders` from the gitignored workspace `config.json`; th
 }
 ```
 
-The harness validates the roster at `prepare`: unique slug, non-empty focus/model fields, positive
-budgets, `max_steps` within the grader ceiling, `max_parallel` within the roster, and `max_rounds`
-1-4. NEVER fabricate, drop, substitute, or borrow a grader or model. Resolve models with
-`agent_manager_models`; per-task overrides require explicit user request.
+The harness validates the roster at `prepare`: unique slug, non-empty focus/model fields, one complete
+backup provider/model/reasoning variant per grader, positive budgets, `max_steps` within the grader
+ceiling, `max_parallel` within the roster, and `max_rounds` 1-4. NEVER fabricate, drop, substitute, or
+borrow a grader or model. Resolve models with `agent_manager_models`; per-task overrides require
+explicit user request. A primary dispatch failure may retry once with the configured backup; record
+`modelRole` and do not change the roster or review mode.
 
 ## Evidence and round folder
 
@@ -117,8 +124,11 @@ grader can always record its verdict.
 5. Call `review` `{notes,reason,dispositions}`. The harness validates reports, computes the verdict,
    writes `REVIEW.md`, and auto-commits in Fully Autonomous mode. In Partially Autonomous mode it
    writes the verdict and waits for approval; `commit` then creates the review commit. A tooling
-   `BLOCKED` verdict is not auto-committed; retry the blocked grader instead.
-6. Call `checkpoint` after the scoped commit. NEVER create or commit review documents manually.
+   `BLOCKED` verdict is not auto-committed; retry the blocked grader with the configured backup.
+6. After the retry budget is exhausted, call `preserve {reason}` instead of looping. It commits the
+   sealed render, reports, aggregate review, tracker, and task records as `WIP`; then `checkpoint`
+   and `pause` or `reregister`. NEVER mark a tooling block `PASS`.
+7. Call `checkpoint` after the scoped commit. NEVER create or commit review documents manually.
 
 Verdicts:
 
@@ -146,7 +156,8 @@ with evidence, then adds new findings. NEVER permit peer report reads or rewrite
   applicable `PASS` or recorded `Off` self-review with no unresolved blocker or major.
 - Commit policy: `bootstrap-commit` before registration, `commit` after registration. Manual project
   Git commands are blocked. Failed/expired changes use `recover` for repairs or `commit {mode:"wip"}`
-  to preserve them; `checkpoint` verifies exactly one scoped commit after the change base.
+  to preserve them; a sealed tooling block uses `preserve`. `checkpoint` verifies exactly one scoped
+  commit range after the change base and a clean project.
 
 ## References
 

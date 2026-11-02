@@ -1,57 +1,20 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, git, modelRole, normalizeGoal, stable } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
+import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause', 'reclaim']);
-const BLENDER_SHELL = /^\s*(?:&\s*)?(?:(?:start-process|cmd(?:\.exe)?\s+\/c|python(?:\.exe)?)\s+(?:-filepath\s+)?)?["']?(?:[^"'\r\n]*[\\/])?(?:blender(?:-launcher)?(?:\.exe)?|start-blender(?:-log)?\.(?:cmd|ps1)|start_blender_mcp\.py|new-blender-project\.(?:cmd|ps1))(?=["'\s]|$)/i;
-const BLENDER_VERSION = /^\s*(?:&\s*)?["']?(?:[^"'\r\n]*[\\/])?blender(?:\.exe)?["']?\s+--version\s*$/i;
-function shellSegments(command) {
-  const segments = [];
-  let start = 0, quote = null;
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (quote) {
-      if (char === quote) quote = null;
-    } else if (char === '"' || char === "'") quote = char;
-    else if (char === ';' || char === '&' || char === '|' || char === '\r' || char === '\n') {
-      segments.push(command.slice(start, index));
-      start = index + 1;
-    }
-  }
-  segments.push(command.slice(start));
-  return segments.map((segment) => segment.trim()).filter(Boolean);
-}
-function unsafeBlenderShell(command) {
-  const segments = shellSegments(command);
-  if (!segments.some((segment) => BLENDER_SHELL.test(segment))) return false;
-  return !(segments.length === 1 && BLENDER_VERSION.test(segments[0]));
-}
-const unquotedShell = (command) => command.replace(/"(?:\\.|[^"\\])*"|'(?:''|[^'])*'/g, ' ');
-function safeShellSegment(segment) {
-  if (/--output\b/i.test(segment)) return false;
-  if (/^git status(?: --short)?(?: --branch)?$/i.test(segment)) return true;
-  if (/^git diff(?: --stat| --check| --cached| --name-only)*$/i.test(segment)) return true;
-  if (/^git log --oneline -10$/i.test(segment)) return true;
-  if (/^git (?:show|rev-parse|rev-list|cat-file|ls-files|grep)\b/i.test(segment)) return true;
-  if (/^git (?:add|commit)\b/i.test(segment)) return true;
-  if (/^node tools[\\/]harness[\\/]cli\.mjs (?:scaffold|doctor)\b/i.test(segment)) return true;
-  if (/^node --test tools[\\/]harness[\\/][^\r\n]*\.test\.mjs$/i.test(segment)) return true;
-  if (/^python -m pytest tools[\\/]test_blender_tools\.py(?:\s|$)/i.test(segment)) return true;
-  return false;
-}
-function safeUnregisteredShell(command) {
-  if (/[<>$`]/.test(unquotedShell(command)) || /\$\(/.test(command)) return false;
-  const segments = shellSegments(command);
-  return segments.length > 0 && (segments.length === 1 && BLENDER_VERSION.test(segments[0]) || segments.every(safeShellSegment));
-}
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
+const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
   'README.md',
@@ -94,13 +57,138 @@ const capabilities = () => ({
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
     { name: 'self-review|review|grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
-    { name: 'recover|escalate|pause|reclaim', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, or {project,reason}' },
+    { name: 'recover|escalate|pause|reclaim|preserve', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, {project,reason}, or {reason} for a sealed tooling block' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
-  commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint. Manual project git add or git commit is blocked.',
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A markdown-only change commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; a sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
+  shellPolicy: 'Read-only and trusted harness commands run directly. Any other non-project shell command requires a warning acknowledgement: repeat the exact command with description "Reason: ... [HARNESS_SHELL:<id>]". The command and reason are committed atomically under <project>/Documents/Commands/ or root Commands/; command output is never captured or committed. Blender launches, project mutations, and command substitution stay blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
 });
+
+function jsonPayload(value, label = 'payload') {
+  if (value === undefined || value === null || value === '') return {};
+  if (typeof value === 'string') {
+    if (!value.trim()) return {};
+    if (value === '[object Object]') deny(`${label} arrived as [object Object]; pass a JSON object or a JSON string`);
+    try { value = JSON.parse(value); } catch (error) { deny(`${label} is not valid JSON: ${error.message}`); }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) deny(`${label} must be a JSON object or a JSON string containing an object`);
+  return value;
+}
+
+function kiloGoal(info) {
+  const metadata = info?.metadata ?? {};
+  let raw = metadata['kilo.goal'] ?? metadata?.kilo?.goal ?? metadata?.goal;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { return null; }
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const status = typeof raw.status === 'string' ? raw.status.toLowerCase() : typeof raw.state === 'string' ? raw.state.toLowerCase() : null;
+  if (!status) return null;
+  const reason = raw.reason ?? raw.report?.reason ?? raw.lastReport?.reason ?? raw.last_report?.reason;
+  return {
+    status,
+    active: status === 'active',
+    reason: typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 1000) : null,
+    objective: typeof raw.objective === 'string' ? raw.objective.slice(0, 1000) : null,
+  };
+}
+
+function withKiloGoal(result, info) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
+  const goal = kiloGoal(info);
+  if (!goal) return result;
+  result.kiloGoal = goal;
+  if (['blocked', 'paused'].includes(goal.status)
+    && (result.goalActive || ['goal', 'goal_report'].includes(result.nextStep?.action))) {
+    result.nextStep = {
+      phase: 'resume-goal',
+      actor: 'orchestrator',
+      action: 'goal',
+      command: 'goal {action:"resume"}',
+      reason: `Kilo marks the goal ${goal.status}; resume it before the next workflow step or goal_report.`,
+    };
+    result.next = result.nextStep.reason;
+  }
+  return result;
+}
+
+function shellReason(description) {
+  if (typeof description !== 'string') return '';
+  return description.replace(SHELL_TOKEN, ' ').replace(/^\s*(?:reason|why)\s*:\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+}
+
+function shellPendingDir(harness) {
+  return path.join(harness.home, 'shell-approvals');
+}
+
+function shellApprovalTarget(project, id) {
+  return project ? `${project}/Documents/Commands/${id}.md` : `Commands/${id}.md`;
+}
+
+function pendingShellRecords(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((name) => name.endsWith('.json')).map((name) => {
+    try { return JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')); } catch { return null; }
+  }).filter(Boolean);
+}
+
+function writePendingShell(dir, record) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(dir, `${record.id}.json`), JSON.stringify(record, null, 2) + '\n', { mode: 0o600 });
+}
+
+function shellApprovalError(message) {
+  throw new Error(message);
+}
+
+function guardShell(harness, session, project, command, args = {}) {
+  const policy = shellPolicy(command);
+  if (policy.kind === 'deny') deny(policy.reason);
+  if (policy.kind === 'read-only' || policy.kind === 'trusted') return;
+  if (projectPathInCommand(command)) deny('project files are harness-owned; use blender_workflow bootstrap-commit or commit, never shell mutation');
+  const dir = shellPendingDir(harness);
+  const description = args.description ?? '';
+  const reasoning = shellReason(description);
+  const token = String(description).match(SHELL_TOKEN)?.[1];
+  if (!token) {
+    const existing = pendingShellRecords(dir).find((record) => record.status === 'pending' && record.session === session
+      && record.project === project && record.command === command && Date.now() - Date.parse(record.created) < SHELL_APPROVAL_TTL_MS);
+    const record = existing ?? {
+      id: crypto.randomUUID(),
+      status: 'pending',
+      session,
+      project,
+      command,
+      reasoning,
+      cwd: args.workdir ?? harness.root,
+      created: new Date().toISOString(),
+      approvedAt: null,
+    };
+    if (reasoning) record.reasoning = reasoning;
+    writePendingShell(dir, record);
+    const target = shellApprovalTarget(project, record.id);
+    shellApprovalError([
+      `Shell approval required: "${command}" is not a read-only or trusted harness command. Nothing ran.`,
+      'This is a warning gate, not a workflow block.',
+      `Re-run the exact command with description "Reason: <one sentence why this is safe and necessary> [HARNESS_SHELL:${record.id}]".`,
+      `The command and reasoning are committed atomically to ${target} when approved; command output is never captured or committed.`,
+    ].join(' '));
+  }
+  const file = path.join(dir, `${token}.json`);
+  if (!fs.existsSync(file)) deny('unknown shell approval id; start the warning flow again');
+  const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (record.status !== 'pending') deny('shell approval id was already used');
+  if (record.session !== session || record.project !== project || record.command !== command) deny('shell approval id is bound to a different session, project, or command');
+  if (Date.now() - Date.parse(record.created) > SHELL_APPROVAL_TTL_MS) deny('shell approval id expired; start the warning flow again');
+  if (reasoning.length < 8) shellApprovalError(`Shell approval requires a reason of at least 8 characters. Re-run the exact command with description "Reason: <why this is safe and necessary> [HARNESS_SHELL:${record.id}]".`);
+  record.status = 'approved';
+  record.reasoning = reasoning;
+  record.approvedAt = new Date().toISOString();
+  harness.commitShellApproval(session, record.project, record);
+  fs.rmSync(file, { force: true });
+}
 
 export function createHooks(harness, client) {
   const questions = new Map();
@@ -123,9 +211,7 @@ export function createHooks(harness, client) {
     if (user?.agent === 'blender-worker') {
       if (!assistant) deny('worker runtime model metadata unavailable');
       const cfg = harness.workerConfig();
-      if (assistant.providerID !== cfg.provider || assistant.modelID !== cfg.model || assistant.variant !== cfg.variant) {
-        deny('worker runtime model does not match configured worker');
-      }
+      if (!modelRole(cfg, assistant)) deny('worker runtime model does not match configured worker or backup');
       return { worker: true, info };
     }
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
@@ -136,6 +222,9 @@ export function createHooks(harness, client) {
   }
   function stateFor(session) {
     return harness.transaction((s) => Object.values(s.projects).find((p) => p.orchestrator === session) ?? null);
+  }
+  async function statusFor(session) {
+    return withKiloGoal(harness.command(session, 'status'), await identity(session));
   }
   function editPaths(tool, args) {
     if (tool === 'apply_patch') {
@@ -158,13 +247,12 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate. payload is JSON. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
-        args: { action: z.string(), payload: z.string().default('{}') },
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
           if (session.parentID) deny('workflow control belongs to root orchestrator');
-          const payload = JSON.parse(args.payload);
-          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
+          const payload = jsonPayload(args.payload);
           let result;
           if (args.action === 'capabilities') result = capabilities();
           else if (args.action === 'bootstrap-document') result = harness.bootstrapDocument(context.sessionID, payload);
@@ -183,15 +271,14 @@ export function createHooks(harness, client) {
                 : args.action === 'stop' ? await harness.stop(context.sessionID)
                   : harness.command(context.sessionID, args.action, payload);
           }
-          return JSON.stringify(result, null, 2);
+          return JSON.stringify(withKiloGoal(result, session), null, 2);
         },
       },
       blender_document: {
-        description: 'Structured project-document access. action read returns title, metadata fields, section index and format diagnostics; pass section to read one section. action write creates or updates a declared document or the assigned grader report and rejects invalid format/structure. action ledger returns the harness-owned task rows and summary. Use this instead of raw full-file reads and direct edits.',
-        args: { action: z.string(), payload: z.string().default('{}') },
+        description: 'Structured project-document access. action read returns title, metadata fields, section index and format diagnostics; pass section to read one section. action write creates or updates a declared document or the assigned grader report and rejects invalid format/structure. action ledger returns the harness-owned task rows and summary. payload is a JSON object or JSON string. Use this instead of raw full-file reads and direct edits.',
+        args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
-          const payload = JSON.parse(args.payload);
-          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) deny('payload must be JSON object');
+          const payload = jsonPayload(args.payload);
           if (args.action === 'read') return JSON.stringify(harness.documentRead(context.sessionID, payload, (await identity(context.sessionID)).parentID ?? null), null, 2);
           if (args.action === 'write') return JSON.stringify(harness.documentWrite(context.sessionID, payload), null, 2);
           if (args.action === 'ledger') return JSON.stringify(harness.documentLedger(context.sessionID, payload), null, 2);
@@ -209,6 +296,7 @@ export function createHooks(harness, client) {
           const child = await childAssignment(input.sessionID);
           if (!child?.worker || args.operation !== 'apply') deny('worker may execute assigned apply operations only');
           harness.authorize(session.parentID, args.token, args.operation, args.payload);
+          harness.bindWorkerByToken(session.parentID, input.sessionID, args.token);
           return;
         }
         if (args.operation === 'apply') deny('orchestrator delegates apply operations to blender-worker; save and seal stay orchestrator-owned');
@@ -282,16 +370,16 @@ export function createHooks(harness, client) {
         if (tool === 'bash') {
           const command = args.command ?? '';
           if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
-          if (!safeUnregisteredShell(command)) deny('unregistered shell accepts only read-only Git and harness maintenance commands');
           if (/^git add\b/.test(command)) {
             const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
-            if (/(?:^|[\s"'])Blender[\\/][^\\/"']+[\\/]/i.test(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (projectPathInCommand(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }
           if (/^git commit\b/.test(command)) {
-            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || /(?:^|[\s"'])Blender[\\/]/i.test(unquotedShell(command))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || projectPathInCommand(command)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
             const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
             if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
           }
+          guardShell(harness, input.sessionID, null, command, args);
         }
         return;
       }
@@ -301,6 +389,7 @@ export function createHooks(harness, client) {
         if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('background process workdir must be the workspace root');
         if (/^git (?:add|commit)\b/i.test(command)) deny('production commits use blender_workflow commit');
+        guardShell(harness, input.sessionID, p.project, command, args);
         return;
       }
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
@@ -309,8 +398,16 @@ export function createHooks(harness, client) {
         harness.fresh(p); return;
       }
       if (tool === 'goal_report') {
+        const goal = kiloGoal(session);
+        if (goal && ['blocked', 'paused'].includes(goal.status)) deny(`Kilo marks the goal ${goal.status}; run goal {action:"resume"} before goal_report`);
         if (args.status === 'complete') {
-          if (p.change || !['PASS', 'DOCUMENT'].includes(p.history.at(-1)?.verdict) || !p.lastRender || harness.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion blocked by missing checkpoint/PASS/render');
+          const missing = [];
+          if (p.change) missing.push('open change');
+          if (!['PASS', 'DOCUMENT'].includes(p.history.at(-1)?.verdict)) missing.push('applicable PASS/DOCUMENT checkpoint');
+          if (!p.lastRender) missing.push('inspected sealed render');
+          else if (harness.hash(p.lastRender.path) !== p.lastRender.hash) missing.push('unchanged inspected render');
+          if (!p.history.some((item) => item.final && item.verdict === 'PASS')) missing.push('final full-spec PASS');
+          if (missing.length) deny(`completion blocked by ${missing.join(', ')}; fix the checkpoint, then run goal {action:"resume"} before goal_report`);
           harness.assertCommitted(p.project, harness.snapshot(p.project));
         }
         return;
@@ -345,10 +442,9 @@ export function createHooks(harness, client) {
         const command = args.command ?? '';
         if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('production Git/launch commands require workspace root');
-        if (/[;&|`\r\n$<>]/.test(command)) deny('production shell accepts one literal command only');
-        if (/^git status(?: --short)?(?: --branch)?$/.test(command) || /^git diff(?: --stat| --check| --cached| --name-only)*$/.test(command) || /^git log --oneline -10$/.test(command)) return;
         if (/^git (?:add|commit)\b/.test(command)) deny('production commits use blender_workflow commit with one bounded message');
-        deny('production shell route denied; use guarded tools or the harness commit action');
+        guardShell(harness, input.sessionID, p.project, command, args);
+        return;
       }
       deny(`unclassified production tool: ${tool}`);
     },
@@ -360,7 +456,10 @@ export function createHooks(harness, client) {
       }
       const p = stateFor(input.sessionID);
       if (!p) return;
-      if (tool === 'goal' && successful(output)) harness.command(input.sessionID, 'goal-active', { objective: input.args.action === 'start' ? input.args.objective : undefined });
+      if (tool === 'goal' && successful(output)) {
+        if (['start', 'resume'].includes(input.args.action)) harness.command(input.sessionID, 'goal-active', { objective: input.args.action === 'start' ? input.args.objective : undefined });
+        else if (['pause', 'clear'].includes(input.args.action)) harness.command(input.sessionID, 'goal-inactive');
+      }
       if (tool === 'goal_report' && input.args.status === 'complete' && successful(output)) harness.command(input.sessionID, 'goal-complete');
       if (tool === 'blender_look' && input.args.image) {
         const imageResult = output.content?.some((c) => c.type === 'image') || output.attachments?.some((a) => a.mime?.startsWith('image/'));
@@ -385,16 +484,16 @@ export function createHooks(harness, client) {
           if (token) harness.failWorkerByToken(input.sessionID, token, output.output ?? 'worker task failed before completion');
         }
       }
-      if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(harness.command(input.sessionID, 'status'))}`;
+      if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(await statusFor(input.sessionID))}`;
     },
     async 'experimental.chat.system.transform'(input, output) {
       if (!input.sessionID) return;
       const p = stateFor(input.sessionID);
-      if (p) output.system.push(`Runtime workflow state: ${JSON.stringify(harness.command(input.sessionID, 'status'))}. Use blender_workflow; never bypass missing gates.`);
+      if (p) output.system.push(`Runtime workflow state: ${JSON.stringify(await statusFor(input.sessionID))}. Use blender_workflow; never bypass missing gates.`);
     },
     async 'experimental.session.compacting'(input, output) {
       const p = stateFor(input.sessionID);
-      if (p) output.context.push(`Durable Blender workflow: ${JSON.stringify(harness.command(input.sessionID, 'status'))}. Continue current phase; do not repeat goal start or begin.`);
+      if (p) output.context.push(`Durable Blender workflow: ${JSON.stringify(await statusFor(input.sessionID))}. Continue current phase; do not repeat goal start or begin.`);
     },
   };
 }
