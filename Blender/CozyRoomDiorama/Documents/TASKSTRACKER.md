@@ -1,0 +1,10 @@
+# Task Tracker — CozyRoomDiorama
+
+Status: Active
+Last updated: 2026-11-03
+
+## Tasks
+
+| Task | Kind | Change | Operation | Objects | Assigned | Child | State | Created | Finished | Result |
+|---|---|---|---|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — | — | — | — | — |
