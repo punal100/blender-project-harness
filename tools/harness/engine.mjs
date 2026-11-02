@@ -389,7 +389,7 @@ export class Harness {
     fs.writeFileSync(full, text);
     task.summaryDoc = `${p.project}/${relative}`;
   }
-  recordTaskIssued(p, token, operation, payload) {
+  recordTaskIssued(p, token, operation, payload, deadline = p.change.deadline ?? null) {
     this.ensureTaskLedger(p);
     const operations = operation === 'apply' && Array.isArray(payload?.operations) ? payload.operations : [payload];
     const taskObjects = (item) => {
@@ -405,20 +405,20 @@ export class Harness {
       worker: operation === 'apply' ? 'blender-worker' : 'orchestrator',
       actor: operation === 'apply' ? 'blender-worker' : 'orchestrator', capability: operation, child: '',
       state: 'issued', created: new Date().toISOString(), finished: '', result: '',
-      deadline: p.change.deadline ?? null, operationResults: [],
+      deadline, operationResults: [],
     };
     p.tasks.push(task);
     this.writeTaskDocument(p, task);
     this.writeTaskLedger(p);
     return task;
   }
-  recordGraderTask(p, token, name, report) {
+  recordGraderTask(p, token, name, report, deadline = p.change.deadline ?? null) {
     this.ensureTaskLedger(p);
     const task = {
       id: `G${String(++p.taskSeq).padStart(3, '0')}`, kind: 'grader', change: p.change.id,
       operation: `grader:${name}`, objects: [], paths: [report], token, tokenHash: digest(token).slice(0, 12),
       worker: name, actor: 'blender-grader', capability: 'grade', child: '', state: 'issued', created: new Date().toISOString(), finished: '', result: '',
-      deadline: p.change.deadline ?? null, operationResults: [],
+      deadline, operationResults: [],
     };
     p.tasks.push(task);
     this.writeTaskDocument(p, task);
@@ -1039,7 +1039,7 @@ export class Harness {
         if (fs.existsSync(full)) fs.rmSync(full);
         const deadline = Date.now() + g.max_minutes * 60000;
         c.graders[g.name] = { token, report, attempt: attempt + 1, deadline, steps: 0 };
-        const task = this.recordGraderTask(p, token, g.name, report);
+        const task = this.recordGraderTask(p, token, g.name, report, deadline);
         this.updateManifest(p);
         const absolute = (name) => path.join(this.root, ...name.split('/'));
         const evidenceFiles = Object.keys(c.evidence ?? {});
@@ -1229,7 +1229,7 @@ export class Harness {
       const token = crypto.randomUUID();
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };
       c.pending = token;
-      const task = this.recordTaskIssued(p, token, operation, payload);
+      const task = this.recordTaskIssued(p, token, operation, payload, s.tickets[token].created + TICKET_TTL_MS);
       return { token, operation, payload, taskId: task.id };
     });
   }
@@ -1292,7 +1292,11 @@ export class Harness {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitTaskArtifacts(p, c, 'task: ' + task.id + ' ' + task.state);
       }
-      if (t.operation === 'seal' && c.manifestPath) this.updateManifest(p);
+      if (t.operation === 'seal') {
+        const task = p.tasks?.find((item) => item.token === token);
+        if (task) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`, { manifest: false });
+        if (c.manifestPath) this.updateManifest(p);
+      }
       return this.status(p, s);
     });
   }
@@ -1403,6 +1407,7 @@ export class Harness {
         g.verdict = 'BLOCKED'; g.error = error; g.kind = 'tooling';
         const task = p.tasks?.find((item) => item.token === g.token);
         if (task) this.recordTaskFinished(p, g.token, { ok: false, error });
+        if (task) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`, { manifest: false });
         this.updateManifest(p); return this.status(p, s);
       };
       const full = contained(this.root, g.report, true);
@@ -1418,6 +1423,7 @@ export class Harness {
       p.change.reports[g.report] = digest(text);
       const task = p.tasks?.find((item) => item.token === g.token);
       if (task) this.recordTaskFinished(p, g.token, { ok: g.verdict !== 'BLOCKED', error: g.verdict === 'BLOCKED' ? 'grader returned BLOCKED' : undefined });
+      if (task) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`, { manifest: false });
       this.updateManifest(p);
       return this.status(p, s);
     });

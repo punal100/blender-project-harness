@@ -1612,6 +1612,34 @@ test('a successful WIP task commits its metadata and leaves the project clean', 
   assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
 });
 
+test('seal and grader task metadata commit at the task boundary', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const sealCommit = git(f.root, ['log', '-1', '--format=%s']).trim();
+  assert.match(sealCommit, /^task: T\d+ done$/);
+  assert.equal(git(f.root, ['status', '--porcelain', '--', `${f.project}/Documents/TASKSTRACKER.md`, `${f.project}/Documents/Tasks`]).trim(), '');
+
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-grader',
+    `Review assignment ${ticket.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  write(f.root, ticket.report, [
+    '# Visual report',
+    '- Verdict: PASS',
+    `Scene hash: ${ticket.sceneHash}`,
+    `Evidence key: ${ticket.evidenceKey}`,
+    '',
+  ].join('\n'));
+  f.harness.collectGrader('orchestrator', 'child-grader');
+  assert.match(git(f.root, ['log', '-1', '--format=%s']).trim(), /^task: G\d+ done$/);
+  assert.equal(git(f.root, ['status', '--porcelain', '--', `${f.project}/Documents/TASKSTRACKER.md`, `${f.project}/Documents/Tasks`]).trim(), '');
+});
+
 test('roster drift permits goal sync but blocks new work', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
@@ -1621,4 +1649,21 @@ test('roster drift permits goal sync but blocks new work', (t) => {
   fs.writeFileSync(file, JSON.stringify(config));
   assert.doesNotThrow(() => f.harness.command('orchestrator', 'goal-active'));
   gate(() => begin(f), /roster changed/);
+});
+
+test('task metadata records the governing ticket deadline', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  const changeDeadline = f.harness.transaction((s) => s.projects[f.project].change.deadline);
+  const apply = issueAndConsume(f, 'orchestrator', 'apply', { deadlineCheck: true });
+  f.harness.finish(apply.token, { ok: true });
+  const applyTask = f.harness.transaction((s) => s.projects[f.project].tasks.find((task) => task.token === apply.token));
+  assert.ok(applyTask.deadline < changeDeadline);
+
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  const grader = f.harness.transaction((s) => s.projects[f.project].change.graders.visual);
+  const graderTask = f.harness.transaction((s) => s.projects[f.project].tasks.find((task) => task.token === ticket.token));
+  assert.equal(graderTask.deadline, grader.deadline);
 });
