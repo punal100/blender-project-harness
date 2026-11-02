@@ -54,3 +54,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R03-20261102T191946Z: Add the desk, monitor, keyboard, mouse, PC tower, chair, desk lamp, rug, wall art, plant, and warm/cool lighting so the computer desk reads as the focal point; evidence 1d928e332eb3604fc9085de235b65e8e5e3877deddf332459144cffa131f75b7
 
 - R04-20261102T193004Z: Add a floor lamp and rainy window backdrop, deepen the teal accents, mute the wood palette, fix the chair back, and tighten the hero framing; evidence 74069afb488af29618b0c22d8acd61de3f908a252478bae7ebae5301d9401567
+
+- R05-20261102T193923Z: Add the filled bookshelf, second potted plant, mug and papers clutter, and update the delivery documentation for the full-spec final review; evidence 01acef97dd722d7e145ffab5e5854d6f19c1de67072588c9b346b0d605e230f0
