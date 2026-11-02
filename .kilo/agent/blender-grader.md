@@ -9,6 +9,12 @@ permission:
     "*": deny
     "AGENTS.md": allow
     "Blender/**/Documents/REQUIREMENTS.md": allow
+    "Blender/**/Documents/WORKFLOW.md": allow
+    "Blender/**/Documents/REVIEW.md": allow
+    "Blender/**/Documents/ASSETS.md": allow
+    "Blender/**/Documents/DECISIONS.md": allow
+    "Blender/**/Documents/TASKSTRACKER.md": allow
+    "Blender/**/Documents/Tasks/**": allow
     "Blender/**/Documents/Goals/*.md": allow
     "Blender/**/Documents/Reviews/**": allow
     "Blender/**/README.md": allow
@@ -20,6 +26,8 @@ permission:
   grep:
     "*": deny
     "Blender/**/Documents/REQUIREMENTS.md": allow
+    "Blender/**/Documents/WORKFLOW.md": allow
+    "Blender/**/Documents/REVIEW.md": allow
     "Blender/**/Documents/Goals/*.md": allow
     "Blender/**/Documents/Reviews/**": allow
   task: deny

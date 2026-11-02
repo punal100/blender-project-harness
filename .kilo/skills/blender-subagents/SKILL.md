@@ -27,6 +27,11 @@ tracked template. The harness validates the selected role before every dispatch.
       "provider": "provider-id",
       "model": "model-name",
       "variant": "reasoning-variant",
+      "backup": {
+        "provider": "backup-provider-id",
+        "model": "backup-model-name",
+        "variant": "backup-reasoning-variant"
+      },
       "max_minutes": 10,
       "max_steps": 18,
       "max_failed_attempts": 2,
@@ -44,6 +49,11 @@ tracked template. The harness validates the selected role before every dispatch.
           "provider": "provider-id",
           "model": "model-name",
           "variant": "reasoning-variant",
+          "backup": {
+            "provider": "backup-provider-id",
+            "model": "backup-model-name",
+            "variant": "backup-reasoning-variant"
+          },
           "max_minutes": 5,
           "max_steps": 10
         }
@@ -55,9 +65,13 @@ tracked template. The harness validates the selected role before every dispatch.
 
 - `max_parallel` for workers MUST be 1. `max_steps` MUST fit the agent ceiling. Budgets MUST be
   positive. `max_rounds` is 1-4.
+- Every worker and grader MUST have one complete `backup` provider/model/variant. A partial backup is
+  invalid, not absent. Runtime model metadata must match the primary or that backup exactly.
 - Missing, invalid, disabled, or mismatched config STOPS delegation. NEVER substitute, borrow, or
   invent a model, provider, variant, or budget.
-- Resolve models with `agent_manager_models`. Per-task overrides require explicit user request.
+- Resolve models with `agent_manager_models`. Per-task overrides require explicit user request. On a
+  primary dispatch failure, retry once with the configured backup; record the role (`primary` or
+  `backup`) in the task/manifest and do not change the roster or review mode.
 
 ## Worker
 
@@ -125,10 +139,13 @@ read is acceptable but discouraged.
 
 Dispatch only after seal and successful sealed-render `look`:
 1. Call `grader-ticket` `{name}`.
-2. Pass the returned prompt to a foreground `blender-grader` task.
+2. Pass the returned prompt to a foreground `blender-grader` task using the configured primary
+   provider/model/variant.
 3. Keep the token, paths, hashes, and deadline unchanged; fill only the user-prompt and
    prior-findings placeholders.
 4. Dispatch batches no larger than `max_parallel`.
+5. If the primary fails before producing a report, re-dispatch the unchanged ticket prompt once with
+   the configured backup. The harness records `modelRole:"backup"`; do not choose another model.
 
 One pass per grader per round. One failed or missing report permits one replacement ticket; a
 second failure aggregates as `BLOCKED`. A tooling/evidence `BLOCKED` is retried without a scene

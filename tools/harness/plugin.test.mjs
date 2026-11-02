@@ -6,11 +6,20 @@ import { createHooks } from './plugin.mjs';
 import { git, Harness } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
-function hooks(f) {
-  const client = { session: { get: async ({ path: p }) => ({ data: { id: p.id } }) } };
+function hooks(f, metadata) {
+  const client = { session: { get: async ({ path: p }) => ({ data: { id: p.id, ...(metadata ? { metadata } : {}) } }) } };
   return createHooks(f.harness, client);
 }
 const before = (h, session, tool, args) => h['tool.execute.before']({ sessionID: session, callID: 'call_test', tool }, { args });
+async function approveShell(h, session, command, reason = 'Inspect the workspace for a bounded diagnosis.') {
+  let warning;
+  try { await before(h, session, 'bash', { command }); } catch (error) { warning = error; }
+  assert.ok(warning, 'first shell call must warn');
+  const id = warning.message.match(/HARNESS_SHELL:([a-f0-9-]{36})/)?.[1];
+  assert.ok(id, warning.message);
+  await before(h, session, 'bash', { command, description: `Reason: ${reason} [HARNESS_SHELL:${id}]` });
+  return id;
+}
 
 test('plugin denies raw code and unsupported production escape routes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
@@ -27,9 +36,7 @@ test('unregistered tooling commit messages may mention the engine name', async (
   const f = fixture(t);
   const harness = new Harness(f.root, { stateRoot: path.join(path.dirname(f.root), 'unregistered-state') });
   const h = hooks({ harness });
-  await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
-    command: 'git commit -m "docs: Blender harness notes"',
-  }));
+  await approveShell(h, 'ses_unregistered', 'git commit -m "docs: Blender harness notes"');
   await assert.rejects(before(h, 'ses_unregistered', 'bash', {
     command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --background',
   }), /launch and stop Blender/);
@@ -42,9 +49,7 @@ test('unregistered tooling commit messages may mention the engine name', async (
   await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
     command: 'C:\\Program Files\\Blender Foundation\\Blender\\blender.exe --version',
   }));
-  await assert.doesNotReject(before(h, 'ses_unregistered', 'bash', {
-    command: 'git commit -m "docs: Blender/harness notes"',
-  }));
+  await approveShell(h, 'ses_unregistered', 'git commit -m "docs: Blender/harness notes"');
   await assert.rejects(before(h, 'ses_unregistered', 'bash', {
     command: 'git commit -am "docs: Blender harness notes"',
   }), /bootstrap-commit/);
@@ -112,6 +117,20 @@ test('document tool returns structured project reads', async (t) => {
   ));
   assert.equal(result.content, undefined);
   assert.equal(result.fields.Status, 'Confirmed');
+  const objectPayload = JSON.parse(await h.tool.blender_document.execute(
+    { action: 'read', payload: { path: 'Documents/REQUIREMENTS.md' } },
+    { sessionID: f.session },
+  ));
+  assert.equal(objectPayload.fields.Status, 'Confirmed');
+  const workflowObject = JSON.parse(await h.tool.blender_workflow.execute(
+    { action: 'status', payload: { project: f.project } },
+    { sessionID: f.session },
+  ));
+  assert.equal(workflowObject.project, f.project);
+  await assert.rejects(
+    h.tool.blender_workflow.execute({ action: 'status', payload: ['not', 'an', 'object'] }, { sessionID: f.session }),
+    /payload/,
+  );
   assert.ok(result.sections.some((section) => section.heading === 'Confirmed requirements'));
   const section = JSON.parse(await h.tool.blender_document.execute(
     { action: 'read', payload: JSON.stringify({ path: 'Documents/REQUIREMENTS.md', section: 'Confirmed requirements' }) },
@@ -159,6 +178,7 @@ test('production worker delegation requires valid read-only limits', async (t) =
     provider: 'fixture-provider',
     model: 'fixture-model',
     variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
     max_minutes: 10,
     max_steps: 18,
     max_failed_attempts: 2,
@@ -262,11 +282,32 @@ test('unregistered sessions cannot write project files or run mutating shell com
   await assert.rejects(before(h, 'unregistered', 'bash', { command: '.\\tools\\start-blender.cmd "Blender\\Test Project"' }), /retired/);
   await assert.rejects(before(h, 'unregistered', 'bash', { command: `git add -- "${f.project}/README.md"` }), /bootstrap-commit/);
   await assert.rejects(before(h, 'unregistered', 'bash', { command: 'git add -- .' }), /bootstrap-commit/);
-  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'Set-Content "Blender\\Test Project\\README.md" "bypass"' }), /read-only Git/);
-  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'node -e "process.exit(1)"' }), /read-only Git/);
-  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'git status --short; echo bypass' }), /read-only Git/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'Set-Content "Blender\\Test Project\\README.md" "bypass"' }), /project files/);
+  await assert.rejects(before(h, 'unregistered', 'bash', { command: 'node -e "process.exit(1)"' }), /Shell approval required/);
+  await assert.doesNotReject(before(h, 'unregistered', 'bash', { command: 'git status --short; echo bypass' }));
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
   await before(h, 'unregistered', 'bash', { command: 'node tools/harness/cli.mjs scaffold --name "Fresh Project"' });
+  await before(h, 'unregistered', 'bash', { command: 'git ls-tree -r --name-only HEAD' });
+  await before(h, 'unregistered', 'bash', { command: 'git log --oneline -8' });
+  await before(h, 'unregistered', 'bash', { command: 'Get-ChildItem tools/harness' });
+  await before(h, 'unregistered', 'bash', { command: 'Get-Content tools/harness/plugin.mjs | Select-String safe' });
+  await before(h, 'unregistered', 'bash', { command: 'rg -n "safeShellSegment" tools/harness' });
+  const approval = await approveShell(h, 'unregistered', 'git switch Test_Punal_12', 'Switch branches without discarding the preserved live-test evidence.');
+  assert.ok(fs.existsSync(path.join(f.root, 'Commands', `${approval}.md`)));
+  assert.match(fs.readFileSync(path.join(f.root, 'Commands', `${approval}.md`), 'utf8'), /Switch branches without discarding/);
+  assert.match(git(f.root, ['log', '-1', '--format=%s']), /shell approval/);
+});
+
+test('production read-only shell works and other workspace commands need confirmation', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'git log --oneline -8' }));
+  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'Get-Content tools/harness/plugin.mjs | Select-String safe' }));
+  await assert.rejects(before(h, f.session, 'bash', { command: 'npm install' }), /Shell approval required/);
+  const approval = await approveShell(h, f.session, 'npm install', 'Run the locked dependency install for workspace maintenance.');
+  assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Commands', `${approval}.md`)));
+  assert.match(git(f.root, ['log', '-1', '--format=%s']), /shell approval/);
+  assert.equal(git(f.root, ['status', '--porcelain', '--', `${f.project}/Documents/Commands`]).trim(), '');
+  await assert.rejects(before(h, f.session, 'bash', { command: 'git add -- .' }), /blender_workflow commit/);
 });
 
 test('unregistered sessions must create and commit scaffold documents through the harness', async (t) => {
@@ -345,6 +386,20 @@ test('blocked goal report does not require a commit', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'uncommitted work\n');
   await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+});
+
+test('Kilo goal state overrides status and requires resume before reporting', async (t) => {
+  const f = fixture(t);
+  const h = hooks(f, { 'kilo.goal': { status: 'blocked', reason: 'A rejected tool call blocked the goal.' } });
+  f.begin();
+  const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
+  assert.equal(status.kiloGoal.status, 'blocked');
+  assert.equal(status.nextStep.phase, 'resume-goal');
+  assert.match(status.nextStep.command, /goal \{action:"resume"\}/);
+  await assert.rejects(
+    before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' }),
+    /goal \{action:"resume"\}/,
+  );
 });
 
 test('recover reopens a failed change through the tool', async (t) => {

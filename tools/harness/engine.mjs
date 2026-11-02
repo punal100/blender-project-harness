@@ -22,6 +22,42 @@ export const deny = (message) => {
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 const DOCS = ['README.md', 'Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', 'Documents/ASSETS.md', 'Documents/DECISIONS.md'];
 
+function modelFields(value, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) deny(`${label} must be an object`);
+  const fields = ['provider', 'model', 'variant'];
+  if (fields.some((key) => typeof value[key] !== 'string' || !value[key].trim())) deny(`${label} requires provider, model and reasoning variant`);
+  return Object.fromEntries(fields.map((key) => [key, value[key].trim()]));
+}
+
+function modelChoice(value, label, { requireBackup = false } = {}) {
+  const choice = modelFields(value, label);
+  if (value.backup !== undefined) {
+    choice.backup = modelFields(value.backup, `${label}.backup`);
+  } else {
+    if (requireBackup) deny(`${label} requires a backup provider, model and reasoning variant`);
+    choice.backup = null;
+  }
+  return choice;
+}
+
+export function modelRole(choice, runtime) {
+  if (!choice || !runtime) return null;
+  const matches = (entry) => entry && entry.provider === runtime.providerID && entry.model === runtime.modelID && entry.variant === runtime.variant;
+  if (matches(choice)) return 'primary';
+  if (matches(choice.backup)) return 'backup';
+  return null;
+}
+
+function modelSummary(choice) {
+  if (!choice) return null;
+  return {
+    provider: choice.provider,
+    model: choice.model,
+    variant: choice.variant,
+    backup: choice.backup ? { provider: choice.backup.provider, model: choice.backup.model, variant: choice.backup.variant } : null,
+  };
+}
+
 export function contained(root, relative, missing = false) {
   if (typeof relative !== 'string' || !relative || path.isAbsolute(relative) || relative.includes(':') || relative.includes('\0')) deny('relative path required');
   const full = path.resolve(root, relative);
@@ -146,7 +182,10 @@ export class Harness {
       const names = new Set();
       const graderSteps = this.agentSteps('blender-grader');
       for (const g of cfg.graders) {
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(g.name ?? '') || names.has(g.name) || ['focus', 'provider', 'model', 'variant'].some((k) => typeof g[k] !== 'string' || !g[k].trim()) || !Number.isInteger(g.max_steps) || g.max_steps < 1 || g.max_steps > 12 || !Number.isInteger(g.max_minutes) || g.max_minutes < 1) deny('invalid grader roster');
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(g.name ?? '') || names.has(g.name) || typeof g.focus !== 'string' || !g.focus.trim() || !Number.isInteger(g.max_steps) || g.max_steps < 1 || g.max_steps > 12 || !Number.isInteger(g.max_minutes) || g.max_minutes < 1) deny('invalid grader roster');
+        const choice = modelChoice(g, `grader ${g.name ?? '<unknown>'}`, { requireBackup: true });
+        g.provider = choice.provider; g.model = choice.model; g.variant = choice.variant;
+        if (choice.backup) g.backup = choice.backup; else delete g.backup;
         if (graderSteps && g.max_steps > graderSteps) deny('invalid grader roster');
         names.add(g.name);
       }
@@ -171,17 +210,17 @@ export class Harness {
     const file = contained(this.root, 'config.json', true);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
     const cfg = readJson(file).blender_subagents?.workers;
-    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg) || cfg.agent !== 'blender-worker'
-      || ['provider', 'model', 'variant'].some((k) => typeof cfg[k] !== 'string' || !cfg[k].trim())) {
+    if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg) || cfg.agent !== 'blender-worker') {
       deny('invalid worker config; validate blender_subagents.workers before delegation');
     }
+    const choice = modelChoice(cfg, 'worker', { requireBackup: true });
     if (!Number.isInteger(cfg.max_minutes) || cfg.max_minutes < 1 || !Number.isInteger(cfg.max_steps) || cfg.max_steps < 1
       || !Number.isInteger(cfg.max_failed_attempts) || ![1, 2].includes(cfg.max_failed_attempts) || cfg.max_parallel !== 1) {
       deny('invalid worker limits; max_parallel must be 1');
     }
     const steps = this.agentSteps('blender-worker');
     if (steps && cfg.max_steps > steps) deny('worker max_steps exceeds agent steps ceiling');
-    return { ...cfg };
+    return { ...cfg, ...choice };
   }
   projectDoctor(project) {
     return this.transaction((state) => {
@@ -196,7 +235,10 @@ export class Harness {
         change: p.change ? { id: p.change.id, milestone: p.change.milestone, operations: p.change.operations, deadline: p.change.deadline, verdict: p.change.verdict, blockingKind: p.change.blockingKind ?? null } : null,
         scene: { path: p.scene, exists: fs.existsSync(path.join(this.root, p.scene)) },
         docs: { tracker: fs.existsSync(tracker), tasks: fs.existsSync(tasks) },
-        models: (p.records.roster ?? []).map(({ name, provider, model, variant }) => ({ name, provider, model, variant })),
+        models: {
+          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
+          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
+        },
         blender: instanceStatus(this.home),
       };
     });
@@ -236,6 +278,9 @@ export class Harness {
       '',
     ].join('\n');
     const full = contained(this.root, this.taskDocument(p), true);
+    const previous = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+    const withoutTimestamp = (value) => String(value ?? '').replace(/^Last updated:[^\r\n]*\r?\n/m, '');
+    if (previous !== null && withoutTimestamp(previous) === withoutTimestamp(text)) return;
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, text);
   }
@@ -499,7 +544,10 @@ export class Harness {
     const preparePayload = { project: p.project, goal: p.goal, scene: path.basename(p.scene) };
     if (p.escalation) return { phase: 'reregister', actor: 'orchestrator', action: 'prepare', command: this.wire('prepare', preparePayload), reason: 'Complete the exact registration question again with the escalated review cap.' };
     if (p.complete) return { phase: 'complete', actor: 'orchestrator', action: 'goal_report', command: 'goal_report {status:"complete",reason:<evidence>}', reason: 'The goal has a clean checkpoint and applicable PASS; report completion.' };
-    if (!p.goalActive) return { phase: 'goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"start"|"resume",objective:<registered goal prompt>}', reason: 'Start or resume the registered goal before production work.' };
+    if (!p.goalActive) {
+      if (p.change) return { phase: 'resume-goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"resume"}', reason: 'The Kilo goal is paused or cleared while a bounded change is open; resume before continuing.' };
+      return { phase: 'goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"start"|"resume",objective:<registered goal prompt>}', reason: 'Start or resume the registered goal before production work.' };
+    }
     const c = p.change;
     if (!c) {
       const prior = p.history.at(-1);
@@ -517,9 +565,10 @@ export class Harness {
     if (c.wip) return { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The WIP commit is preserved; checkpoint it before another begin.' };
     if (c.bootstrap && !c.saved) return { phase: 'bootstrap-save', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'save', payload: {} }), reason: 'Save the initial scene to the declared project-root .blend; never apply, seal, or grade the bootstrap save.' };
     if (c.bootstrap && c.saved && !c.operations) {
-      return this.head() === c.base
-        ? { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<bounded bootstrap message>' }), reason: 'Close the bootstrap save with the harness commit, then checkpoint; never seal or grade the initial scene.' }
-        : { phase: 'bootstrap-checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The bootstrap commit exists; checkpoint it before beginning scene work.' };
+      const sceneCommitted = git(this.root, ['ls-tree', '-r', '--name-only', 'HEAD', '--', p.scene]).trim() === p.scene;
+      return sceneCommitted
+        ? { phase: 'bootstrap-checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The bootstrap commit exists; checkpoint it before beginning scene work.' }
+        : { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<bounded bootstrap message>' }), reason: 'Close the bootstrap save with the harness commit, then checkpoint; never seal or grade the initial scene.' };
     }
     if (!c.sealed && c.operations >= CHECKPOINT_EVERY && (c.failure || Date.now() > c.deadline)) return { phase: 'wip', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: 'wip: preserve failed or expired change', mode: 'wip' }), reason: 'The apply budget is exhausted and the change cannot be repaired; preserve it with a WIP commit, then checkpoint and begin a fresh change.' };
     if (!c.sealed && (c.failure || Date.now() > c.deadline)) return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it to repair, or commit {mode:"wip"} to preserve it.' };
@@ -544,6 +593,9 @@ export class Harness {
     }
     if (c.verdict === 'BLOCKED' && c.blockingKind === 'tooling') {
       const blocked = p.records.roster.find((g) => c.graders[g.name]?.verdict === 'BLOCKED')?.name ?? '<grader>';
+      if ((c.graders[blocked]?.attempt ?? 0) >= 2) {
+        return { phase: 'preserve', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: '<why the tooling block cannot be resolved now>' }), reason: 'The grader retry budget is exhausted. Preserve the sealed evidence and task records as WIP, then checkpoint and pause or reregister.' };
+      }
       return { phase: 'retry-grader', actor: 'orchestrator', action: 'grader-ticket', command: this.wire('grader-ticket', { name: blocked }), reason: 'This is a tooling/evidence block, not a design failure. Retry the blocked grader; do not open a scene revision.' };
     }
     if (p.records.workflow === 'Partially Autonomous' && !c.approval) return { phase: 'approval', actor: 'orchestrator', action: 'approval', command: this.wire('approval', {}), reason: 'Pause the goal and ask the exact approval question before committing this change.' };
@@ -554,7 +606,11 @@ export class Harness {
     const c = p.change;
     const step = this.nextStep(p, state);
     return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       models: {
+         worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
+         graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
+       },
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -688,6 +744,88 @@ export class Harness {
     c.commits.push(this.head());
     p.lastCommit = this.head();
   }
+  commitTaskArtifacts(p, c, message) {
+    const files = [this.taskDocument(p), ...this.taskFiles(p, c), c.manifestPath]
+      .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/'))));
+    if (!files.length) return null;
+    const dirty = gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', ...files]);
+    if (!dirty) return null;
+    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before task metadata commit');
+    git(this.root, ['add', '--', ...files]);
+    if (!gitText(this.root, ['diff', '--cached', '--name-only'])) return null;
+    git(this.root, ['commit', '-m', String(message).slice(0, 200)]);
+    c.commits ??= [];
+    c.commits.push(this.head());
+    p.lastCommit = this.head();
+    return p.lastCommit;
+  }
+  commitShellApproval(session, project, record) {
+    return this.transaction((s) => {
+      if (!record || !/^[a-f0-9-]{36}$/i.test(record.id ?? '') || record.status !== 'approved'
+        || typeof record.command !== 'string' || !record.command.trim()
+        || typeof record.reasoning !== 'string' || record.reasoning.trim().length < 8) {
+        deny('invalid shell approval record');
+      }
+      let p = null;
+      let base;
+      if (project) {
+        p = Object.values(s.projects).find((item) => item.project === project);
+        if (!p || p.orchestrator !== session) deny('shell approval project is not owned by this session');
+        base = this.projectPath(project);
+      } else {
+        base = this.root;
+      }
+      const relativeDir = project ? 'Documents/Commands' : 'Commands';
+      const recordName = `${relativeDir}/${record.id}.md`;
+      const indexPath = `${relativeDir}/COMMANDS.md`;
+      const full = contained(base, recordName, true);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      const text = [
+        `# Shell Command ${record.id}`,
+        '',
+        `- Status: approved`,
+        `- Scope: ${project ?? 'workspace'}`,
+        `- Session: ${record.session}`,
+        `- Created: ${record.created}`,
+        `- Approved: ${record.approvedAt}`,
+        `- CWD: ${record.cwd}`,
+        '',
+        '## Command',
+        '',
+        '```powershell',
+        record.command,
+        '```',
+        '',
+        '## Reasoning',
+        '',
+        record.reasoning.trim(),
+        '',
+      ].join('\n');
+      fs.writeFileSync(full, text);
+      const indexFull = contained(base, indexPath, true);
+      const header = '# Shell Command Approvals\n\n| Command | Approved | Shell command | Reasoning |\n|---|---|---|---|\n';
+      const existing = fs.existsSync(indexFull) ? fs.readFileSync(indexFull, 'utf8') : header;
+      const escape = (value) => String(value ?? '').replaceAll('|', '\\|').replace(/[\r\n]+/g, ' ').slice(0, 160);
+      const row = `| [${record.id}](${record.id}.md) | ${escape(record.approvedAt)} | ${escape(record.command)} | ${escape(record.reasoning)} |\n`;
+      const index = existing.includes(`(${record.id}.md)`) ? existing : `${existing.replace(/\s*$/, '\n')}${row}`;
+      fs.writeFileSync(indexFull, index);
+      const files = [project ? `${project}/${recordName}` : recordName, project ? `${project}/${indexPath}` : indexPath];
+      git(this.root, ['add', '--', ...files]);
+      git(this.root, ['commit', '--only', '-m', `chore: record shell approval ${record.id.slice(0, 8)}`, '--', ...files]);
+      const commit = this.head();
+      if (p) {
+        if (p.change) {
+          p.change.commits ??= [];
+          p.change.commits.push(commit);
+        } else {
+          p.checkpoint = commit;
+          p.snapshot = this.snapshot(p.project);
+        }
+        p.lastCommit = commit;
+      }
+      return { path: recordName, commit, project: project ?? null };
+    });
+  }
   autoCommit(p, c, message, { review = true } = {}) {
     const expectedHead = c.commits?.at(-1) ?? c.base;
     if (this.head() !== expectedHead) deny('commit must directly follow the prior change commit');
@@ -760,6 +898,8 @@ export class Harness {
       if (action === 'goal-active') {
         if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
         p.goalActive = true;
+      } else if (action === 'goal-inactive') {
+        p.goalActive = false;
       } else if (action === 'goal-complete') {
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
@@ -882,6 +1022,7 @@ export class Harness {
           `Round: ${c.round}`,
           `Project root: ${this.root}`,
           `Grader name / focus: ${g.name} / ${g.focus}`,
+          `Model / reasoning: primary ${g.provider} / ${g.model} / ${g.variant}${g.backup ? `; backup ${g.backup.provider} / ${g.backup.model} / ${g.backup.variant}` : '; no backup configured'}`,
           `Milestone: ${c.milestone ?? c.outcome}`,
           `Requirements to grade: ${c.requirements?.length ? c.requirements.join(', ') : 'all requirements in the spec'}`,
           `Final full-spec review: ${c.final ? 'yes' : 'no'}`,
@@ -901,7 +1042,7 @@ export class Harness {
           'Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached',
           'Output: verdict, findings, <= 20 lines',
         ].join('\n');
-        return { token, marker: `HARNESS_GRADER:${token}`, grader: g, report, reportPath, evidenceFiles: evidenceLines, prompt, taskId: task.id,
+        return { token, marker: `HARNESS_GRADER:${token}`, grader: g, model: modelSummary(g), report, reportPath, evidenceFiles: evidenceLines, prompt, taskId: task.id,
           sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, evidence: c.evidence, round: c.round, goal: `${p.project}/${p.goal}` };
       } else if (action === 'review') {
         if (!c?.inspected || p.records.review === 'Off' || c.verdict) deny('sealed inspection required once before review');
@@ -957,6 +1098,16 @@ export class Harness {
           if (!bootstrap && !documentOnly && !c.verdict) deny('complete review before committing the change');
           this.autoCommit(p, c, args.message.trim(), { review: !bootstrap && !documentOnly });
         }
+      } else if (action === 'preserve') {
+        if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('preserve requires one bounded reason');
+        if (!c?.sealed || c.verdict !== 'BLOCKED' || c.blockingKind !== 'tooling') deny('preserve requires a sealed tooling-blocked change');
+        if (c.preserved) deny('change is already preserved');
+        c.preserved = { reason: args.reason.trim(), at: new Date().toISOString() };
+        c.wip = true;
+        c.verdict = 'WIP';
+        c.blockingKind = null;
+        this.updateManifest(p);
+        this.autoCommit(p, c, `chore: preserve tooling-blocked ${c.round ?? 'review'}`);
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
@@ -972,10 +1123,11 @@ export class Harness {
         if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || this.reviewPending(p, c) || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review commit and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`]).split(/\r?\n/).filter(Boolean);
-        const reviewed = bootstrap || wip || documentOnly ? [] : this.reviewPaths(p, c);
+        const reviewed = bootstrap || documentOnly || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, this.taskDocument(p), ...reviewed, ...this.taskFiles(p, c)]);
         const taskPrefix = `${p.project}/Documents/Tasks/`;
-        if (!changed.length || changed.some((name) => !allowed.has(name) && !name.startsWith(taskPrefix))) deny('commit contains files outside bounded change');
+        const commandPrefix = `${p.project}/Documents/Commands/`;
+        if (!changed.length || changed.some((name) => !allowed.has(name) && !name.startsWith(taskPrefix) && !name.startsWith(commandPrefix))) deny('commit contains files outside bounded change');
         for (const name of [p.scene, ...reviewed]) {
           if (!gitText(this.root, ['ls-files', '--error-unmatch', '--', name])) deny('required deliverable missing from checkpoint');
         }
@@ -1057,10 +1209,12 @@ export class Harness {
          c.failure = result.completed ? `Failed after ${result.completed} completed operation(s): ${result.error}` : result.error;
          c.deadline = 0;
          if (result.completed) { c.saved = true; c.sceneHash = this.hash(p.scene); }
-         if (result.round) c.failedRounds = [...new Set([...(c.failedRounds ?? []), result.round])];
-         this.recordTaskFinished(p, token, result);
-         return;
-       }
+          if (result.round) c.failedRounds = [...new Set([...(c.failedRounds ?? []), result.round])];
+          this.recordTaskFinished(p, token, result);
+          const task = p.tasks?.find((item) => item.token === token);
+          if (task && !result.completed) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`);
+          return;
+        }
         if (t.operation === 'apply') { delete c.failure; delete c.reopen; c.operations++; c.deadline = Date.now() + CHANGE_WINDOW_MS; c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'save') { c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'wip') {
@@ -1091,15 +1245,32 @@ export class Harness {
     }
     return null;
   }
+  bindWorkerByToken(orchestrator, child, token) {
+    return this.transaction((s) => {
+      const p = this.owner(s, orchestrator);
+      const task = p.tasks?.find((item) => item.token === token);
+      if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
+      if (task.child && task.child !== child) deny('worker token is already bound to another child');
+      if (task.child === child && task.state === 'running') return;
+      task.child = child;
+      if (task.state === 'issued') task.state = 'running';
+      this.writeTaskDocument(p, task);
+      this.writeTaskLedger(p);
+    });
+  }
   bindWorker(orchestrator, child, prompt = '') {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
       const tokens = [...String(prompt).matchAll(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi)].map((match) => match[0]);
       const task = p.tasks?.find((item) => tokens.includes(item.token)) ?? p.tasks?.find((item) => item.token === p.change?.pending);
       if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
+      if (task.child && task.child !== child) deny('worker token is already bound to another child');
+      if (task.child === child) return;
       task.child = child;
+      if (task.state === 'issued') task.state = 'running';
       this.writeTaskDocument(p, task);
       this.writeTaskLedger(p);
+      if (p.change && (task.state === 'done' || task.state === 'failed')) this.commitTaskArtifacts(p, p.change, `task: bind ${task.id} worker`);
     });
   }
   bindGrader(orchestrator, child, prompt, model) {
@@ -1111,8 +1282,10 @@ export class Harness {
       const entry = Object.entries(c.graders).find(([, g]) => g.token === match?.[1]);
       if (!entry || (entry[1].child && entry[1].child !== child)) deny('grader assignment missing or already owned');
       const cfg = p.records.roster.find((g) => g.name === entry[0]);
-      if (model.providerID !== cfg.provider || model.modelID !== cfg.model || model.variant !== cfg.variant) deny('grader runtime model does not match configured roster');
+      const role = modelRole(cfg, model);
+      if (!role) deny('grader runtime model does not match configured primary or backup');
       entry[1].child = child;
+      entry[1].modelRole = role;
       const task = p.tasks?.find((item) => item.token === entry[1].token);
       if (task) {
         task.child = child;
@@ -1134,6 +1307,7 @@ export class Harness {
       this.writeTaskDocument(p, task);
       this.writeTaskSummary(p, task);
       this.writeTaskLedger(p);
+      if (p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`);
     });
   }
   failGraderByToken(orchestrator, token, error) {
@@ -1147,6 +1321,7 @@ export class Harness {
       const task = p.tasks?.find((item) => item.token === token);
       if (task) this.recordTaskFinished(p, token, { ok: false, error: g.error });
       this.updateManifest(p);
+      if (task && p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`);
     });
   }
   graderStep(child, tool, args) {
@@ -1231,7 +1406,10 @@ export class Harness {
         task.state = 'abandoned';
         task.finished = new Date().toISOString();
         task.result = writerStarted ? 'abandoned after writer start' : 'expired before execution';
+        this.writeTaskDocument(p, task);
+        this.writeTaskSummary(p, task);
         this.writeTaskLedger(p);
+        this.commitTaskArtifacts(p, p.change, `task: ${task.id} abandoned`);
       }
       if (writerStarted) {
         p.change.failure = 'Abandoned operation; inspect live scene, save and reseal before proceeding';

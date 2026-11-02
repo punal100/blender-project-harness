@@ -5,8 +5,8 @@ description: Use before any production blender_workflow action. Defines the harn
 
 # Blender Workflow Harness
 
-`blender_workflow` takes `{action:string,payload:JSON string}`. The runtime owns state, evidence,
-approval receipts, and project commits.
+`blender_workflow` takes `{action:string,payload:JSON object or string}`. The runtime owns state,
+evidence, approval receipts, and project commits.
 
 MUST:
 - Call `status` first and after every deny, compaction, restart, or completed phase.
@@ -81,6 +81,9 @@ open a review round for the initial empty/default scene.
   It does not reopen a sealed or bootstrap change, and it keeps the failed round history.
 - `commit {mode:"wip"}` preserves a failed or expired change and closes it at the next `checkpoint`
   with verdict `WIP`; it is not a review substitute and does not set a completion render.
+- `preserve {reason}` closes a sealed tooling-blocked change after its grader retry budget is
+  exhausted. It commits the sealed render, reports, review aggregate, tracker, and task records as
+  `WIP`; then `checkpoint` and `pause` or `reregister`. Never mark a tooling block `PASS`.
 - `status.change` reports `appliesRemaining`, `deadlineRemainingMs`, `commits`, `wipRender`, and
   `wipLook`. `Documents/TASKSTRACKER.md` and `Documents/Tasks/<id>/` are harness-owned and record
   every task's ID, token hash, child session, state, and result. Read them with
@@ -92,7 +95,10 @@ open a review round for the initial empty/default scene.
 - `schedule_wakeup`/cron and `background_process` are orchestrator-only production tools. Workers and
   graders cannot use them.
 - `status.nextStep` is authoritative for pending tickets, missing `look`, WIP, review, approval,
-  commit, checkpoint, and completion. Do not repeat a completed phase.
+  commit, checkpoint, `preserve`, and completion. Do not repeat a completed phase.
+- Kilo's `kilo.goal.status` is authoritative for whether `goal_report` exists. If `status` reports
+  `kiloGoal.status` as `blocked` or `paused` and `nextStep.phase` is `resume-goal`, call
+  `goal {action:"resume"}` before any report or further production action.
 
 ## Documents and commits
 
@@ -116,9 +122,11 @@ open a review round for the initial empty/default scene.
 
 ## Forbidden
 
-- Raw `execute_blender_code`, imports, generation, arbitrary Python, shell Blender commands, or
-  manual project Git commands. Before registration the shell is limited to read-only Git, the
-  harness CLI scaffold/doctor, and the harness test commands; project files stay tool-owned.
+- Raw `execute_blender_code`, imports, generation, arbitrary Python, shell Blender commands, command
+  substitution, or manual project Git commands. Read-only inspection is always allowed; other
+  non-project commands require the warning acknowledgement documented in `AGENTS.md`. The harness
+  commits the command and reason under project `Documents/Commands/` or root `Commands/`; command
+  output is never captured or committed. Project files stay tool-owned.
 - Editing external harness state; creating fake tickets, receipts, approvals, or reports.
 - Sealing without a saved reviewable change; grading the bootstrap save; skipping required review.
 - Continuing after a gate error without resolving the phase named by `status.nextStep`.

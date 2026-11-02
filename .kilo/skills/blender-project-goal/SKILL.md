@@ -71,6 +71,14 @@ The filled goal MUST contain:
 - Done: current documents, inspected sealed render, final applicable `PASS` when grading is enabled,
   and no genuine unresolved blocker or major finding.
 
+## Goal state
+
+Kilo stores the goal under session metadata `kilo.goal` with status `active`, `paused`, `blocked`, or
+`complete`. A rejected tool call blocks the goal; `goal_report` is unavailable until
+`goal {action:"resume"}` succeeds. The harness exposes `status.kiloGoal` and, when Kilo reports
+`blocked` or `paused`, returns `nextStep.phase:"resume-goal"`. Follow it before any report or further
+production action. A harness deny is not permission to bypass the gate.
+
 ## Input handoffs
 
 Kilo has no `question` during an active goal.

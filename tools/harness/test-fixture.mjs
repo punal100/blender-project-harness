@@ -66,11 +66,12 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   write(`${project}/.gitignore`, 'renders/wip/**\n');
   const config = { blender_subagents: { workers: {
     agent: 'blender-worker', provider: 'fixture-provider', model: 'fixture-model', variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
     max_minutes: 10, max_steps: 18, max_failed_attempts: 2, max_parallel: 1,
   } } };
   if (review !== 'Off') config.blender_subagents.graders = {
     enabled: true, agent: 'blender-grader', max_parallel: 1, max_rounds: 2,
-    graders: [{ name: 'visual', focus: 'composition', provider: 'test', model: 'test-model', variant: 'test-variant', max_steps: 12, max_minutes: 5 }],
+    graders: [{ name: 'visual', focus: 'composition', provider: 'test', model: 'test-model', variant: 'test-variant', backup: { provider: 'backup-test', model: 'backup-test-model', variant: 'backup-test-variant' }, max_steps: 12, max_minutes: 5 }],
   };
   write('config.json', JSON.stringify(config));
   git(root, ['init', '--quiet']);

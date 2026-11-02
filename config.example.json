@@ -5,6 +5,11 @@
       "provider": "kilo",
       "model": "anthropic/claude-sonnet-4.6",
       "variant": "max",
+      "backup": {
+        "provider": "kilo",
+        "model": "anthropic/claude-sonnet-5",
+        "variant": "max"
+      },
       "max_minutes": 10,
       "max_steps": 18,
       "max_failed_attempts": 2,
@@ -22,6 +27,11 @@
           "provider": "kilo",
           "model": "anthropic/claude-sonnet-4.6",
           "variant": "high",
+          "backup": {
+            "provider": "kilo",
+            "model": "anthropic/claude-sonnet-5",
+            "variant": "max"
+          },
           "max_minutes": 5,
           "max_steps": 10
         },
@@ -31,6 +41,11 @@
           "provider": "kilo",
           "model": "anthropic/claude-sonnet-4.6",
           "variant": "max",
+          "backup": {
+            "provider": "kilo",
+            "model": "anthropic/claude-sonnet-5",
+            "variant": "max"
+          },
           "max_minutes": 5,
           "max_steps": 10
         },
@@ -40,6 +55,11 @@
           "provider": "kilo",
           "model": "anthropic/claude-sonnet-4.6",
           "variant": "max",
+          "backup": {
+            "provider": "kilo",
+            "model": "anthropic/claude-sonnet-5",
+            "variant": "max"
+          },
           "max_minutes": 5,
           "max_steps": 10
         }
