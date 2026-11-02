@@ -46,3 +46,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
   the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
   are blocked.
+
+- R01-20261102T184603Z: Build the room shell, window, curtains, hero camera, and warm key light; evidence 86dc70e9cb3b64d84b627f68c4939e79eb9e7583681ebfeb75a2b4bcf654868f
