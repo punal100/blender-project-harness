@@ -130,3 +130,15 @@ open a review round for the initial empty/default scene.
 - Editing external harness state; creating fake tickets, receipts, approvals, or reports.
 - Sealing without a saved reviewable change; grading the bootstrap save; skipping required review.
 - Continuing after a gate error without resolving the phase named by `status.nextStep`.
+
+## Live Test 03 state and workspace rules
+
+- Treat kilo.goal as the goal source of truth. Reconcile goalActive before status and production
+  checks. Never emit resume-goal while Kilo reports active.
+- Split registration drift: specification and mode changes require re-registration before any work;
+  roster changes block new work but allow review, preserve, commit, checkpoint, seal, and goal
+  reconciliation.
+- A registered root may commit code-only workspace changes through the approved shell path when
+  every staged path is outside the project folder. Project paths remain harness-owned.
+- A registered root may use agent_manager for session and worktree coordination.
+- Workspace files under .temp may be written directly; project files remain change-scoped.

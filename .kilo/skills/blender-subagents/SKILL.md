@@ -185,3 +185,9 @@ permission to substitute production workers or graders.
 - [Custom subagents](https://kilo.ai/docs/customize/custom-subagents)
 - [Agent permissions](https://kilo.ai/docs/customize/agent-permissions)
 - [Agent Skills specification](https://agentskills.io/specification)
+
+## Live Test 03 orchestration permission
+
+The registered root orchestrator may use agent_manager to start, prompt, stop, or move sessions.
+Worker and grader children remain denied. Agent Manager sessions are separate from worker and
+grader delegation and must not bypass review or evidence gates.

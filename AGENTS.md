@@ -165,3 +165,18 @@ blocker or major remains; `checkpoint` is clean; and the goal prompt is recorded
 
 Workspace maintenance requires the relevant format, tooling, and diff checks. Report checks that
 could not run; do not invent scene verification.
+
+## Live Test 03 - goal and workspace authority
+
+- Kilo goal state is authoritative. When Kilo reports the goal active, the harness reconciles
+  goalActive and must not request goal resume. Resume is only actionable when Kilo reports paused
+  or blocked.
+- Roster or backup changes after registration may block new work, but must not block review,
+  preserve, commit, checkpoint, seal, or goal reconciliation for an existing change.
+- Workspace code-only commits outside the project folder may use the approved shell path when every
+  staged path is outside the project. Project commits remain harness-owned through bootstrap-commit
+  and commit.
+- agent_manager is available to the registered root orchestrator for session and worktree
+  coordination. Workers and graders remain denied.
+- Workspace files under .temp may be written directly by the root. Project files remain
+  restricted to declared bounded-change paths.
