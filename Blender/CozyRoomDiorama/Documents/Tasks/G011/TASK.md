@@ -2,13 +2,13 @@
 
 - Change: 5518a1fa-d315-4644-a3df-4ceacd4825e2
 - Operation: grader:spec
-- State: running
+- State: failed
 - Actor: blender-grader
 - Capability: grade
 - Assigned: spec
 - Child session: ses_e6269c0ddffeMIK4lw6LX4fG6L
 - Created: 2026-11-02T18:46:28.401Z
-- Finished: 
+- Finished: 2026-11-02T18:52:10.283Z
 - Deadline: 2026-11-02T18:51:28.401Z
 - Token SHA-256: 9db3a9a1a537
 
