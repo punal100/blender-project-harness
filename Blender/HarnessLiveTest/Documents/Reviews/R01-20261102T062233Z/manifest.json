@@ -1,0 +1,375 @@
+{
+  "round": "R01-20261102T062233Z",
+  "created": "2026-11-02T06:22:34.407Z",
+  "previous_round": null,
+  "active_goal": "Blender/HarnessLiveTest/Documents/Goals/01-project-brief.md",
+  "base_commit": "6877491c21805ec955c757f4cf44f105b52053e9",
+  "dirty": "M Blender/HarnessLiveTest/Documents/TASKSTRACKER.md\n M Blender/HarnessLiveTest/harnesslivetest.blend\n?? Blender/HarnessLiveTest/Documents/Tasks/T004/\n?? Blender/HarnessLiveTest/Documents/Tasks/T006/\n?? Blender/HarnessLiveTest/Documents/Tasks/T008/\n?? Blender/HarnessLiveTest/Documents/Tasks/T009/\n?? Blender/HarnessLiveTest/renders/final/R01-20261102T062233Z.png",
+  "scene": {
+    "path": "Blender/HarnessLiveTest/harnesslivetest.blend",
+    "sha256": "7fc3734c85507329165840747dba56acc0fc634e048cf590375eb20fd5692eea"
+  },
+  "specs": {
+    "Blender/HarnessLiveTest/Documents/REQUIREMENTS.md": "0158d67b55d57499645b85ceb54783e2473dfc6d79ec2935c5002c094d57bc3f",
+    "Blender/HarnessLiveTest/Documents/WORKFLOW.md": "d1ecdd14f4ec6da92c30d1652804f5802d9845355eb2ae4c162e0c624366f271",
+    "Blender/HarnessLiveTest/Documents/REVIEW.md": "3e5337a415426deedcb354b67046cdb4bcebf78f75ddfedc5a2748079a12b10c",
+    "Blender/HarnessLiveTest/Documents/Goals/01-project-brief.md": "cbf90d658d4a865439a9bc9e15960c05de7a7dce2083b859a321f7eeb8f65298"
+  },
+  "evidence": {
+    "Blender/HarnessLiveTest/renders/final/R01-20261102T062233Z.png": "f5d81fa3d5980ae8c5062033f3bb98c28777213d50ba319babd6c0cd7a93abde",
+    "Blender/HarnessLiveTest/Documents/Reviews/R01-20261102T062233Z/_evidence/camera.png": "f5d81fa3d5980ae8c5062033f3bb98c28777213d50ba319babd6c0cd7a93abde",
+    "Blender/HarnessLiveTest/Documents/Reviews/R01-20261102T062233Z/_evidence/scene.txt": "ab44e228ef26c1df40c2135bf900d1720f4aa51c67527c977693195ebc33b1e2"
+  },
+  "evidence_key": "ebee4a3df01013d46e12280e561325c986316d1c6e68d484ca9eba6b6c087867",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "kilo",
+        "model": "anthropic/claude-sonnet-4.6",
+        "variant": "max"
+      },
+      "max_minutes": 5,
+      "max_steps": 10
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "8e708318-2bd0-4892-89ed-6e162c0a501a",
+      "report": "Blender/HarnessLiveTest/Documents/Reviews/R01-20261102T062233Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793600878957,
+      "steps": 0,
+      "verdict": "BLOCKED",
+      "error": "grader deadline exceeded before collection: visual"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T002",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "apply x9",
+      "objects": [
+        "Cube",
+        "Plane",
+        "Light",
+        "Camera"
+      ],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "bd47327efc6d",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e65185b88ffelbz0vAuJtGr1Q1",
+      "state": "done",
+      "created": "2026-11-02T06:17:02.180Z",
+      "finished": "2026-11-02T06:17:33.744Z",
+      "result": "ok (9 ops)",
+      "deadline": 1793600923924,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "set_camera",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "render_settings",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T002/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T002/SUMMARY.md"
+    },
+    {
+      "id": "T003",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "apply x4",
+      "objects": [
+        "Plane",
+        "Light"
+      ],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "f1dbadaf178c",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e65185b88ffelbz0vAuJtGr1Q1",
+      "state": "done",
+      "created": "2026-11-02T06:18:16.911Z",
+      "finished": "2026-11-02T06:18:34.528Z",
+      "result": "ok (4 ops)",
+      "deadline": 1793601153741,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "create_light",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T003/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T003/SUMMARY.md"
+    },
+    {
+      "id": "T004",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "8caafd9ef285",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-02T06:19:11.120Z",
+      "finished": "2026-11-02T06:19:21.078Z",
+      "result": "ok",
+      "deadline": 1793601214525,
+      "operationResults": [],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T004/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T004/SUMMARY.md"
+    },
+    {
+      "id": "T005",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "apply x3",
+      "objects": [
+        "Plane",
+        "Light"
+      ],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "d388fcd344c1",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e65185b88ffelbz0vAuJtGr1Q1",
+      "state": "done",
+      "created": "2026-11-02T06:19:53.094Z",
+      "finished": "2026-11-02T06:20:09.790Z",
+      "result": "ok (3 ops)",
+      "deadline": 1793601261078,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "create_light",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T005/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T005/SUMMARY.md"
+    },
+    {
+      "id": "T006",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "7a62be9ceeca",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-02T06:20:28.267Z",
+      "finished": "2026-11-02T06:20:39.017Z",
+      "result": "ok",
+      "deadline": 1793601309787,
+      "operationResults": [],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T006/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T006/SUMMARY.md"
+    },
+    {
+      "id": "T007",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "apply x2",
+      "objects": [
+        "Light"
+      ],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "07b0fd0d22f2",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e65185b88ffelbz0vAuJtGr1Q1",
+      "state": "done",
+      "created": "2026-11-02T06:21:05.180Z",
+      "finished": "2026-11-02T06:21:19.662Z",
+      "result": "ok (2 ops)",
+      "deadline": 1793601339017,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_light",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T007/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T007/SUMMARY.md"
+    },
+    {
+      "id": "T008",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "3b5f23585d7b",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-02T06:21:38.693Z",
+      "finished": "2026-11-02T06:21:51.411Z",
+      "result": "ok",
+      "deadline": 1793601379659,
+      "operationResults": [],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T008/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T008/SUMMARY.md"
+    },
+    {
+      "id": "T009",
+      "kind": "operation",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "seal",
+      "objects": [],
+      "paths": [
+        "Blender/HarnessLiveTest/harnesslivetest.blend",
+        "Blender/HarnessLiveTest/README.md"
+      ],
+      "tokenHash": "42e2479ffd42",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "seal",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-02T06:22:22.909Z",
+      "finished": "2026-11-02T06:22:34.485Z",
+      "result": "ok",
+      "deadline": 1793601411411,
+      "operationResults": [],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/T009/TASK.md",
+      "summaryDoc": "Blender/HarnessLiveTest/Documents/Tasks/T009/SUMMARY.md"
+    },
+    {
+      "id": "G010",
+      "kind": "grader",
+      "change": "f823bedc-34ef-44f5-b917-9209a5c6dff1",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/HarnessLiveTest/Documents/Reviews/R01-20261102T062233Z/visual/REPORT.md"
+      ],
+      "tokenHash": "d2d60b1f8ca9",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "",
+      "state": "issued",
+      "created": "2026-11-02T06:22:58.958Z",
+      "finished": "",
+      "result": "",
+      "deadline": 1793601454484,
+      "operationResults": [],
+      "taskDoc": "Blender/HarnessLiveTest/Documents/Tasks/G010/TASK.md"
+    }
+  ],
+  "verdict": "WIP"
+}
