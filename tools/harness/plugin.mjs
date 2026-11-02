@@ -450,9 +450,13 @@ export function createHooks(harness, client) {
       }
       if (['write', 'edit', 'apply_patch'].includes(tool)) {
         const c = p.change;
+        const names = editPaths(tool, args).map(relative);
+        if (names.every((f) => f.startsWith('.temp/'))) {
+          harness.fresh(p, { allowRosterDrift: true });
+          return;
+        }
         if (!c) deny('no open bounded change; call blender_workflow begin with one outcome, exact object names, and exact project-relative paths before writing project files');
         const allowed = new Set(c.paths);
-        const names = editPaths(tool, args).map(relative);
         if (names.some((f) => Object.hasOwn(p.records.specs, f) || f === `${p.project}/Documents/REVIEW.md`)) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
         if (names.some((f) => f === `${p.project}/Documents/TASKSTRACKER.md` || f.startsWith(`${p.project}/Documents/Tasks/`))) deny('the task tracker is harness-owned; ticket issue and completion update it');
         if (names.some((f) => f.startsWith(`${p.project}/Documents/Reviews/`))) deny('review artifacts are harness-owned; use review, self-review, or grader tools');

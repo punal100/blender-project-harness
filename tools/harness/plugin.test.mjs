@@ -271,6 +271,7 @@ test('apply execution is delegated to worker children', async (t) => {
 test('plugin allows recovery reads but rejects unscoped file writes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await before(h, f.session, 'read', { filePath: path.join(f.root, f.project, 'README.md') });
+  await before(h, f.session, 'write', { filePath: path.join(f.root, '.temp', 'Scratch', 'note.md'), content: 'workspace note' });
   await before(h, f.session, 'write', { filePath: path.join(f.root, f.project, 'Documents', 'DECISIONS.md'), content: 'new docs' });
   await assert.rejects(before(h, f.session, 'write', { filePath: path.join(f.root, f.scene), content: 'forged' }), /runtime-owned/);
   await assert.rejects(before(h, f.session, 'apply_patch', { patchText: '*** Begin Patch\n*** Add File: tools/bypass.py\n+pass\n*** End Patch' }), /scope/);
