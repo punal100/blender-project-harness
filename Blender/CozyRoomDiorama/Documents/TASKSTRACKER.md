@@ -1,7 +1,7 @@
 # Task Tracker — CozyRoomDiorama
 
 Status: Active
-Last updated: 2026-11-02T18:46:03.917Z
+Last updated: 2026-11-02T18:49:49.906Z
 
 ## Tasks
 
@@ -15,3 +15,6 @@ Last updated: 2026-11-02T18:46:03.917Z
 | [T006](Tasks/T006/TASK.md) | operation | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | apply x10 | 10 | blender-worker | ses_e626d870bffeZwcmerSdBc76vk | done | 2026-11-02T18:45:03.511Z | 2026-11-02T18:45:16.362Z | ok (10 ops) |
 | [T007](Tasks/T007/TASK.md) | operation | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | wip | 0 | orchestrator |  | done | 2026-11-02T18:45:35.789Z | 2026-11-02T18:45:41.957Z | ok |
 | [T008](Tasks/T008/TASK.md) | operation | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | seal | 0 | orchestrator |  | done | 2026-11-02T18:45:56.601Z | 2026-11-02T18:46:03.917Z | ok |
+| [G009](Tasks/G009/TASK.md) | grader | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | grader:visual | 0 | visual | ses_e6269c25cffePbk3anH5zCun8T | running | 2026-11-02T18:46:15.690Z |  |  |
+| [G010](Tasks/G010/TASK.md) | grader | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | grader:technical | 0 | technical | ses_e6269c176ffeYTUjfc32xbtwCk | done | 2026-11-02T18:46:22.203Z | 2026-11-02T18:49:49.905Z | ok |
+| [G011](Tasks/G011/TASK.md) | grader | 5518a1fa-d315-4644-a3df-4ceacd4825e2 | grader:spec | 0 | spec | ses_e6269c0ddffeMIK4lw6LX4fG6L | running | 2026-11-02T18:46:28.401Z |  |  |
