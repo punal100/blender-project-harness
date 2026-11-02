@@ -1496,3 +1496,22 @@ test('contained and project methods reject traversal and symlink paths', (t) => 
     if (fs.existsSync(linkedState)) fs.unlinkSync(linkedState);
   }
 });
+
+test('a successful WIP task commits its metadata and leaves the project clean', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { index: 1 });
+  f.harness.finish(applied.token, { ok: true });
+  f.harness.command('orchestrator', 'finalize');
+  const wipPath = f.project + '/renders/wip/WIP-task-commit.png';
+  write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const wip = issueAndConsume(f, 'orchestrator', 'wip');
+  f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+  const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.id === wip.taskId));
+  assert.equal(task.state, 'done');
+  assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
+});
+

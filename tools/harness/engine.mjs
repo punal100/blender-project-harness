@@ -1235,6 +1235,10 @@ export class Harness {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitProgress(p, c, task);
       }
+      if (t.operation === 'wip') {
+        const task = p.tasks?.find((item) => item.token === token);
+        if (task) this.commitTaskArtifacts(p, c, 'task: ' + task.id + ' ' + task.state);
+      }
       if (t.operation === 'seal' && c.manifestPath) this.updateManifest(p);
       return this.status(p, s);
     });
