@@ -359,6 +359,7 @@ test('bootstrap save can be staged and committed without review', async (t) => {
     change.operations = 0;
   });
   fs.appendFileSync(path.join(f.root, f.scene), 'bootstrap save\n');
+  git(f.root, ['add', '--', f.scene]);
   await assert.rejects(
     before(h, f.session, 'bash', { command: `git add -- "${f.scene}"` }),
     /blender_workflow commit/,
@@ -367,11 +368,21 @@ test('bootstrap save can be staged and committed without review', async (t) => {
     before(h, f.session, 'bash', { command: 'git commit -m "feat: bootstrap scene"' }),
     /blender_workflow commit/,
   );
+  git(f.root, ['reset', '--', f.scene]);
   await h.tool.blender_workflow.execute(
     { action: 'commit', payload: JSON.stringify({ message: 'feat: bootstrap scene' }) },
     { sessionID: f.session },
   );
   await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+});
+
+test('registered workspace code commits are allowed through shell approval', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const code = path.join(f.root, 'tools', 'harness', 'scratch.txt');
+  fs.mkdirSync(path.dirname(code), { recursive: true });
+  fs.writeFileSync(code, 'scratch\n');
+  git(f.root, ['add', '--', 'tools/harness/scratch.txt']);
+  await approveShell(h, f.session, 'git commit -m "chore: scratch workspace file"');
 });
 
 test('plugin permits matching ticket once, blocks cross-session ticket', async (t) => {

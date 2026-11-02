@@ -394,12 +394,12 @@ export function createHooks(harness, client) {
           if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
           if (/^git add\b/.test(command)) {
             const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
-            if (projectPathInCommand(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (projectPathInCommand(command) || (broad && fs.existsSync(path.join(harness.root, 'Blender')))) deny('project commits use blender_workflow bootstrap-commit before registration and blender_workflow commit after registration');
           }
           if (/^git commit\b/.test(command)) {
-            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || projectPathInCommand(command)) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command) || projectPathInCommand(command)) deny('project commits use blender_workflow bootstrap-commit before registration and blender_workflow commit after registration');
             const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
-            if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and commit after registration');
+            if (staged.some((name) => name.startsWith('Blender/'))) deny('project commits use blender_workflow bootstrap-commit before registration and blender_workflow commit after registration');
           }
           guardShell(harness, input.sessionID, null, command, args);
         }
@@ -464,8 +464,17 @@ export function createHooks(harness, client) {
         const command = args.command ?? '';
         if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('production Git/launch commands require workspace root');
-        if (/^git (?:add|commit)\b/.test(command)) deny('production commits use blender_workflow commit with one bounded message');
-        guardShell(harness, input.sessionID, p.project, command, args);
+        if (/^git add\b/i.test(command)) {
+          const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
+          if (projectPathInCommand(command) || broad) deny('project commits use blender_workflow bootstrap-commit before registration and blender_workflow commit after registration');
+        }
+        if (/^git commit\b/i.test(command)) {
+          if (/(?:^|\s)(?:-a\w*|--all|--include|-i)\b/.test(command)) deny('project commits use blender_workflow commit');
+          const staged = git(harness.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
+          if (staged.some((name) => name.startsWith('Blender' + '/'))) deny('project commits use blender_workflow commit');
+        }
+        const workspaceCommand = /^git (?:add|commit)\b/i.test(command);
+        guardShell(harness, input.sessionID, workspaceCommand ? null : p.project, command, args);
         return;
       }
       deny(`unclassified production tool: ${tool}`);
