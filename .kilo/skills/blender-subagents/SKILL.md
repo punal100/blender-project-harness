@@ -143,14 +143,19 @@ Dispatch only after seal and successful sealed-render `look`:
    provider/model/variant.
 3. Keep the token, paths, hashes, and deadline unchanged; fill only the user-prompt and
    prior-findings placeholders.
-4. Dispatch batches no larger than `max_parallel`.
+4. Issue all selected grader tickets, then dispatch up to `max_parallel` grader tasks in one batch
+   before waiting on any of them.
 5. If the primary fails before producing a report, re-dispatch the unchanged ticket prompt once with
    the configured backup. The harness records `modelRole:"backup"`; do not choose another model.
+6. If the task fails before binding a child session and no hook recorded the failure, call
+   `grader-fail {name,reason}`. Do not mint a new ticket without recording the failed start.
 
 One pass per grader per round. One failed or missing report permits one replacement ticket; a
-second failure aggregates as `BLOCKED`. A tooling/evidence `BLOCKED` is retried without a scene
-revision; a design `BLOCKED`/`CHANGES_REQUIRED` follows the review path. A single substantiated
-blocker fails the round. `review` writes the final verdict and dispositions; graders never loop.
+second failure is aggregated as `BLOCKED` by `review`. A tooling/evidence `BLOCKED` is retried
+without a scene revision; a design `BLOCKED`/`CHANGES_REQUIRED` follows the review path. A single
+substantiated blocker fails the round. `review` writes the final verdict and dispositions; graders
+never loop. When retries are exhausted, follow `status.nextStep` to `review`, then `preserve`; never
+leave an issued ticket as the project's only remaining state.
 
 ## Task output
 

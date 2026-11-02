@@ -51,11 +51,14 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    also requires a WIP check. Seal only after that look. `seal` writes immutable evidence, a final
    PNG, and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
-6. Review: `self-review` `{notes}` when mode is `Off`; otherwise dispatch every configured grader
-   with `grader-ticket` `{name}` and the normal `blender-grader` task. The ticket lists exact
-   evidence files; read those paths, not a folder. A tooling-blocked grader is retried without a
-   scene revision. Aggregate with `review` `{notes,reason,dispositions}`. The harness computes the
-   verdict and writes `REVIEW.md`.
+6. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
+   `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
+   lists exact evidence files; read those paths, not a folder. If a task fails before binding a
+   child, call `grader-fail {name,reason}`. A tooling-blocked grader is retried without a scene
+   revision. When retries are exhausted, aggregate with `review` `{notes,reason,dispositions}`; the
+   harness records the missing/expired grader as `BLOCKED`, computes the verdict, and writes
+   `REVIEW.md`. Seal and grader task metadata commit at task completion; review artifacts and the
+   sealed scene commit at the review boundary.
 7. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
    `question`. Approval is required before the review commit.
 8. In Fully Autonomous with `All` or `Single`, `review` auto-commits reports and the verdict; skip to

@@ -109,7 +109,10 @@ next call. `capabilities` is authoritative for actions, operations, document for
   or disabled grader configuration stops production. NEVER downgrade silently to self-review.
 - Graders are read-only. Each writes only its assigned `REPORT.md`, through `blender_document`
   `{action:"write"}`, and MUST NOT read peer reports. Dispatch only through `grader-ticket` and the
-  normal `blender-grader` task.
+  normal `blender-grader` task. Dispatch selected graders in parallel up to `max_parallel`. If a task
+  fails before binding a child, call `grader-fail {name,reason}`; never leave the ticket issued.
+  When retries are exhausted, `review` aggregates the tooling block, then `preserve` and
+  `checkpoint` close the change.
 - `review` writes the verdict and, in Fully Autonomous mode, auto-commits the reviewed change and
   its round artifacts including `REVIEW.md`. In Partially Autonomous mode, `commit` after approval
   creates the single scoped commit. NEVER create or commit review artifacts manually.

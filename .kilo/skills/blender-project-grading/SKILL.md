@@ -101,16 +101,19 @@ The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the n
    `HARNESS_GRADER:<token>`, report path, scene hash, evidence key, and deadline unchanged.
 3. Fill only the user-prompt and prior-findings placeholders. Do not invent a child session or
    report receipt.
-4. Dispatch in batches no larger than `max_parallel`; graders run read-only and never edit the
-   scene. One writer rule remains.
+4. Issue all selected grader tickets, then dispatch up to `max_parallel` grader tasks in one batch
+   before waiting; graders run read-only and never edit the scene. One writer rule remains.
 5. Retain each runtime-bound `task_id`. Resume the same grader session for re-review when model and
    focus are unchanged.
+6. If a task fails before binding a child session, call `grader-fail {name,reason}` so the failure
+   is recorded against the ticket.
 
 A missing or failed report permits one replacement `grader-ticket` before `review`; the replacement
 gets a fresh pass budget. A tooling/evidence `BLOCKED` report is retryable without a scene revision;
-a second failure aggregates as `BLOCKED` and `nextStep` returns `retry-grader`, not `begin`.
-Graders never loop or ask the user. The assigned report write is exempt from the step budget so a
-grader can always record its verdict.
+a second failure is aggregated by `review`, after which `nextStep` returns `retry-grader` or
+`preserve`, not `begin`. Graders never loop or ask the user. The assigned report write is exempt
+from both the step budget and the deadline so a grader can always record its verdict. A grader may
+read its own prior `REPORT.md` under `Documents/Reviews/`; peer grader reports remain denied.
 
 ## Aggregate and dispose
 
