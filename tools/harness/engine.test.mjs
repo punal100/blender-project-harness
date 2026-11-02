@@ -65,6 +65,34 @@ function validGraderConfig(overrides = {}) {
   };
 }
 
+function threeGraderConfig() {
+  const grader = (name, focus) => ({
+    name,
+    focus,
+    provider: 'fixture-provider',
+    model: 'fixture-model',
+    variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
+    max_minutes: 5,
+    max_steps: 10,
+  });
+  return {
+    blender_subagents: {
+      graders: {
+        agent: 'blender-grader',
+        enabled: true,
+        max_parallel: 3,
+        max_rounds: 2,
+        graders: [
+          grader('visual', 'composition, camera, lighting, and materials'),
+          grader('technical', 'geometry, topology, render settings, and scene health'),
+          grader('spec', 'requirements and acceptance fidelity'),
+        ],
+      },
+    },
+  };
+}
+
 function createProject(root, {
   name = 'Test',
   workflow = 'Fully Autonomous',
@@ -394,6 +422,47 @@ function reviewAll(f, session = 'orchestrator') {
     dispositions: 'No blocker or major finding remained.',
   });
   return { ...sealed, grader, reviewPath, status };
+}
+
+function simulationReport(ticket, verdict) {
+  return [
+    '# Grader report',
+    `- Verdict: ${verdict}`,
+    `Scene hash: ${ticket.sceneHash}`,
+    `Evidence key: ${ticket.evidenceKey}`,
+    ...(verdict === 'PASS' ? [] : ['| severity | finding |', '| --- | --- |', '| major | synthetic finding |']),
+    '',
+  ].join('\n');
+}
+
+function simulationGrader(f, name, verdict, { backup = false } = {}) {
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name });
+  if (verdict === 'FAIL_START') {
+    f.harness.command('orchestrator', 'grader-fail', { name, reason: 'synthetic task start failure' });
+    return { ticket, child: null, result: null };
+  }
+  const child = `child-${name}-${crypto.randomUUID()}`;
+  const model = backup
+    ? { providerID: 'backup-provider', modelID: 'backup-model', variant: 'backup-variant' }
+    : { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' };
+  f.harness.bindGrader('orchestrator', child, `Review assignment ${ticket.marker}`, model);
+  if (verdict !== 'MISSING') write(f.root, ticket.report, simulationReport(ticket, verdict));
+  const result = f.harness.collectGrader('orchestrator', child);
+  return { ticket, child, result };
+}
+
+function simulationApply(f, index) {
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { simulation: index });
+  f.harness.finish(applied.token, { ok: true });
+  return applied;
+}
+
+function simulationReview(f, notes = 'Synthetic review completed.') {
+  return f.harness.command('orchestrator', 'review', {
+    notes,
+    reason: 'Synthetic findings were resolved or recorded against the sealed evidence.',
+    dispositions: 'No unrecorded design decision remained.',
+  });
 }
 
 test('prepare rejects an uncommitted scaffold and accepts Git-clean CRLF content', (t) => {
@@ -1666,4 +1735,95 @@ test('task metadata records the governing ticket deadline', (t) => {
   const grader = f.harness.transaction((s) => s.projects[f.project].change.graders.visual);
   const graderTask = f.harness.transaction((s) => s.projects[f.project].tasks.find((task) => task.token === ticket.token));
   assert.equal(graderTask.deadline, grader.deadline);
+});
+
+test('synthetic live run: three-grader review, revision, and blocked recovery', (t) => {
+  const f = useFixture(t, { review: 'All', configValue: threeGraderConfig() });
+  activate(f);
+  begin(f, 'orchestrator', {
+    outcome: 'Build the cozy room shell',
+    objects: ['Room_Floor', 'Room_Wall_Back', 'Window'],
+    paths: ['notes.txt'],
+    final: false,
+    milestone: 'Room shell',
+    requirements: ['REQ-01'],
+  });
+  for (let index = 0; index < 3; index += 1) simulationApply(f, index);
+  seal(f, 'orchestrator', { round: 'R01-20261102T100000Z' });
+  simulationGrader(f, 'visual', 'CHANGES_REQUIRED', { backup: true });
+  simulationGrader(f, 'technical', 'PASS');
+  simulationGrader(f, 'spec', 'CHANGES_REQUIRED');
+  const firstReview = simulationReview(f, 'The shell milestone is reviewed.');
+  assert.equal(firstReview.change.verdict, 'CHANGES_REQUIRED');
+  f.harness.command('orchestrator', 'checkpoint');
+
+  begin(f, 'orchestrator', {
+    outcome: 'Complete the cozy room',
+    objects: ['Desk', 'Monitor', 'Chair'],
+    paths: ['notes.txt'],
+    final: true,
+    revision: true,
+    milestone: 'Final room',
+    requirements: ['REQ-02'],
+  });
+  for (let index = 0; index < 2; index += 1) simulationApply(f, index + 3);
+  seal(f, 'orchestrator', { round: 'R02-20261102T110000Z' });
+  simulationGrader(f, 'visual', 'CHANGES_REQUIRED');
+  simulationGrader(f, 'technical', 'PASS');
+  simulationGrader(f, 'spec', 'BLOCKED');
+  const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'spec' });
+  assert.ok(retry.token);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.spec.attempt), 2);
+  f.harness.command('orchestrator', 'grader-fail', { name: 'spec', reason: 'the retry never started a child session' });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'review');
+  const blocked = simulationReview(f, 'The R02 spec grader could not report.');
+  assert.equal(blocked.change.verdict, 'BLOCKED');
+  assert.equal(blocked.change.blockingKind, 'tooling');
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'preserve');
+  const preserved = f.harness.command('orchestrator', 'preserve', { reason: 'Preserve the sealed R02 evidence for a later grader retry.' });
+  assert.equal(preserved.change.verdict, 'WIP');
+  f.harness.command('orchestrator', 'checkpoint');
+  const paused = f.harness.command('orchestrator', 'pause', { reason: 'Synthetic run stopped after preserving a tooling block.' });
+  assert.equal(paused.goalActive, false);
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'WIP');
+});
+
+test('synthetic live run: final all-grader PASS completes the goal', (t) => {
+  const f = useFixture(t, { review: 'All', configValue: threeGraderConfig() });
+  activate(f);
+  begin(f, 'orchestrator', {
+    outcome: 'Deliver the final cozy room',
+    objects: ['Room_Floor', 'Desk', 'Monitor'],
+    paths: ['notes.txt'],
+    final: true,
+    milestone: 'Final room',
+    requirements: ['REQ-01', 'REQ-02'],
+  });
+  simulationApply(f, 0);
+  seal(f, 'orchestrator', { round: 'R01-20261102T120000Z' });
+  simulationGrader(f, 'visual', 'PASS');
+  simulationGrader(f, 'technical', 'PASS');
+  simulationGrader(f, 'spec', 'PASS');
+  const reviewed = simulationReview(f, 'All three graders passed the final room.');
+  assert.equal(reviewed.change.verdict, 'PASS');
+  f.harness.command('orchestrator', 'checkpoint');
+  f.harness.command('orchestrator', 'goal-complete');
+  assert.equal(f.harness.command('orchestrator', 'status').complete, true);
+});
+
+test('synthetic live run: abrupt restart keeps the change and recovers an expired ticket', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const started = begin(f, 'orchestrator', { outcome: 'Recover after a restarted orchestrator', paths: ['notes.txt'], final: false });
+  const pending = f.harness.issue('orchestrator', 'apply', { resumed: true });
+  const restarted = new Harness(f.root, { stateRoot: f.stateRoot });
+  const before = restarted.command('orchestrator', 'status');
+  assert.equal(before.change.id, started.change.id);
+  assert.equal(before.change.pending, 'operation in progress');
+  f.harness.transaction((s) => { s.tickets[pending.token].created = Date.now() - 600_001; });
+  const recovered = restarted.recover('orchestrator');
+  assert.equal(recovered.change.id, started.change.id);
+  assert.equal(recovered.change.pending, null);
+  assert.equal(restarted.command('orchestrator', 'status').change.operations, 0);
 });
