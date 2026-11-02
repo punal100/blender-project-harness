@@ -23,9 +23,10 @@ async function approveShell(h, session, command, reason = 'Inspect the workspace
 
 test('plugin denies raw code and unsupported production escape routes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
-  for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'agent_manager', 'use_mcp_tool']) {
+  for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'use_mcp_tool']) {
     await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified/);
   }
+  await assert.doesNotReject(before(h, f.session, 'agent_manager', { mode: 'local', versions: false, tasks: [], action: null }));
   await assert.doesNotReject(before(h, f.session, 'background_process', { command: 'node tools/harness/cli.mjs doctor' }));
   for (const command of ['python -c "print(1)"', 'git diff --output=scene.blend', 'git status; node bypass.mjs', 'git add -- .', 'git -c alias.x=anything x']) {
     await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope|blender_workflow commit/);

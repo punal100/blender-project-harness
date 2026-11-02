@@ -405,6 +405,7 @@ export function createHooks(harness, client) {
         }
         return;
       }
+      if (tool === 'agent_manager') return;
       if (tool === 'background_process') {
         const command = args.command ?? '';
         if (typeof command !== 'string' || !command.trim()) deny('background process requires one command');
