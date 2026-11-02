@@ -417,7 +417,7 @@ export function createHooks(harness, client) {
       if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
       if (tool === 'goal') {
         if (args.action === 'start' && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText)) deny('goal objective must equal registered prompt');
-        harness.fresh(p); return;
+        harness.fresh(p, { allowRosterDrift: true }); return;
       }
       if (tool === 'goal_report') {
         const goal = kiloGoal(session);

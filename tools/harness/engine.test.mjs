@@ -1515,3 +1515,13 @@ test('a successful WIP task commits its metadata and leaves the project clean', 
   assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
 });
 
+test('roster drift permits goal sync but blocks new work', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  const file = path.join(f.root, 'config.json');
+  const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+  config.blender_subagents.graders.graders[0].backup.model = 'changed-backup';
+  fs.writeFileSync(file, JSON.stringify(config));
+  assert.doesNotThrow(() => f.harness.command('orchestrator', 'goal-active'));
+  gate(() => begin(f), /roster changed/);
+});

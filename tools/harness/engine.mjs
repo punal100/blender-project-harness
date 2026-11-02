@@ -248,9 +248,11 @@ export class Harness {
     if (projects.length !== 1) deny('register exactly one project for orchestrator session');
     return projects[0];
   }
-  fresh(p) {
+  fresh(p, { allowRosterDrift = false } = {}) {
     const now = this.records(p.project, p.goal);
-    if (stable(now) !== stable(p.records)) deny('spec, modes, goal, or roster changed; explicit re-registration required');
+    const frozen = ['specs', 'workflow', 'review', 'goalText'];
+    if (frozen.some((key) => stable(now[key]) !== stable(p.records[key]))) deny('spec, modes, or goal changed; explicit re-registration required');
+    if (!allowRosterDrift && stable(now.roster) !== stable(p.records.roster)) deny('roster changed; explicit re-registration required');
     const c = p.change;
     if (c?.sealed && this.hash(p.scene) !== c.sceneHash) deny('scene changed after sealing');
     for (const [name, hash] of Object.entries(c?.evidence ?? {})) if (this.hash(name) !== hash) deny(`stale evidence: ${name}`);
@@ -893,8 +895,9 @@ export class Harness {
         p.lastRender = null;
         return this.reregisterStatus(p);
       }
-      this.fresh(p);
       const c = p.change;
+      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
+      this.fresh(p, { allowRosterDrift });
       if (action === 'goal-active') {
         if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
         p.goalActive = true;
