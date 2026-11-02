@@ -479,3 +479,26 @@ test('development mode bypasses all workflow hooks', async (t) => {
   await h['tool.execute.after']({ sessionID: f.session, callID: 'dev', tool: 'bash', args: { command: 'git branch' } }, after);
   assert.equal(after.output, 'unchanged');
 });
+
+test('development mode can whitelist specific sessions', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const configPath = path.join(f.root, 'config.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  config.development_mode = false;
+  config.development_sessions = [f.session];
+  fs.writeFileSync(configPath, JSON.stringify(config));
+
+  const note = { filePath: path.join(f.root, f.project, 'Documents', 'DECISIONS.md'), content: 'session development note\n' };
+  await assert.doesNotReject(before(h, f.session, 'write', note));
+  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'npm install' }));
+  await assert.rejects(before(h, 'ses_other', 'write', note), /project files are harness-owned/);
+  await assert.rejects(before(h, 'ses_other', 'bash', { command: 'npm install' }), /Shell approval required/);
+
+  delete config.development_mode;
+  fs.writeFileSync(configPath, JSON.stringify(config));
+  await assert.doesNotReject(before(h, f.session, 'write', note));
+
+  delete config.development_sessions;
+  fs.writeFileSync(configPath, JSON.stringify(config));
+  await assert.rejects(before(h, f.session, 'write', note), /no open bounded change/);
+});
