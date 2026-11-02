@@ -1750,7 +1750,8 @@ test('synthetic live run: three-grader review, revision, and blocked recovery', 
   });
   for (let index = 0; index < 3; index += 1) simulationApply(f, index);
   seal(f, 'orchestrator', { round: 'R01-20261102T100000Z' });
-  simulationGrader(f, 'visual', 'CHANGES_REQUIRED', { backup: true });
+  const visual = simulationGrader(f, 'visual', 'CHANGES_REQUIRED', { backup: true });
+  assert.equal(visual.result.change.graders.visual.modelRole, 'backup');
   simulationGrader(f, 'technical', 'PASS');
   simulationGrader(f, 'spec', 'CHANGES_REQUIRED');
   const firstReview = simulationReview(f, 'The shell milestone is reviewed.');
