@@ -48,3 +48,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261102T184603Z: Build the room shell, window, curtains, hero camera, and warm key light; evidence 86dc70e9cb3b64d84b627f68c4939e79eb9e7583681ebfeb75a2b4bcf654868f
+
+- R02-20261102T190051Z: Replace the curtain slabs with layered hanging panels below the rod and re-center the hero camera framing; evidence d3f6bbe37eb922d94734c5558dbb5103b19533a7091b775d5045f5dc8be80c8f
