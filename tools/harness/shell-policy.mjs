@@ -130,6 +130,11 @@ function segmentPolicy(segment) {
     const rest = parts.slice(1);
     if (rest.length === 1 && ['--version', '-v'].includes(rest[0])) return { kind: 'read-only' };
     if (rest[0] === 'tools/harness/cli.mjs' || rest[0] === 'tools\\harness\\cli.mjs') {
+      if (rest[1] === 'development') {
+        return rest.length === 3 && ['on', 'off'].includes(rest[2])
+          ? { kind: 'trusted' }
+          : { kind: 'confirm', reason: 'unknown harness CLI action' };
+      }
       return ['scaffold', 'doctor'].includes(rest[1]) ? { kind: 'trusted' } : { kind: 'confirm', reason: 'unknown harness CLI action' };
     }
     if (rest[0] === '--test' && /^tools[\\/]harness[\\/].*\.test\.mjs$/i.test(rest[1] ?? '')) return { kind: 'trusted' };

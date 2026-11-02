@@ -106,6 +106,15 @@ async function main() {
     }
     return undefined;
   }
+  if (command === 'development') {
+    const state = process.argv[3];
+    if (!['on', 'off'].includes(state)) fail('invalid command');
+    const file = path.join(root, 'config.json');
+    const config = readJson(file);
+    config.development_mode = state === 'on';
+    fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
+    return undefined;
+  }
   fail('usage: node tools/harness/cli.mjs doctor [--project "Blender/Name"] | scaffold --name "Project Name"');
 }
 

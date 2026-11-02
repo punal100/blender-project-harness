@@ -206,6 +206,12 @@ export class Harness {
     const steps = Number(/^steps:\s*(\d+)\s*$/m.exec(fs.readFileSync(file, 'utf8'))?.[1]);
     return Number.isInteger(steps) ? steps : null;
   }
+  developmentMode() {
+    const file = contained(this.root, 'config.json', true);
+    if (!fs.existsSync(file)) return false;
+    try { return readJson(file).development_mode === true; } catch { return false; }
+  }
+
   workerConfig() {
     const file = contained(this.root, 'config.json', true);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');

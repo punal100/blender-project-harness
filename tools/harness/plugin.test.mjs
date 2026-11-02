@@ -456,3 +456,26 @@ test('plugin injects compact durable recovery context', async (t) => {
   assert.match(output.context[0], /Create fixture composition/);
   assert.match(output.context[0], /do not repeat goal start/);
 });
+
+test('development mode bypasses all workflow hooks', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const configPath = path.join(f.root, 'config.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  config.development_mode = true;
+  fs.writeFileSync(configPath, JSON.stringify(config));
+
+  await assert.doesNotReject(before(h, f.session, 'write', {
+    filePath: path.join(f.root, 'tools', 'harness', 'dev-note.txt'),
+    content: 'development note\n',
+  }));
+  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'git branch -a -vv' }));
+  await assert.doesNotReject(before(h, f.session, 'blender_execute_blender_code', { code: 'print(1)' }));
+
+  const transformed = { system: [] };
+  await h['experimental.chat.system.transform']({ sessionID: f.session }, transformed);
+  assert.deepEqual(transformed.system, []);
+
+  const after = { output: 'unchanged' };
+  await h['tool.execute.after']({ sessionID: f.session, callID: 'dev', tool: 'bash', args: { command: 'git branch' } }, after);
+  assert.equal(after.output, 'unchanged');
+});

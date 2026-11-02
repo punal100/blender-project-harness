@@ -1,4 +1,5 @@
 {
+  "development_mode": false,
   "blender_subagents": {
     "workers": {
       "agent": "blender-worker",

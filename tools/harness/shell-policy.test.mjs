@@ -20,6 +20,8 @@ test('read-only shell families run without approval', () => {
     'cat README.md',
     'node --version',
     'node tools/harness/cli.mjs doctor',
+    'node tools/harness/cli.mjs development on',
+    'node tools/harness/cli.mjs development off',
     'node --test tools/harness/plugin.test.mjs',
     'python -m pytest tools/test_blender_tools.py',
   ]) {
