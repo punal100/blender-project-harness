@@ -114,6 +114,24 @@ function withKiloGoal(result, info) {
   return result;
 }
 
+function reconcileGoal(harness, session, info) {
+  const goal = kiloGoal(info);
+  if (!goal) return goal;
+  harness.transaction((s) => {
+    const p = Object.values(s.projects).find((item) => item.orchestrator === session);
+    if (!p || p.complete) return;
+    if (goal.status === 'active' && !p.goalActive) {
+      p.goalActive = true;
+      p.paused = null;
+      p.goalSync = { source: 'kilo', status: goal.status, at: new Date().toISOString() };
+    } else if (['paused', 'blocked', 'complete'].includes(goal.status) && p.goalActive) {
+      p.goalActive = false;
+      p.goalSync = { source: 'kilo', status: goal.status, at: new Date().toISOString() };
+    }
+  });
+  return goal;
+}
+
 function shellReason(description) {
   if (typeof description !== 'string') return '';
   return description.replace(SHELL_TOKEN, ' ').replace(/^\s*(?:reason|why)\s*:\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, 1000);
@@ -224,7 +242,9 @@ export function createHooks(harness, client) {
     return harness.transaction((s) => Object.values(s.projects).find((p) => p.orchestrator === session) ?? null);
   }
   async function statusFor(session) {
-    return withKiloGoal(harness.command(session, 'status'), await identity(session));
+    const info = await identity(session);
+    reconcileGoal(harness, session, info);
+    return withKiloGoal(harness.command(session, 'status'), info);
   }
   function editPaths(tool, args) {
     if (tool === 'apply_patch') {
@@ -252,6 +272,7 @@ export function createHooks(harness, client) {
         async execute(args, context) {
           const session = await identity(context.sessionID);
           if (session.parentID) deny('workflow control belongs to root orchestrator');
+          reconcileGoal(harness, context.sessionID, session);
           const payload = jsonPayload(args.payload);
           let result;
           if (args.action === 'capabilities') result = capabilities();
@@ -317,8 +338,9 @@ export function createHooks(harness, client) {
         }
         return;
       }
-      const p = stateFor(input.sessionID);
       const session = await identity(input.sessionID);
+      if (!session.parentID) reconcileGoal(harness, input.sessionID, session);
+      const p = stateFor(input.sessionID);
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
         const child = await childAssignment(input.sessionID);
         if (child?.worker) {

@@ -402,6 +402,16 @@ test('Kilo goal state overrides status and requires resume before reporting', as
   );
 });
 
+test('active Kilo goal reconciles the harness without resume', async (t) => {
+  const f = fixture(t);
+  const h = hooks(f, { 'kilo.goal': { status: 'active' } });
+  f.begin();
+  f.harness.transaction((s) => { s.projects[f.project].goalActive = false; });
+  const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
+  assert.equal(status.goalActive, true);
+  assert.notEqual(status.nextStep.phase, 'resume-goal');
+});
+
 test('recover reopens a failed change through the tool', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   f.harness.transaction((state) => {
