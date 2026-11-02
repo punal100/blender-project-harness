@@ -50,3 +50,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R01-20261102T184603Z: Build the room shell, window, curtains, hero camera, and warm key light; evidence 86dc70e9cb3b64d84b627f68c4939e79eb9e7583681ebfeb75a2b4bcf654868f
 
 - R02-20261102T190051Z: Replace the curtain slabs with layered hanging panels below the rod and re-center the hero camera framing; evidence d3f6bbe37eb922d94734c5558dbb5103b19533a7091b775d5045f5dc8be80c8f
+
+- R03-20261102T191946Z: Add the desk, monitor, keyboard, mouse, PC tower, chair, desk lamp, rug, wall art, plant, and warm/cool lighting so the computer desk reads as the focal point; evidence 1d928e332eb3604fc9085de235b65e8e5e3877deddf332459144cffa131f75b7
