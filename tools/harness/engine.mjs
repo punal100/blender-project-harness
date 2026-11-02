@@ -206,10 +206,16 @@ export class Harness {
     const steps = Number(/^steps:\s*(\d+)\s*$/m.exec(fs.readFileSync(file, 'utf8'))?.[1]);
     return Number.isInteger(steps) ? steps : null;
   }
-  developmentMode() {
+  developmentMode(session) {
     const file = contained(this.root, 'config.json', true);
     if (!fs.existsSync(file)) return false;
-    try { return readJson(file).development_mode === true; } catch { return false; }
+    try {
+      const config = readJson(file);
+      if (config.development_mode === true) return true;
+      return typeof session === 'string'
+        && Array.isArray(config.development_sessions)
+        && config.development_sessions.includes(session);
+    } catch { return false; }
   }
 
   workerConfig() {

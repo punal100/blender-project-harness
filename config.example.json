@@ -1,5 +1,6 @@
 {
   "development_mode": false,
+  "development_sessions": [],
   "blender_subagents": {
     "workers": {
       "agent": "blender-worker",

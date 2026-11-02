@@ -166,7 +166,7 @@ function guardShell(harness, session, project, command, args = {}) {
   if (policy.kind === 'deny') deny(policy.reason);
   if (policy.kind === 'read-only' || policy.kind === 'trusted') return;
   if (projectPathInCommand(command)) deny('project files are harness-owned; use blender_workflow bootstrap-commit or commit, never shell mutation');
-  if (harness.developmentMode()) return;
+  if (harness.developmentMode(session)) return;
   const dir = shellPendingDir(harness);
   const description = args.description ?? '';
   const reasoning = shellReason(description);
@@ -309,7 +309,7 @@ export function createHooks(harness, client) {
       },
     },
     async 'tool.execute.before'(input, output) {
-      if (harness.developmentMode()) return;
+      if (harness.developmentMode(input.sessionID)) return;
       const tool = input.tool.replace(/^functions\./, '');
       const args = output.args ?? {};
       if (/execute_blender_code|import_asset|generate_3d/.test(tool)) deny('raw Blender mutation disabled; use ticketed harness_execute');
@@ -487,7 +487,7 @@ export function createHooks(harness, client) {
       deny(`unclassified production tool: ${tool}`);
     },
     async 'tool.execute.after'(input, output) {
-      if (harness.developmentMode()) return;
+      if (harness.developmentMode(input.sessionID)) return;
       const tool = input.tool.replace(/^functions\./, '');
       if (tool === 'question') {
         const args = questions.get(input.callID); questions.delete(input.callID);
@@ -526,13 +526,13 @@ export function createHooks(harness, client) {
       if (successful(output) && typeof output.output === 'string') output.output += `\n\nWorkflow: ${JSON.stringify(await statusFor(input.sessionID))}`;
     },
     async 'experimental.chat.system.transform'(input, output) {
-      if (harness.developmentMode()) return;
+      if (harness.developmentMode(input.sessionID)) return;
       if (!input.sessionID) return;
       const p = stateFor(input.sessionID);
       if (p) output.system.push(`Runtime workflow state: ${JSON.stringify(await statusFor(input.sessionID))}. Use blender_workflow; never bypass missing gates.`);
     },
     async 'experimental.session.compacting'(input, output) {
-      if (harness.developmentMode()) return;
+      if (harness.developmentMode(input.sessionID)) return;
       const p = stateFor(input.sessionID);
       if (p) output.context.push(`Durable Blender workflow: ${JSON.stringify(await statusFor(input.sessionID))}. Continue current phase; do not repeat goal start or begin.`);
     },
