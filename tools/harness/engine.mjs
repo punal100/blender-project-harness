@@ -48,12 +48,12 @@ const sceneNamesFromOperations = (payload) => {
   return [...new Set(names)];
 };
 const EXTERNAL_BINARY_EXTENSIONS = new Set(['.glb', '.gltf', '.fbx', '.obj', '.usd', '.usdz', '.blend', '.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp', '.hdr', '.exr', '.wav', '.mp3', '.ogg', '.flac', '.zip', '.7z', '.rar']);
-const externalBinaryPolicy = (root, project, names) => {
+export const externalBinaryPolicy = (root, project, names) => {
   for (const name of names) {
     const relative = name.startsWith(`${project}/`) ? name.slice(project.length + 1) : name;
     if (!relative.startsWith('assets/external/')) continue;
     if (!EXTERNAL_BINARY_EXTENSIONS.has(path.extname(relative).toLowerCase())) continue;
-    let directory = path.dirname(path.join(root, ...relative.split('/')));
+    let directory = path.dirname(path.join(root, ...name.split('/')));
     let source = null;
     while (directory.startsWith(path.join(root, ...project.split('/'), 'assets', 'external'))) {
       const candidate = path.join(directory, 'SOURCE.md');

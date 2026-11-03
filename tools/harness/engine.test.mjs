@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { Harness, contained } from './engine.mjs';
+import { Harness, contained, externalBinaryPolicy } from './engine.mjs';
 
 const tempRoot = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempRoot, { recursive: true });
@@ -1765,6 +1765,20 @@ test('registered projects open independent logical changes', (t) => {
   assert.equal(f.harness.command('orchestrator', 'status').change.id, first.change.id);
   assert.equal(f.harness.command('other-orchestrator', 'status').change.id, second.change.id);
   gate(() => begin(f));
+});
+
+test('external binary policy requires explicit redistribution clearance', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kilo-binary-policy-'));
+  t.after(() => fs.rmSync(root, { force: true, recursive: true }));
+  const project = 'Blender/Policy';
+  const asset = `${project}/assets/external/vendor/model.glb`;
+  const source = `${project}/assets/external/vendor/SOURCE.md`;
+  write(root, asset, GLB);
+  write(root, source, '- Redistribution allowed: no\n');
+  assert.throws(() => externalBinaryPolicy(root, project, [asset]), /not cleared for commit/);
+  write(root, source, '- Redistribution allowed: yes\n');
+  assert.doesNotThrow(() => externalBinaryPolicy(root, project, [asset]));
+  assert.doesNotThrow(() => externalBinaryPolicy(root, project, [source]));
 });
 
 test('contained and project methods reject traversal and symlink paths', (t) => {
