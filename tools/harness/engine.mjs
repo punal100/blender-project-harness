@@ -743,7 +743,7 @@ export class Harness {
       const { p, g } = current;
       if (Object.keys(args).some((key) => !['project', 'path', 'content'].includes(key))) deny('grader document write accepts project, path and content only');
       if (args.project && args.project !== p.project) deny('grader document write project mismatch');
-      if (g.verdict || Date.now() > g.deadline) deny('grader document write outside the assigned pass budget');
+      if (g.verdict || g.error) deny('grader report already finalized');
       if (typeof args.path !== 'string' || typeof args.content !== 'string' || args.content.length > 1_000_000) deny('grader report path and bounded markdown content required');
       const base = this.projectPath(p.project);
       const { full, clean } = documentPath(base, args.path);

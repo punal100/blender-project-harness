@@ -1209,6 +1209,37 @@ test('grader document writes are limited to the assigned report format and path'
   gate(() => f.harness.documentWrite('child-grader', { path: report, content: '# Missing verdict\n' }), /Verdict/);
 });
 
+test('a grader may write its report after the deadline but not after a verdict', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  const report = path.join(f.root, ticket.report);
+  f.harness.transaction((state) => {
+    const grader = state.projects[f.project].change.graders.visual;
+    grader.child = 'child-late-report';
+    grader.steps = 999;
+    grader.deadline = Date.now() - 1;
+  });
+  const content = [
+    '# Grader Report — visual',
+    '',
+    `- Evidence key: ${ticket.evidenceKey}`,
+    `- Target: ${ticket.sceneHash}`,
+    '- Verdict: PASS',
+    '',
+    '## Findings',
+    '',
+    'none',
+    '',
+  ].join('\n');
+  f.harness.documentWrite('child-late-report', { path: report, content });
+  assert.ok(fs.existsSync(path.join(f.root, ticket.report)));
+  f.harness.transaction((state) => { state.projects[f.project].change.graders.visual.verdict = 'PASS'; });
+  gate(() => f.harness.documentWrite('child-late-report', { path: report, content }), /already finalized/);
+});
+
 test('graders may read their own prior report but not peer reports', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
