@@ -71,7 +71,8 @@ npx blender-project-harness@latest install
 The installer:
 
 - copies the harness into `.kilo/blender-project-harness/tools/`;
-- writes `VERSION`, `install.json`, and `config.json` in `.kilo/blender-project-harness/`;
+- writes `VERSION`, `install.json`, `config.json`, and a copy of the package `AGENTS.md` in
+  `.kilo/blender-project-harness/`;
 - installs the harness dependencies with `npm ci`;
 - updates `.kilo/kilo.jsonc` and `.kilo/plugins/blender-workflow.js`;
 - adds missing workspace files such as `AGENTS.md`, `.kilo/skills/`, `.kilo/agent/`, and
@@ -81,7 +82,9 @@ The installer:
 Run the same command to update. The previous installation is moved to
 `.temp/blender-project-harness-backups/<version>-<timestamp>/` before the new version is installed.
 Edit worker and grader models in `.kilo/blender-project-harness/config.json`. That config is
-preserved across updates; use `--reset-config` to replace it with the package example.
+preserved across updates; use `--reset-config` to replace it with the package example. The package's
+current `AGENTS.md` is always available at `.kilo/blender-project-harness/AGENTS.md`; the root
+`AGENTS.md` is only installed when missing and is never overwritten.
 
 Useful installer commands:
 

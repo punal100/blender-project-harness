@@ -266,6 +266,7 @@ export function install({ root, packageRoot, version, skipDeps = false, resetCon
     copyTree(path.join(source, 'tools'), path.join(stage, 'tools'));
     copyFile(path.join(source, 'config.example.json'), path.join(stage, 'config.example.json'));
     copyFile(configSource, path.join(stage, 'config.json'));
+    copyFile(path.join(packageRoot, 'AGENTS.md'), path.join(stage, 'AGENTS.md'));
     fs.writeFileSync(path.join(stage, 'VERSION'), `${version}\n`);
     if (!skipDeps) runNpmCi(path.join(stage, 'tools', 'harness'));
     writeJson(path.join(stage, 'install.json'), {
@@ -276,6 +277,7 @@ export function install({ root, packageRoot, version, skipDeps = false, resetCon
       dependencies: dependencyState,
       node: process.version,
       server: SERVER_RELATIVE,
+      agents: 'AGENTS.md',
       backup: backup ? path.relative(root, backup).replaceAll('\\', '/') : null,
     });
 

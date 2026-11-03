@@ -61,6 +61,7 @@ test('installs the harness, config, and workspace surfaces', (t) => {
   assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'VERSION'), 'utf8').trim(), '1.0.0');
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'config.json'), 'utf8')).blender_subagents.graders.enabled, true);
   assert.equal(fs.existsSync(path.join(root, '.kilo', 'blender-project-harness', 'tools', 'harness', 'server.mjs')), true);
+  assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'AGENTS.md'), 'utf8'), '# Agent contract\n');
   assert.match(fs.readFileSync(path.join(root, '.kilo', 'kilo.jsonc'), 'utf8'), /keep this comment/);
   assert.match(fs.readFileSync(path.join(root, '.kilo', 'kilo.jsonc'), 'utf8'), /\.kilo\/blender-project-harness\/tools\/harness\/server\.mjs/);
   assert.match(fs.readFileSync(path.join(root, '.kilo', 'plugins', 'blender-workflow.js'), 'utf8'), /\.\.\/blender-project-harness\/tools\/harness\/plugin\.mjs/);
@@ -77,12 +78,16 @@ test('updates to a new version, backs up the old tree, and preserves config', (t
   fs.mkdirSync(path.dirname(config), { recursive: true });
   fs.writeFileSync(config, JSON.stringify({ custom: true }) + '\n');
   install({ root, packageRoot, version: '1.0.0', skipDeps: true });
+  fs.writeFileSync(path.join(packageRoot, 'AGENTS.md'), '# Agent contract v2\n');
   const updated = install({ root, packageRoot, version: '2.0.0', skipDeps: true });
   assert.equal(updated.status, 'updated');
   assert.ok(updated.backup);
   assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'VERSION'), 'utf8').trim(), '2.0.0');
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'config.json'), 'utf8')).custom, true);
+  assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'AGENTS.md'), 'utf8'), '# Agent contract v2\n');
+  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Agent contract\n');
   assert.equal(fs.readFileSync(path.join(root, updated.backup, 'VERSION'), 'utf8').trim(), '1.0.0');
+  assert.equal(fs.readFileSync(path.join(root, updated.backup, 'AGENTS.md'), 'utf8'), '# Agent contract\n');
 });
 
 test('same version is idempotent unless forced', (t) => {
