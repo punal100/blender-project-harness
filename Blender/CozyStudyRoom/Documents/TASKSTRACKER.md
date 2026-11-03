@@ -1,7 +1,7 @@
 # Task Tracker — CozyStudyRoom
 
 Status: Active
-Last updated: 2026-11-03T13:53:15.962Z
+Last updated: 2026-11-03T13:53:35.092Z
 
 ## Tasks
 
@@ -42,5 +42,5 @@ Last updated: 2026-11-03T13:53:15.962Z
 | [T033](Tasks/T033/TASK.md) | operation | 75f09a88-714b-4b75-812e-3792652bf357 | wip | 0 | orchestrator |  | done | 2026-11-03T13:50:22.303Z | 2026-11-03T13:50:32.711Z | ok |
 | [T034](Tasks/T034/TASK.md) | operation | 75f09a88-714b-4b75-812e-3792652bf357 | seal | 0 | orchestrator |  | done | 2026-11-03T13:50:53.322Z | 2026-11-03T13:51:03.727Z | ok |
 | [G035](Tasks/G035/TASK.md) | grader | 75f09a88-714b-4b75-812e-3792652bf357 | grader:visual | 0 | visual | ses_e5e51c5e8ffeGVzCIdIAcgKs3x | done | 2026-11-03T13:51:34.331Z | 2026-11-03T13:53:15.961Z | ok |
-| [G036](Tasks/G036/TASK.md) | grader | 75f09a88-714b-4b75-812e-3792652bf357 | grader:technical | 0 | technical | ses_e5e51b214ffeNP9qK0u4If7wsZ | running | 2026-11-03T13:51:35.147Z |  |  |
+| [G036](Tasks/G036/TASK.md) | grader | 75f09a88-714b-4b75-812e-3792652bf357 | grader:technical | 0 | technical | ses_e5e51b214ffeNP9qK0u4If7wsZ | failed | 2026-11-03T13:51:35.147Z | 2026-11-03T13:53:35.091Z | grader returned BLOCKED |
 | [G037](Tasks/G037/TASK.md) | grader | 75f09a88-714b-4b75-812e-3792652bf357 | grader:spec | 0 | spec | ses_e5e519c4cffeWEVE39p6StmQyh | running | 2026-11-03T13:51:35.350Z |  |  |
