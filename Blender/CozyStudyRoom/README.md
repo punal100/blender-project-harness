@@ -1,6 +1,6 @@
 # CozyStudyRoom
 
-Status: Complete
+Status: Revision in progress — final review pending
 Last updated: 2026-11-03
 
 ## Purpose
@@ -9,7 +9,7 @@ A cozy, lived-in evening study room built in Blender, centered on a desktop comp
 
 ## What this project is
 
-A single interior scene for portfolio-style presentation: warm lamp-lit study corner with a wooden desk, desktop PC and monitor, chair, mug, notebook, rug, shelf and plant. The viewer should feel the room is occupied and comfortable, with the computer setup reading clearly as the focal point.
+A single interior scene for portfolio-style presentation: warm lamp-lit study corner with a wooden desk, desktop PC and monitor, chair, mug, notebook, rug, shelf, plant, framed wall art, two books, and a folded blanket. Textured wood, fabric, floor, and plaster surfaces make the room read as occupied and comfortable, with the computer setup clearly the focal point.
 
 ## Requirements
 

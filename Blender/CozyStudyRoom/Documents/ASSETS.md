@@ -5,7 +5,10 @@ has no source or licence, it is not ready to ship.
 
 | Asset ID | Asset | Type | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | SHA-256 | Preview | Used in | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| — | None — all materials procedural | — | — | — | — | — | — | — | — | — | — | The delivered scene uses no external assets or third-party data. |
+| 460dd08d240f | Poly Haven — Wood Table 001 | texture | https://polyhaven.com/a/wood_table_001 | Poly Haven contributors | CC0-1.0 | assets/external/local/Poly-Haven/wood_table_001_diff_1k.jpg | external; pack before delivery | yes | 460dd08d240f4a1f02982415048c3c5c200f385db212da18dc7e2df68bf4d0be | — | Desk_Top, Desk_Drawer, Desk_Leg_*, Shelf, Shelf_Bracket_*, Chair_Leg_* | 1k diffuse wood grain |
+| aeb7a1487b77 | Poly Haven — Fabric Pattern 07 | texture | https://polyhaven.com/a/fabric_pattern_07 | Poly Haven contributors | CC0-1.0 | assets/external/local/Poly-Haven/fabric_pattern_07_col_1_1k.jpg | external; pack before delivery | yes | aeb7a1487b77aec55e39de662def4d371f5c7c617f62d1f291d7f9932ffebdc9 | — | Chair_Seat, Chair_Back, Curtain_L, Curtain_R, Rug | 1k woven fabric |
+| 1f2c623e87b0 | Poly Haven — Wood Floor Deck | texture | https://polyhaven.com/a/wood_floor_deck | Poly Haven contributors | CC0-1.0 | assets/external/local/Poly-Haven/wood_floor_deck_diff_1k.jpg | external; pack before delivery | yes | 1f2c623e87b0ee905f6f4ec8664dd19b4b135207c96e86198ff2919770b47166 | — | Floor | 1k wood plank floor |
+| 440310f05af0 | Poly Haven — Painted Plaster Wall | texture | https://polyhaven.com/a/painted_plaster_wall | Poly Haven contributors | CC0-1.0 | assets/external/local/Poly-Haven/painted_plaster_wall_diff_1k.jpg | external; pack before delivery | yes | 440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c | — | Wall_Back, Wall_Left, Wall_Right, Wall_Front, Ceiling | 1k painted plaster |
 
 ## Rules
 
@@ -28,8 +31,8 @@ has no source or licence, it is not ready to ship.
 - Inspect packed and embedded third-party datablocks in every tracked or delivered `.blend`; source,
   licence, attribution, and packaging must be recorded even when source binaries are git-ignored.
 
-## Planned sources
+## Current sources
 
-- No external assets are used in the delivered scene; all materials are procedural.
-- The `.blend` contains no packed or embedded third-party data, so there is no redistribution obligation.
-- If the scene is extended later, record any CC0 Poly Haven texture or HDRI here with source, licence, and packaging before commit.
+- Four CC0 Poly Haven 1k textures are registered above and used by the scene: wood table, fabric pattern, wood floor deck, and painted plaster wall.
+- The `.blend` must pack these images before delivery; source JPGs are git-ignored, while `SOURCE.md`, `LICENSE.txt`, `INTAKE.md`, and this register are tracked.
+- If the scene is extended later, add each new CC0 asset with source, licence, SHA-256, packaging, and redistribution before commit.

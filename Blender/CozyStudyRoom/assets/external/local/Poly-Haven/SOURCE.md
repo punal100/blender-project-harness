@@ -1,0 +1,31 @@
+# Asset Source
+
+- Asset: Poly Haven texture set (wood, fabric, floor, plaster)
+- Source URL: https://polyhaven.com/a/wood_table_001 ; https://polyhaven.com/a/fabric_pattern_07 ; https://polyhaven.com/a/wood_floor_deck ; https://polyhaven.com/a/painted_plaster_wall
+- Author / vendor: Poly Haven contributors / Poly Haven
+- Licence: CC0-1.0
+- Licence source URL: https://polyhaven.com/license
+- Verbatim licence copy: LICENSE.txt (required; preserve original licence files too)
+- Attribution required: no
+- Redistribution allowed: yes
+- Licence status: provided
+- Adjacent licence candidates: —
+- Licence candidate policy: candidates are evidence only; verify and provide the accepted licence text
+- Packaging in .blend: external files referenced by project-relative path; pack before delivery
+- Local paths:
+  - assets/external/local/Poly-Haven/wood_table_001_diff_1k.jpg
+  - assets/external/local/Poly-Haven/fabric_pattern_07_col_1_1k.jpg
+  - assets/external/local/Poly-Haven/wood_floor_deck_diff_1k.jpg
+  - assets/external/local/Poly-Haven/painted_plaster_wall_diff_1k.jpg
+- Bytes and SHA-256:
+  - wood_table_001_diff_1k.jpg: 215573 bytes; 460dd08d240f4a1f02982415048c3c5c200f385db212da18dc7e2df68bf4d0be
+  - fabric_pattern_07_col_1_1k.jpg: 788593 bytes; aeb7a1487b77aec55e39de662def4d371f5c7c617f62d1f291d7f9932ffebdc9
+  - wood_floor_deck_diff_1k.jpg: 925789 bytes; 1f2c623e87b0ee905f6f4ec8664dd19b4b135207c96e86198ff2919770b47166
+  - painted_plaster_wall_diff_1k.jpg: 686726 bytes; 440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c
+- Dimensions: 1024 × 1024 for wood table, fabric, and painted plaster; wood floor deck dimensions recorded as unavailable by intake
+- Imported into: cozystudyroom.blend materials DeskWoodTexture_Material, ChairFabricTexture_Material, WallPlasterTexture_Material, FloorWoodTexture_Material
+- Modifications: none
+- Original asset / derivative relationship: original
+- Acquisition instructions and file hashes: see Documents/INTAKE.md
+- Date: 2026-11-03
+- Notes: Poly Haven assets are CC0; the four textures are redistributable with this project.
