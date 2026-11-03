@@ -803,7 +803,7 @@ function operationBody(operation) {
       return `${scene}\nscene.render.resolution_x = ${operation.width}\nscene.render.resolution_y = ${operation.height}\nscene.render.resolution_percentage = 100\nif hasattr(scene, 'cycles') and hasattr(scene.cycles, 'samples'):\n    scene.cycles.samples = ${operation.samples}\nif hasattr(scene, 'eevee') and hasattr(scene.eevee, 'taa_render_samples'):\n    scene.eevee.taa_render_samples = ${operation.samples}\n${extras.join('\n')}\n${jsonReceipt('render_settings')}`;
     }
     case 'delete_object':
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${hasScene(operation) ? `${sceneSetup(operation)}\nfor collection in [target_scene.collection, *target_scene.collection.children_recursive]:\n    if obj.name in collection.objects:\n        collection.objects.unlink(obj)\nif not obj.users_collection:\n    bpy.data.objects.remove(obj, do_unlink=True)` : 'bpy.data.objects.remove(obj, do_unlink=True)'}\n${jsonReceipt('delete_object', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\n${hasScene(operation) ? `${sceneSetup(operation)}\nfor collection in [target_scene.collection, *target_scene.collection.children_recursive]:\n    if obj.name in collection.objects:\n        collection.objects.unlink(obj)\nif not obj.users_collection:\n    bpy.data.objects.remove(obj, do_unlink=True)` : 'bpy.data.objects.remove(obj, do_unlink=True)'}\n${jsonReceipt('delete_object', operation.name)}`;
     default:
       fail(`unsupported operation: ${operation.operation}`);
   }

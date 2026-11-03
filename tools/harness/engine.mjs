@@ -587,6 +587,7 @@ export class Harness {
         copied: result.copied.length,
         duplicates: result.duplicates.length,
         rejected: result.rejected.length,
+        licenseCandidates: [...new Set(result.copied.flatMap((entry) => entry.licenseCandidates ?? []))],
         paths: result.copied.map((entry) => entry.stored),
       };
       const paths = new Set(c.paths);
