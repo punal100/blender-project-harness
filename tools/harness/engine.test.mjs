@@ -271,6 +271,57 @@ test('pending registration does not lock out another session forever', (t) => {
   assert.match(f.harness.command('second', 'status').next, /registered goal/);
 });
 
+test('bounded changes track scenes and scene requirement mappings', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  gate(() => begin(f, 'orchestrator', { scenes: [''], requirements: ['REQ-001'] }), /printable scene names/);
+  begin(f, 'orchestrator', {
+    scenes: ['SC_001', 'SC_002'],
+    requirements: ['REQ-001', 'REQ-002'],
+    sceneRequirements: { 'REQ-001': ['SC_001'], 'REQ-002': ['SC_001', 'SC_002'] },
+  });
+  let status = f.harness.command('orchestrator', 'status');
+  assert.deepEqual(status.change.scenes, ['SC_001', 'SC_002']);
+  assert.equal(status.change.primaryScene, 'SC_001');
+  assert.deepEqual(status.change.sceneRequirements['REQ-002'], ['SC_001', 'SC_002']);
+  f.harness.command('orchestrator', 'extend', { scenes: ['SC_003'], paths: ['Documents/DECISIONS.md'] });
+  status = f.harness.command('orchestrator', 'status');
+  assert.deepEqual(status.change.scenes, ['SC_001', 'SC_002', 'SC_003']);
+  gate(() => f.harness.command('orchestrator', 'extend', { scenes: [''], paths: ['Documents/DECISIONS.md'] }), /printable scene names/);
+  gate(() => f.harness.command('orchestrator', 'extend', { scenes: Array.from({ length: 33 }, (_, index) => `SC_${index}`), paths: ['Documents/DECISIONS.md'] }), /capped at 32|up to 32/);
+});
+
+test('multi-scene seal requires an inspection for every declared scene', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { scenes: ['SC_001', 'SC_002'], requirements: ['REQ-001'], sceneRequirements: { 'REQ-001': ['SC_001'] } });
+  const apply = issueAndConsume(f, 'orchestrator', 'apply');
+  f.harness.finish(apply.token, { ok: true, operationResults: [{ operation: 'create_mesh', ok: true }] });
+  f.harness.command('orchestrator', 'finalize');
+  const wipPath = `${f.project}/renders/wip/WIP-scenes.png`;
+  write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const wip = issueAndConsume(f, 'orchestrator', 'wip');
+  f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+  f.harness.inspect('orchestrator', path.resolve(f.root, wipPath), true);
+  const primary = `${f.project}/renders/final/R01-test.png`;
+  const secondary = `${f.project}/Documents/Reviews/R01-test/_evidence/scenes/SC_002/camera.png`;
+  write(f.root, primary, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  write(f.root, secondary, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const evidence = Object.fromEntries([primary, secondary].map((name) => [name, f.harness.hash(name)]));
+  write(f.root, `${f.project}/Documents/Reviews/R01-test/manifest.json`, JSON.stringify({ round: 'R01-test', scene: f.scene, scenes: ['SC_001', 'SC_002'], evidence }, null, 2) + '\n');
+  const seal = issueAndConsume(f, 'orchestrator', 'seal');
+  f.harness.finish(seal.token, { ok: true, round: 'R01-test', renderPath: primary, evidence, renders: { SC_001: primary, SC_002: secondary }, primaryScene: 'SC_001', scenes: ['SC_001', 'SC_002'] });
+  let status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.change.inspected, false);
+  assert.deepEqual(status.change.scenes, ['SC_001', 'SC_002']);
+  f.harness.inspect('orchestrator', path.resolve(f.root, primary), true);
+  assert.equal(f.harness.command('orchestrator', 'status').change.inspected, false);
+  f.harness.inspect('orchestrator', path.resolve(f.root, secondary), true);
+  status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.change.inspected, true);
+  assert.equal(status.change.inspections.SC_002.hash, evidence[secondary]);
+});
+
 test('bootstrap save closes with checkpoint and cannot be sealed or graded', (t) => {
   const f = useFixture(t);
   fs.rmSync(path.join(f.root, f.scene));
@@ -313,6 +364,8 @@ function begin(f, session = 'orchestrator', options = {}) {
     ...(options.revision === undefined ? {} : { revision: options.revision }),
     ...(options.milestone === undefined ? {} : { milestone: options.milestone }),
     ...(options.requirements === undefined ? {} : { requirements: options.requirements }),
+    ...(options.scenes === undefined ? {} : { scenes: options.scenes }),
+    ...(options.sceneRequirements === undefined ? {} : { sceneRequirements: options.sceneRequirements }),
     final: options.final ?? true,
   };
   return f.harness.command(session, 'begin', args);

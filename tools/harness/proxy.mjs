@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
-import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode } from './blender-operations.mjs';
+import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode, sceneFactsCode } from './blender-operations.mjs';
 
 export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
 export const EXECUTE_TOOL = {
@@ -93,33 +93,60 @@ export class BlenderProxy {
         return this.result(this.harness.finish(args.token, { ok: true, renderPath: wipPath }));
       }
        round = this.makeRound(context.project, context.change.failedRounds ?? []);
-       const relativeRender = `renders/final/${round}.png`;
-       renderPath = `${context.project}/${relativeRender}`;
        roundRoot = `${context.project}/Documents/Reviews/${round}`;
-       contained(this.harness.root, renderPath, true);
-       fs.mkdirSync(path.dirname(path.join(this.harness.root, renderPath)), { recursive: true });
-       roundCreated = true;
-       await this.run(renderCode(scenePath, `//${relativeRender}`), args.user_prompt);
-      const render = fs.readFileSync(contained(this.harness.root, renderPath));
-      if (!render.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) deny('review render is not PNG');
-      const summary = await this.upstream.callTool({ name: 'get_scene_info', arguments: { fields: ['settings', 'location', 'size', 'materials', 'topology'], limit: 10000, user_prompt: args.user_prompt } });
-      if (summary.isError || /^Error/i.test(textOf(summary))) deny('scene evidence capture failed');
        const evidenceRoot = contained(this.harness.root, `${roundRoot}/_evidence`, true);
-      fs.mkdirSync(evidenceRoot, { recursive: true });
-      fs.copyFileSync(path.join(this.harness.root, renderPath), path.join(evidenceRoot, 'camera.png'));
-      fs.writeFileSync(path.join(evidenceRoot, 'scene.txt'), textOf(summary));
-      const evidenceNames = [renderPath, `${roundRoot}/_evidence/camera.png`, `${roundRoot}/_evidence/scene.txt`];
-      const evidence = Object.fromEntries(evidenceNames.map((name) => [name, this.harness.hash(name)]));
+       fs.mkdirSync(evidenceRoot, { recursive: true });
+       roundCreated = true;
+       const roundRelative = `Documents/Reviews/${round}`;
+       const declaredScenes = (context.change.scenes ?? []).filter((name) => typeof name === 'string' && name.trim());
+       const primaryScene = context.change.primaryScene ?? declaredScenes[0] ?? null;
+       const sceneOrder = [...new Set([primaryScene, ...declaredScenes].filter(Boolean))];
+       if (!sceneOrder.length) sceneOrder.push(null);
+       const renders = {};
+       const scenes = [];
+       const evidenceNames = new Set();
+       let primary = primaryScene;
+       for (const [index, sceneName] of sceneOrder.entries()) {
+         const preflight = await this.run(renderPreflightCode(scenePath, sceneName), args.user_prompt);
+         const name = sceneName ?? preflight.scene ?? 'active';
+         if (primary === null) primary = name;
+         const safeName = String(name).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').slice(0, 80) || `scene-${index + 1}`;
+         const relativeRender = name === primary
+           ? `renders/final/${round}.png`
+           : `${roundRelative}/_evidence/scenes/${safeName}/camera.png`;
+         const projectRender = `${context.project}/${relativeRender}`;
+         const absoluteRender = projectRender;
+         contained(this.harness.root, absoluteRender, true);
+         fs.mkdirSync(path.dirname(path.join(this.harness.root, absoluteRender)), { recursive: true });
+         await this.run(renderCode(scenePath, `//${relativeRender}`, sceneName), args.user_prompt);
+         const render = fs.readFileSync(contained(this.harness.root, absoluteRender));
+         if (!render.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) deny('review render is not PNG');
+         if (name === primary) renderPath = projectRender;
+         const sceneDir = contained(this.harness.root, `${roundRoot}/_evidence/scenes/${safeName}`, true);
+         fs.mkdirSync(sceneDir, { recursive: true });
+         const cameraPath = `${roundRoot}/_evidence/scenes/${safeName}/camera.png`;
+         if (name === primary) fs.copyFileSync(path.join(this.harness.root, absoluteRender), path.join(this.harness.root, cameraPath));
+         const facts = await this.run(sceneFactsCode(name), args.user_prompt);
+         const factsPath = `${roundRoot}/_evidence/scenes/${safeName}/scene-facts.json`;
+         const textPath = `${roundRoot}/_evidence/scenes/${safeName}/scene.txt`;
+         fs.writeFileSync(path.join(this.harness.root, factsPath), JSON.stringify(facts.scenes?.[0] ?? facts, null, 2) + '\n');
+         fs.writeFileSync(path.join(this.harness.root, textPath), JSON.stringify(facts.scenes?.[0] ?? facts, null, 2) + '\n');
+         renders[name] = projectRender;
+         scenes.push({ name, render: projectRender, camera: preflight.camera, use_sequencer: preflight.use_sequencer, resolution: preflight.resolution, facts: factsPath });
+         for (const pathName of [projectRender, cameraPath, factsPath, textPath]) evidenceNames.add(pathName);
+       }
+      const evidence = Object.fromEntries([...evidenceNames].map((name) => [name, this.harness.hash(name)]));
       const evidenceKey = digest(stable({ scene: this.harness.hash(context.scene), specs: context.records.specs, evidence }));
       const manifest = { round, created: new Date().toISOString(), previous_round: context.previousRound, active_goal: `${context.project}/${context.goal}`,
         base_commit: context.change.base, dirty: git(this.harness.root, ['status', '--porcelain', '--', context.project]).trim(),
-        scene: { path: context.scene, sha256: this.harness.hash(context.scene) }, specs: context.records.specs,
+        scene: { path: context.scene, sha256: this.harness.hash(context.scene) }, primary_scene: primary, scenes,
+        scene_requirements: context.change.sceneRequirements ?? {}, specs: context.records.specs,
         evidence, evidence_key: evidenceKey, graders: context.records.roster, tasks: {}, operation_tasks: context.operationTasks ?? [] };
       fs.writeFileSync(contained(this.harness.root, `${roundRoot}/manifest.json`, true), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
        indexPath = `${context.project}/Documents/Reviews/README.md`;
        indexLine = `\n- ${round}: ${context.change.outcome}; evidence ${evidenceKey}\n`;
        fs.appendFileSync(contained(this.harness.root, indexPath), indexLine);
-       const result = this.harness.finish(args.token, { ok: true, round, renderPath, evidence });
+       const result = this.harness.finish(args.token, { ok: true, round, renderPath, evidence, renders, primaryScene: primary, scenes: scenes.map((scene) => scene.name) });
       return this.result({ ...result, render: path.join(this.harness.root, renderPath), manifest: `${roundRoot}/manifest.json` });
     } catch (error) {
       if (indexPath && indexLine) {

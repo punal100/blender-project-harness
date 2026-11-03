@@ -30,7 +30,31 @@ const checkAssetsStrict = (payload) => {
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
+const MAX_CHANGE_SCENES = 32;
 const TASKSTRACKER_DOCUMENT = 'Documents/TASKSTRACKER.md';
+const validSceneName = (name) => typeof name === 'string' && /^[\x20-\x7e]{1,100}$/.test(name) && name.trim().length > 0;
+const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+  && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+const sceneNamesFromOperations = (payload) => {
+  const operations = Array.isArray(payload?.operations) ? payload.operations : [payload];
+  const names = [];
+  for (const operation of operations) {
+    if (!operation || typeof operation !== 'object') continue;
+    if (validSceneName(operation.scene)) names.push(operation.scene);
+    if (['create_scene', 'duplicate_scene'].includes(operation.operation) && validSceneName(operation.name)) names.push(operation.name);
+    if (['switch_scene', 'delete_scene'].includes(operation.operation) && validSceneName(operation.name)) names.push(operation.name);
+  }
+  return [...new Set(names)];
+};
+const sceneInspectionsComplete = (change) => {
+  const renders = change?.renders ?? {};
+  const names = Object.keys(renders);
+  if (!names.length) return Boolean(change?.inspected);
+  return names.every((name) => {
+    const inspection = change?.inspections?.[name];
+    return inspection && inspection.hash === change.evidence?.[renders[name]];
+  });
+};
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 export const stable = (value) => JSON.stringify(canonical(value));
@@ -801,7 +825,11 @@ export class Harness {
     if (!c.sealed && (!c.wipRender || c.wipRender.operations !== c.operations)) return { phase: 'wip', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'wip', payload: {} }), reason: 'Render a WIP frame for the current apply state, then inspect it with blender_look.' };
     if (!c.sealed && (!c.wipLook || c.wipLook.operations !== c.operations)) return { phase: 'wip-inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.wipRender.path}"}`, reason: 'Inspect the exact WIP render before sealing the current apply state.' };
     if (!c.sealed) return { phase: 'seal', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'seal', payload: {} }), reason: 'Save and seal the changed scene, then inspect the returned render.' };
-    if (!c.inspected) return { phase: 'inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${c.renderPath}"}`, reason: 'Inspect the exact sealed render before review.' };
+    if (!c.inspected) {
+      const pendingScene = Object.entries(c.renders ?? {}).find(([name]) => !c.inspections?.[name]);
+      const image = pendingScene?.[1] ?? c.renderPath;
+      return { phase: 'inspect', actor: 'orchestrator', action: 'blender_look', command: `blender_look {image:"${image}"}`, reason: `Inspect the exact sealed render${pendingScene ? ` for scene ${pendingScene[0]}` : ''} before review.` };
+    }
     if (!c.verdict) {
       if (p.records.review === 'Off') return { phase: 'self-review', actor: 'orchestrator', action: 'self-review', command: this.wire('self-review', { notes: '<what the sealed render proves>' }), reason: 'Record the required self-review after inspecting the sealed render.' };
       const pending = p.records.roster.filter((g) => !c.graders[g.name]?.verdict);
@@ -838,7 +866,7 @@ export class Harness {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -1143,6 +1171,7 @@ export class Harness {
         p.complete = false;
         p.escalation = null;
         p.lastRender = null;
+        p.lastRenders = null;
         p.assetCheck = null;
         return this.reregisterStatus(p);
       }
@@ -1157,6 +1186,7 @@ export class Harness {
       } else if (action === 'goal-complete') {
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
+        if (p.lastRenders && Object.values(p.lastRenders).some((render) => !fs.existsSync(path.join(this.root, ...render.path.split('/'))) || this.hash(render.path) !== render.hash)) deny('completion requires every sealed scene render to remain unchanged');
         if (p.assetUse && (!p.assetCheck || p.assetCheck.sceneHash !== last.sceneHash)) deny('completion requires check_assets on the final unchanged scene; import or repair the asset receipt first');
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project));
@@ -1175,6 +1205,14 @@ export class Harness {
         const milestone = args.final === true ? 'final' : args.milestone ?? args.outcome;
         if (typeof milestone !== 'string' || !milestone.trim() || milestone.length > 200) deny('milestone must be a bounded non-empty string');
         if (args.requirements !== undefined && (!Array.isArray(args.requirements) || args.requirements.length > 50 || args.requirements.some((item) => typeof item !== 'string' || !item.trim()))) deny('requirements must be an array of non-empty strings');
+        if (args.scenes !== undefined && (!Array.isArray(args.scenes) || args.scenes.length > MAX_CHANGE_SCENES || args.scenes.some((name) => !validSceneName(name)) || new Set(args.scenes).size !== args.scenes.length)) deny(`scenes must be up to ${MAX_CHANGE_SCENES} unique printable scene names`);
+        if (args.sceneRequirements !== undefined) {
+          if (!isPlainObject(args.sceneRequirements)) deny('sceneRequirements must be an object');
+          for (const [requirement, scenes] of Object.entries(args.sceneRequirements)) {
+            if (!args.requirements?.includes(requirement)) deny(`sceneRequirements key is not a declared requirement: ${requirement}`);
+            if (!Array.isArray(scenes) || !scenes.length || scenes.some((name) => !validSceneName(name))) deny(`sceneRequirements.${requirement} must list printable scene names`);
+          }
+        }
         if (!Array.isArray(args.paths) || !args.paths.length || args.paths.length > 100) deny('exact project-relative file paths required');
         const paths = [...new Set(args.paths.map((name) => {
           const full = contained(this.projectPath(p.project), name, true);
@@ -1200,6 +1238,9 @@ export class Harness {
         p.change = {
           id: crypto.randomUUID(), created: Date.now(), outcome: args.outcome, milestone: milestone.trim(),
           requirements: args.requirements ? [...new Set(args.requirements.map((item) => item.trim()))] : [],
+          scenes: args.scenes ? [...new Set(args.scenes)] : [], primaryScene: args.scenes?.[0] ?? null,
+          sceneRequirements: args.sceneRequirements ? structuredClone(args.sceneRequirements) : {},
+          renders: {}, inspections: {},
           final: args.final === true, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
           deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: false,
           wipRender: null, wipLook: null, commits: [], graders: {}, reports: {}, bootstrap: !sceneExists,
@@ -1218,6 +1259,20 @@ export class Harness {
         c.objects = [...new Set([...c.objects, ...(args.objects ?? [])])];
         if (c.objects.length > MAX_CHANGE_OBJECTS) deny(`changes are capped at ${MAX_CHANGE_OBJECTS} objects; split the milestone`);
         c.paths = [...new Set([...c.paths, ...added])];
+        if (args.scenes !== undefined) {
+          if (!Array.isArray(args.scenes) || args.scenes.length > MAX_CHANGE_SCENES || args.scenes.some((name) => !validSceneName(name))) deny(`scenes must be up to ${MAX_CHANGE_SCENES} printable scene names`);
+          c.scenes = [...new Set([...(c.scenes ?? []), ...args.scenes])];
+          if (c.scenes.length > MAX_CHANGE_SCENES) deny(`changes are capped at ${MAX_CHANGE_SCENES} scenes; split the milestone`);
+          c.primaryScene ??= c.scenes[0];
+        }
+        if (args.sceneRequirements !== undefined) {
+          if (!isPlainObject(args.sceneRequirements)) deny('sceneRequirements must be an object');
+          for (const [requirement, scenes] of Object.entries(args.sceneRequirements)) {
+            if (!c.requirements?.includes(requirement)) deny(`sceneRequirements key is not a declared requirement: ${requirement}`);
+            if (!Array.isArray(scenes) || !scenes.length || scenes.some((name) => !validSceneName(name))) deny(`sceneRequirements.${requirement} must list printable scene names`);
+          }
+          c.sceneRequirements = { ...(c.sceneRequirements ?? {}), ...structuredClone(args.sceneRequirements) };
+        }
       } else if (action === 'finalize') {
         if (!c || c.sealed || c.pending || c.documentOnly) deny('finalize requires an unsealed scene change with no pending operation');
         if (!c.operations) deny('finalize requires at least one successful apply');
@@ -1283,6 +1338,9 @@ export class Harness {
           `Model / reasoning: primary ${g.provider} / ${g.model} / ${g.variant}${g.backup ? `; backup ${g.backup.provider} / ${g.backup.model} / ${g.backup.variant}` : '; no backup configured'}`,
           `Milestone: ${c.milestone ?? c.outcome}`,
           `Requirements to grade: ${c.requirements?.length ? c.requirements.join(', ') : 'all requirements in the spec'}`,
+          `Scenes to grade: ${(c.scenes ?? []).length ? c.scenes.join(', ') : 'active scene'}`,
+          `Primary scene: ${c.primaryScene ?? 'active'}`,
+          `Scene requirements: ${Object.keys(c.sceneRequirements ?? {}).length ? JSON.stringify(c.sceneRequirements) : 'none'}`,
           `Final full-spec review: ${c.final ? 'yes' : 'no'}`,
           `Review scope: ${c.final
             ? 'Final full-spec review. Grade the complete deliverable and every assigned requirement.'
@@ -1416,7 +1474,10 @@ export class Harness {
         const snapshot = this.snapshot(p.project); this.assertCommitted(p.project, snapshot);
         p.history.push({ id: c.id, round: c.round ?? null, verdict: bootstrap ? 'BOOTSTRAP' : wip ? 'WIP' : documentOnly ? 'DOCUMENT' : c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, final: Boolean(c.final), approval: c.approval?.label ?? null });
         p.checkpoint = this.head(); p.snapshot = snapshot;
-        if (!bootstrap && !wip && !documentOnly && c.verdict === 'PASS') p.lastRender = { path: c.renderPath, hash: this.hash(c.renderPath) };
+        if (!bootstrap && !wip && !documentOnly && c.verdict === 'PASS') {
+          p.lastRender = { path: c.renderPath, hash: this.hash(c.renderPath) };
+          p.lastRenders = Object.fromEntries(Object.entries(c.renders ?? {}).map(([name, render]) => [name, { path: render, hash: this.hash(render) }]));
+        }
         p.change = null;
       } else deny(`unknown action: ${action}`);
       return this.status(p, s);
@@ -1500,7 +1561,15 @@ export class Harness {
           if (task && !result.completed) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`);
           return;
         }
-        if (t.operation === 'apply') { delete c.failure; delete c.reopen; c.operations++; c.deadline = Date.now() + CHANGE_WINDOW_MS; c.saved = true; c.sceneHash = this.hash(p.scene); }
+        if (t.operation === 'apply') {
+          delete c.failure; delete c.reopen; c.operations++; c.deadline = Date.now() + CHANGE_WINDOW_MS; c.saved = true; c.sceneHash = this.hash(p.scene);
+          const touched = sceneNamesFromOperations(t.payload);
+          const deleted = (Array.isArray(t.payload?.operations) ? t.payload.operations : [t.payload])
+            .filter((operation) => operation?.operation === 'delete_scene' && validSceneName(operation.name))
+            .map((operation) => operation.name);
+          c.scenes = [...new Set([...(c.scenes ?? []), ...touched])].filter((name) => !deleted.includes(name));
+          c.primaryScene ??= c.scenes[0] ?? null;
+        }
        else if (t.operation === 'save') { c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'wip') {
          c.saved = true; c.sceneHash = this.hash(p.scene);
@@ -1511,6 +1580,11 @@ export class Harness {
         c.sealed = true; c.saved = true; c.sceneHash = this.hash(p.scene);
         delete c.failure; delete c.reopen; c.deadline = Date.now() + CHANGE_WINDOW_MS;
         c.round = result.round; c.renderPath = result.renderPath; c.evidence = result.evidence;
+        c.renders = result.renders ?? (result.renderPath ? { [result.primaryScene ?? 'active']: result.renderPath } : {});
+        c.scenes = result.scenes ?? c.scenes ?? [];
+        c.primaryScene = result.primaryScene ?? c.scenes[0] ?? null;
+        c.inspections = {};
+        c.inspected = false;
         c.evidenceKey = digest(stable({ scene: c.sceneHash, specs: p.records.specs, evidence: c.evidence }));
         c.manifestPath = `${p.project}/Documents/Reviews/${c.round}/manifest.json`;
         c.manifestHash = this.hash(c.manifestPath);
@@ -1682,8 +1756,13 @@ export class Harness {
         c.wipLook = { path: relative, hash: this.hash(relative), at: new Date().toISOString(), operations: c.operations };
         return;
       }
-      if (!c.sealed || relative !== c.renderPath || c.evidence?.[c.renderPath] !== this.hash(relative)) return;
-      c.inspected = true;
+      if (!c.sealed || c.evidence?.[relative] !== this.hash(relative)) return;
+      const scene = Object.entries(c.renders ?? {}).find(([, render]) => render === relative)?.[0]
+        ?? (relative === c.renderPath ? c.primaryScene ?? 'active' : null);
+      if (!scene) return;
+      c.inspections ??= {};
+      c.inspections[scene] = { path: relative, hash: this.hash(relative), at: new Date().toISOString() };
+      c.inspected = sceneInspectionsComplete(c);
     });
   }
 

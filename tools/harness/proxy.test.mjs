@@ -151,7 +151,7 @@ test('failed seal removes incomplete round artifacts and reserves its sequence',
   const bad = upstream(f);
   bad.callTool = async (call) => {
     if (call.name === 'get_addon_status') return result(JSON.stringify({ up_to_date: true }));
-    if (failScene && call.name === 'get_scene_info') return { isError: true, content: [{ type: 'text', text: 'summary failed' }] };
+    if (failScene && call.name === 'execute_blender_code' && call.arguments?.code?.includes('payload = []')) return { isError: true, content: [{ type: 'text', text: 'scene facts failed' }] };
     return upstream(f).callTool(call);
   };
   const p = new BlenderProxy(f.harness, bad);
@@ -159,11 +159,11 @@ test('failed seal removes incomplete round artifacts and reserves its sequence',
   await execute(f, p, 'save');
   await prepareSeal(f, p);
   failScene = true;
-  await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
+  await assert.rejects(execute(f, p, 'seal'), /Blender execution failed/);
   const failed = f.harness.command(f.session, 'status').change;
   assert.equal(failed.sealed, false);
   assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Reviews')));
-  await assert.rejects(execute(f, p, 'seal'), /scene evidence capture failed/);
+  await assert.rejects(execute(f, p, 'seal'), /Blender execution failed/);
   assert.equal(f.harness.command(f.session, 'status').change.sealed, false);
 });
 
