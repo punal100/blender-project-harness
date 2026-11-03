@@ -28,7 +28,7 @@ test('plugin denies raw code and unsupported production escape routes', async (t
     await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified/);
   }
   await assert.doesNotReject(before(h, f.session, 'agent_manager', { mode: 'local', versions: false, tasks: [], action: null }));
-  await assert.doesNotReject(before(h, f.session, 'background_process', { command: 'node tools/harness/cli.mjs doctor' }));
+  await assert.doesNotReject(before(h, f.session, 'background_process', { command: 'node .kilo/blender-project-harness/tools/harness/cli.mjs doctor' }));
   for (const command of ['python -c "print(1)"', 'git diff --output=scene.blend', 'git status; node bypass.mjs', 'git add -- .', 'git -c alias.x=anything x']) {
     await assert.rejects(before(h, f.session, 'bash', { command }), /denied|literal|approval|scope|blender_workflow commit/);
   }
@@ -193,19 +193,19 @@ test('production worker delegation requires valid read-only limits', async (t) =
     max_failed_attempts: 2,
     max_parallel: 1,
   };
-  f.write('config.json', JSON.stringify({ blender_subagents: { workers: worker } }));
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ blender_subagents: { workers: worker } }));
   f.write('.kilo/agent/blender-worker.md', '---\nsteps: 20\n---\n');
   await before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false });
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: true }),
     /foreground/,
   );
-  f.write('config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_parallel: 2 } } }));
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_parallel: 2 } } }));
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
     /max_parallel/,
   );
-  f.write('config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_steps: 21 } } }));
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ blender_subagents: { workers: { ...worker, max_steps: 21 } } }));
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
     /steps ceiling/,
@@ -310,12 +310,12 @@ test('unregistered sessions cannot write project files or run mutating shell com
   await assert.rejects(before(h, 'unregistered', 'bash', { command: 'node -e "process.exit(1)"' }), /Shell approval required/);
   await assert.doesNotReject(before(h, 'unregistered', 'bash', { command: 'git status --short; echo bypass' }));
   await before(h, 'unregistered', 'bash', { command: 'git status --short' });
-  await before(h, 'unregistered', 'bash', { command: 'node tools/harness/cli.mjs scaffold --name "Fresh Project"' });
+  await before(h, 'unregistered', 'bash', { command: 'node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "Fresh Project"' });
   await before(h, 'unregistered', 'bash', { command: 'git ls-tree -r --name-only HEAD' });
   await before(h, 'unregistered', 'bash', { command: 'git log --oneline -8' });
-  await before(h, 'unregistered', 'bash', { command: 'Get-ChildItem tools/harness' });
-  await before(h, 'unregistered', 'bash', { command: 'Get-Content tools/harness/plugin.mjs | Select-String safe' });
-  await before(h, 'unregistered', 'bash', { command: 'rg -n "safeShellSegment" tools/harness' });
+  await before(h, 'unregistered', 'bash', { command: 'Get-ChildItem .kilo/blender-project-harness/tools/harness' });
+  await before(h, 'unregistered', 'bash', { command: 'Get-Content .kilo/blender-project-harness/tools/harness/plugin.mjs | Select-String safe' });
+  await before(h, 'unregistered', 'bash', { command: 'rg -n "safeShellSegment" .kilo/blender-project-harness/tools/harness' });
   const approval = await approveShell(h, 'unregistered', 'git switch Test_Punal_12', 'Switch branches without discarding the preserved live-test evidence.');
   assert.ok(fs.existsSync(path.join(f.root, 'Commands', `${approval}.md`)));
   assert.match(fs.readFileSync(path.join(f.root, 'Commands', `${approval}.md`), 'utf8'), /Switch branches without discarding/);
@@ -325,7 +325,7 @@ test('unregistered sessions cannot write project files or run mutating shell com
 test('production read-only shell works and other workspace commands need confirmation', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   await assert.doesNotReject(before(h, f.session, 'bash', { command: 'git log --oneline -8' }));
-  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'Get-Content tools/harness/plugin.mjs | Select-String safe' }));
+  await assert.doesNotReject(before(h, f.session, 'bash', { command: 'Get-Content .kilo/blender-project-harness/tools/harness/plugin.mjs | Select-String safe' }));
   await assert.rejects(before(h, f.session, 'bash', { command: 'npm install' }), /Shell approval required/);
   const approval = await approveShell(h, f.session, 'npm install', 'Run the locked dependency install for workspace maintenance.');
   assert.ok(fs.existsSync(path.join(f.root, f.project, 'Documents', 'Commands', `${approval}.md`)));
@@ -405,7 +405,7 @@ test('registered workspace code commits are allowed through shell approval', asy
   const code = path.join(f.root, 'tools', 'harness', 'scratch.txt');
   fs.mkdirSync(path.dirname(code), { recursive: true });
   fs.writeFileSync(code, 'scratch\n');
-  git(f.root, ['add', '--', 'tools/harness/scratch.txt']);
+  git(f.root, ['add', '--', '.kilo/blender-project-harness/tools/harness/scratch.txt']);
   await approveShell(h, f.session, 'git commit -m "chore: scratch workspace file"');
 });
 
@@ -481,7 +481,7 @@ test('plugin injects compact durable recovery context', async (t) => {
 
 test('development mode bypasses all workflow hooks', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
-  const configPath = path.join(f.root, 'config.json');
+  const configPath = path.join(f.root, '.kilo', 'blender-project-harness', 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   config.development_mode = true;
   fs.writeFileSync(configPath, JSON.stringify(config));
@@ -504,7 +504,7 @@ test('development mode bypasses all workflow hooks', async (t) => {
 
 test('development mode can whitelist specific sessions', async (t) => {
   const f = fixture(t), h = hooks(f);
-  const configPath = path.join(f.root, 'config.json');
+  const configPath = path.join(f.root, '.kilo', 'blender-project-harness', 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   config.development_mode = false;
   config.development_sessions = [f.session];

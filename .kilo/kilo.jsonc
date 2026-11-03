@@ -3,7 +3,7 @@
   "mcp": {
     "blender": {
       "type": "local",
-      "command": ["node", "tools/harness/server.mjs"],
+      "command": ["node", ".kilo/blender-project-harness/tools/harness/server.mjs"],
       "enabled": true,
       "environment": { "BLENDER_PORT": "9877" }
     },

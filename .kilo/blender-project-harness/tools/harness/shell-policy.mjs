@@ -128,8 +128,9 @@ function segmentPolicy(segment) {
   if (name === 'git') return gitPolicy(parts.slice(1));
   if (TRUSTED_NODE.test(name)) {
     const rest = parts.slice(1);
+    const entry = (rest[0] ?? '').replaceAll('\\', '/');
     if (rest.length === 1 && ['--version', '-v'].includes(rest[0])) return { kind: 'read-only' };
-    if (rest[0] === 'tools/harness/cli.mjs' || rest[0] === 'tools\\harness\\cli.mjs') {
+    if (entry === '.kilo/blender-project-harness/tools/harness/cli.mjs') {
       if (rest[1] === 'development') {
         return rest.length === 3 && ['on', 'off'].includes(rest[2])
           ? { kind: 'trusted' }
@@ -137,12 +138,12 @@ function segmentPolicy(segment) {
       }
       return ['scaffold', 'doctor'].includes(rest[1]) ? { kind: 'trusted' } : { kind: 'confirm', reason: 'unknown harness CLI action' };
     }
-    if (rest[0] === '--test' && /^tools[\\/]harness[\\/].*\.test\.mjs$/i.test(rest[1] ?? '')) return { kind: 'trusted' };
+    if (rest[0] === '--test' && /^\.kilo[\\/]blender-project-harness[\\/]tools[\\/]harness[\\/].*\.test\.mjs$/i.test(rest[1] ?? '')) return { kind: 'trusted' };
     return { kind: 'confirm', reason: 'Node can execute arbitrary code' };
   }
   if (TRUSTED_PYTHON.test(name)) {
     const rest = parts.slice(1).map((part) => part.replaceAll('\\', '/'));
-    return rest[0] === '-m' && rest[1] === 'pytest' && rest[2] === 'tools/test_blender_tools.py'
+    return rest[0] === '-m' && rest[1] === 'pytest' && rest[2] === '.kilo/blender-project-harness/tools/test_blender_tools.py'
       ? { kind: 'trusted' } : { kind: 'confirm', reason: 'Python can execute arbitrary code' };
   }
   if (name === 'find') {
