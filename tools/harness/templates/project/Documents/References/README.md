@@ -1,7 +1,8 @@
 # References — {{PROJECT_NAME}}
 
 Collect visual references here: moodboards, screenshots, concept images, links, and notes about
-what to borrow from each. Generated concept images may be saved here and inspected, but they are not
+what to borrow from each. If an image-generation tool is available, save its output here and record
+the tool/source in the index. Generated concept images may be inspected, but they are not
 automatically scene assets.
 
 Use the reviewed `image_reference` operation to place a local reference image in the scene as a
