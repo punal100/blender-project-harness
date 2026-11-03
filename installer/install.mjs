@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { applyEdits, modify, parse, printParseErrorCode } from 'jsonc-parser';
 
-export const PACKAGE_NAME = 'blender-project-harness';
+export const PACKAGE_NAME = '@punal_manalan/blender-project-harness';
 export const INSTALL_RELATIVE = '.kilo/blender-project-harness';
 export const BACKUP_RELATIVE = '.temp/blender-project-harness-backups';
 export const SERVER_RELATIVE = `${INSTALL_RELATIVE}/tools/harness/server.mjs`;

@@ -65,7 +65,7 @@ README is the human setup and usage guide.
 In an existing Kilo workspace, install the harness without cloning this repository:
 
 ```powershell
-npx blender-project-harness@latest install
+npx @punal_manalan/blender-project-harness@latest install
 ```
 
 The installer:
@@ -89,10 +89,10 @@ current `AGENTS.md` is always available at `.kilo/blender-project-harness/AGENTS
 Useful installer commands:
 
 ```powershell
-npx blender-project-harness@latest status
-npx blender-project-harness@latest doctor
-npx blender-project-harness@latest install --dry-run
-npx blender-project-harness@latest install --skip-deps
+npx @punal_manalan/blender-project-harness@latest status
+npx @punal_manalan/blender-project-harness@latest doctor
+npx @punal_manalan/blender-project-harness@latest install --dry-run
+npx @punal_manalan/blender-project-harness@latest install --skip-deps
 ```
 
 Use `--root <path>` when the workspace root is not the current directory. The installer requires
@@ -219,8 +219,8 @@ Run these from the workspace root when something looks off, or when you are cont
 tooling:
 
 ```powershell
-npx blender-project-harness@latest status
-npx blender-project-harness@latest doctor
+npx @punal_manalan/blender-project-harness@latest status
+npx @punal_manalan/blender-project-harness@latest doctor
 npm run test:installer
 npm test --prefix .kilo/blender-project-harness/tools/harness
 python -B -m unittest discover -s .kilo/blender-project-harness/tools -p "test_*.py" -v
@@ -232,7 +232,7 @@ to inspect the npm package contents without publishing.
 Common fixes:
 
 - **`uvx` not found:** reopen PowerShell after installing uv, then reload Kilo.
-- **Harness dependency missing:** rerun `npx blender-project-harness@latest install --force`, or run
+- **Harness dependency missing:** rerun `npx @punal_manalan/blender-project-harness@latest install --force`, or run
   `npm ci` in `.kilo/blender-project-harness/tools/harness`.
 - **Addon or port error:** reinstall with
   `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and reload

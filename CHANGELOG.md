@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Publish the package as `@punal_manalan/blender-project-harness`.
+- Add GitHub repository, homepage, and issue tracker metadata.
+- Update installer and documentation commands to the scoped package name.
+
 ## 1.0.0
 
 - Initial npm release of `blender-project-harness`.
