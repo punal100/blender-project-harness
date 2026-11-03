@@ -148,6 +148,7 @@ function createProject(root, {
   ].join('\n'));
   write(root, `${project}/Documents/ASSETS.md`, '# Fixture assets\n\n## Rules\n\nFixture asset rules.\n');
   write(root, `${project}/Documents/DECISIONS.md`, '# Fixture decisions\n');
+  write(root, `${project}/Documents/References/SCENE-HEALTH.md`, '# Scene Health\n\n## Dimensions\n\nFixture dimensions.\n\n## Topology\n\nFixture topology.\n');
   write(root, `${project}/Documents/TASKSTRACKER.md`, '# Task Tracker — Test\n\nStatus: Active\nLast updated: 2026-10-31\n\n## Tasks\n\n| Task | Kind | Change | Operation | Objects | Assigned | Child | State | Created | Finished | Result |\n|---|---|---|---|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — | — | — | — | — |\n');
   write(root, `${project}/Documents/Goals/01-test-goal.md`, [
     '# Goal: Fixture',
@@ -407,22 +408,46 @@ function seal(f, session = 'orchestrator', { round = 'R01-20261031T110000Z', ins
   }
   const renderPath = `${f.project}/renders/final/${round}.png`;
   const evidenceRoot = `${f.project}/Documents/Reviews/${round}/_evidence`;
+  const factsPath = `${evidenceRoot}/scene-facts.json`;
   const evidenceNames = [
     renderPath,
     `${evidenceRoot}/camera.png`,
+    factsPath,
     `${evidenceRoot}/scene.txt`,
   ];
   write(f.root, renderPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   write(f.root, `${evidenceRoot}/camera.png`, Buffer.from('camera evidence\n'));
+  write(f.root, factsPath, JSON.stringify({
+    name: 'Scene',
+    objects: [{
+      name: 'Cube',
+      type: 'MESH',
+      location: [0, 0, 1],
+      dimensions: [2, 2, 2],
+      mesh: {
+        vertices: 8,
+        edges: 12,
+        faces: 6,
+        ngons: 0,
+        non_manifold_edges: 0,
+        loose_vertices: 0,
+        degenerate_faces: 0,
+      },
+    }],
+    camera: 'Camera',
+    resolution: [1920, 1080],
+    engine: 'BLENDER_EEVEE',
+  }, null, 2) + '\n');
   write(f.root, `${evidenceRoot}/scene.txt`, 'scene evidence\n');
   const evidence = Object.fromEntries(evidenceNames.map((name) => [name, f.harness.hash(name)]));
   const manifestPath = `${f.project}/Documents/Reviews/${round}/manifest.json`;
-  write(f.root, manifestPath, JSON.stringify({ round, scene: f.scene, evidence, tasks: {} }, null, 2) + '\n');
+  const assetCheck = f.harness.transaction((s) => s.projects[f.project].change?.assetCheckReceipt ?? null);
+  write(f.root, manifestPath, JSON.stringify({ round, scene: f.scene, asset_check: assetCheck, evidence, tasks: {} }, null, 2) + '\n');
   const issued = issueAndConsume(f, session, 'seal');
   const result = f.harness.finish(issued.token, { ok: true, round, renderPath, evidence });
   const absoluteRender = path.resolve(f.root, renderPath);
   if (inspect) f.harness.inspect(session, absoluteRender, true);
-  return { ...issued, result, round, renderPath, evidence, absoluteRender };
+  return { ...issued, result, round, renderPath, evidence, absoluteRender, factsPath, manifestPath };
 }
 
 function selfReview(f, session = 'orchestrator') {
@@ -509,6 +534,25 @@ function simulationGrader(f, name, verdict, { backup = false } = {}) {
 function simulationApply(f, index) {
   const applied = issueAndConsume(f, 'orchestrator', 'apply', { simulation: index });
   f.harness.finish(applied.token, { ok: true });
+  return applied;
+}
+
+function simulationAssetCheck(f) {
+  write(f.root, `${f.project}/notes.txt`, 'strict asset check fixture\n');
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { operation: 'check_assets', strict: true });
+  const receipt = {
+    ok: true,
+    operation: 'check_assets',
+    strict: true,
+    external: [],
+    missing: [],
+    packed: ['fixture.png'],
+    libraries: [],
+  };
+  f.harness.finish(applied.token, {
+    ok: true,
+    operationResults: [{ index: 1, operation: 'check_assets', ok: true, receipt }],
+  });
   return applied;
 }
 
@@ -816,10 +860,16 @@ test('apply commits skip ignored external asset binaries', (t) => {
   assert.ok(committed.includes(`${f.project}/notes.txt`));
 });
 
-test('WIP commit accepts an index staged by an interrupted apply', (t) => {
+test('WIP commit accepts a staged index and skips ignored external assets', (t) => {
   const f = useFixture(t);
+  const asset = `${f.project}/assets/external/Poly-Haven/wood.jpg`;
+  write(f.root, asset, Buffer.from('ignored image bytes\n'));
+  write(f.root, `${f.project}/assets/external/Poly-Haven/SOURCE.md`, 'Source: Poly Haven\nRedistribution allowed: yes\n');
+  write(f.root, `${f.project}/assets/external/Poly-Haven/LICENSE.txt`, 'CC0-1.0\n');
+  fs.appendFileSync(path.join(f.root, f.project, '.gitignore'), 'assets/external/**/*.jpg\n');
+  commit(f.root, 'test: ignored external asset fixture', [f.project]);
   activate(f);
-  begin(f);
+  begin(f, 'orchestrator', { paths: ['notes.txt', 'assets/external/Poly-Haven/wood.jpg'] });
   write(f.root, `${f.project}/notes.txt`, 'staged before the apply failed\n');
   git(f.root, ['add', '--', `${f.project}/notes.txt`]);
   f.harness.transaction((state) => {
@@ -829,6 +879,9 @@ test('WIP commit accepts an index staged by an interrupted apply', (t) => {
   });
   const result = f.harness.command('orchestrator', 'commit', { message: 'wip: preserve interrupted apply', mode: 'wip' });
   assert.equal(result.nextStep.phase, 'checkpoint');
+  const committed = git(f.root, ['show', '--name-only', '--pretty=format:', 'HEAD']).split(/\r?\n/).filter(Boolean);
+  assert.ok(!committed.includes(asset));
+  assert.ok(committed.includes(`${f.project}/notes.txt`));
   const checkpointed = f.harness.command('orchestrator', 'checkpoint');
   assert.equal(checkpointed.change, null);
 });
@@ -1985,8 +2038,17 @@ test('synthetic live run: final all-grader PASS completes the goal', (t) => {
     requirements: ['REQ-01', 'REQ-02'],
   });
   simulationApply(f, 0);
-  seal(f, 'orchestrator', { round: 'R01-20261102T120000Z' });
-  simulationGrader(f, 'visual', 'PASS');
+  simulationAssetCheck(f);
+  const sealed = seal(f, 'orchestrator', { round: 'R01-20261102T120000Z' });
+  const manifest = JSON.parse(read(f.root, sealed.manifestPath));
+  assert.equal(manifest.asset_check.strict, true);
+  assert.deepEqual(manifest.asset_check.packed, ['fixture.png']);
+  const facts = JSON.parse(read(f.root, sealed.factsPath));
+  assert.deepEqual(facts.objects[0].dimensions, [2, 2, 2]);
+  assert.equal(facts.objects[0].mesh.non_manifold_edges, 0);
+  const visual = simulationGrader(f, 'visual', 'PASS');
+  assert.match(visual.ticket.prompt, new RegExp(`saved scene SHA-256 ${visual.ticket.sceneHash}`));
+  assert.match(visual.ticket.prompt, new RegExp(`Evidence key: ${visual.ticket.evidenceKey}`));
   simulationGrader(f, 'technical', 'PASS');
   simulationGrader(f, 'spec', 'PASS');
   const reviewed = simulationReview(f, 'All three graders passed the final room.');
@@ -1994,6 +2056,30 @@ test('synthetic live run: final all-grader PASS completes the goal', (t) => {
   f.harness.command('orchestrator', 'checkpoint');
   f.harness.command('orchestrator', 'goal-complete');
   assert.equal(f.harness.command('orchestrator', 'status').complete, true);
+});
+
+test('synthetic grader reads project reference documents', (t) => {
+  const f = useFixture(t, { review: 'Single' });
+  activate(f);
+  begin(f);
+  simulationApply(f, 0);
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  const child = 'child-reference';
+  f.harness.bindGrader('orchestrator', child, `Review assignment ${ticket.marker}`, {
+    providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant',
+  });
+  const document = f.harness.documentRead(child, {
+    project: f.project,
+    path: 'Documents/References/SCENE-HEALTH.md',
+  });
+  assert.equal(document.path, 'Documents/References/SCENE-HEALTH.md');
+  assert.match(document.title, /Scene Health/);
+  write(f.root, ticket.report, simulationReport(ticket, 'PASS'));
+  f.harness.collectGrader('orchestrator', child);
+  const reviewed = simulationReview(f, 'The grader read the project reference evidence.');
+  assert.equal(reviewed.change.verdict, 'PASS');
+  f.harness.command('orchestrator', 'checkpoint');
 });
 
 test('synthetic live run: abrupt restart keeps the change and recovers an expired ticket', (t) => {
