@@ -17,6 +17,9 @@ function upstream(f) {
       if (call.name === 'get_scene_info') return result('Scene fixture\nCamera Fixture');
       if (call.name !== 'execute_blender_code') return result('Read only');
       const code = call.arguments.code;
+      if (code.includes('"operation": "check_assets"')) {
+        return result('HARNESS_JSON:' + JSON.stringify({ ok: true, operation: 'check_assets', strict: true, external: [], missing: [], packed: ['fixture.png'], libraries: [] }));
+      }
       if (code.includes('external = bpy.utils.blend_paths')) {
         return result('HARNESS_JSON:' + JSON.stringify({ ok: true, filepath: fs.existsSync(path.join(f.root, f.scene)) ? path.join(f.root, f.scene) : '', is_dirty: false, missing: [] }));
       }
@@ -102,6 +105,19 @@ test('proxy seals immutable evidence, manifest and PNG, then checkpoint succeeds
   git(f.root, ['add', '--', f.project]); f.commit();
   assert.equal(f.harness.command(f.session, 'checkpoint').change, null);
   assert.equal(f.harness.command(f.session, 'goal-complete').complete, true);
+});
+
+test('strict check_assets receipt is embedded in the sealed manifest', async (t) => {
+  const f = fixture(t); f.begin();
+  f.write(`${f.project}/notes.txt`, 'asset check evidence\n');
+  const p = new BlenderProxy(f.harness, upstream(f));
+  await execute(f, p, 'apply', { operation: 'check_assets', strict: true });
+  await execute(f, p, 'save');
+  await prepareSeal(f, p);
+  const seal = JSON.parse((await execute(f, p, 'seal')).content[0].text);
+  const manifest = JSON.parse(fs.readFileSync(path.join(f.root, seal.manifest), 'utf8'));
+  assert.equal(manifest.asset_check.strict, true);
+  assert.deepEqual(manifest.asset_check.packed, ['fixture.png']);
 });
 
 test('proxy executes one batched apply ticket and saves each operation', async (t) => {

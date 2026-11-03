@@ -1646,12 +1646,13 @@ export class Harness {
         if (operations.some((name) => ASSET_USING_OPERATIONS.has(name))) p.assetUse = true;
         if (operations.includes('check_assets') && checkAssetsStrict(t.payload)) c.assetChecked = true;
         for (const item of result.operationResults ?? []) {
+          if (item.operation === 'check_assets' && item.receipt?.strict === true) c.assetCheckReceipt = item.receipt;
           if (item.operation !== 'export_scene' || !item.receipt?.path) continue;
           p.exports = [...(p.exports ?? []).filter((receipt) => receipt.path !== item.receipt.path), { ...item.receipt, change: c.id, at: new Date().toISOString() }];
         }
       }
       if (t.operation === 'seal' && c.assetChecked) {
-        p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString() };
+        p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString(), receipt: c.assetCheckReceipt ?? null };
       }
       this.recordTaskFinished(p, token, result);
       if (t.operation === 'apply') {
