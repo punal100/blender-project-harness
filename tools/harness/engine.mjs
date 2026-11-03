@@ -22,6 +22,7 @@ export const normalizeGoal = (value) => typeof value === 'string' ? value.replac
 const CHECKPOINT_EVERY = 20;
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
+const nonScenePath = (name) => documentOnlyPath(name) || /(?:^|\/)(?:assets|Documents\/References)\//i.test(name);
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
@@ -622,6 +623,7 @@ export class Harness {
       addDocument(intakeRelative, intake, true);
       for (const relative of paths) if (!c.paths.includes(relative)) c.paths.push(relative);
       c.documentOnly = c.paths.every(documentOnlyPath);
+      c.nonSceneOnly = c.paths.every(nonScenePath);
       return {
         project: args.project,
         scan: false,
@@ -766,10 +768,10 @@ export class Harness {
     if (!c.sealed && c.operations >= CHECKPOINT_EVERY && (c.failure || Date.now() > c.deadline)) return { phase: 'wip', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: 'wip: preserve failed or expired change', mode: 'wip' }), reason: 'The apply budget is exhausted and the change cannot be repaired; preserve it with a WIP commit, then checkpoint and begin a fresh change.' };
     if (!c.sealed && (c.failure || Date.now() > c.deadline)) return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it to repair, or commit {mode:"wip"} to preserve it.' };
     if (!c.sealed && c.reopen && !c.documentOnly) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: 'The change was reopened; issue a repair apply batch and delegate it to blender-worker.' };
-    if (!c.sealed && c.documentOnly && c.operations === 0) {
+    if (!c.sealed && c.nonSceneOnly && c.operations === 0) {
       return this.head() === c.base
-        ? { phase: 'commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<one bounded document message>' }), reason: 'This is a document-only change; commit it without sealing or review, then checkpoint.' }
-        : { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The document-only commit is ready; checkpoint it before another begin.' };
+        ? { phase: 'commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<one bounded non-scene message>' }), reason: 'This change contains only documentation, source-only scripts, references, or assets; commit it without sealing or review, then checkpoint.' }
+        : { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The non-scene commit is ready; checkpoint it before another begin.' };
     }
     if (!c.sealed && c.operations === 0) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: 'Seal requires at least one apply ticket; issue one operation or a batch of up to 10 and delegate it to blender-worker.' };
     if (!c.sealed && c.operations > 0 && c.operations % 3 === 0 && (!c.wipRender || c.wipRender.operations !== c.operations)) return { phase: 'wip', actor: 'orchestrator', action: 'ticket', command: this.wire('ticket', { operation: 'wip', payload: {} }), reason: 'Every third apply requires a WIP render for a quick visual check.' };
@@ -815,7 +817,7 @@ export class Harness {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -1180,7 +1182,7 @@ export class Harness {
           final: args.final === true, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
           deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: false,
           wipRender: null, wipLook: null, commits: [], graders: {}, reports: {}, bootstrap: !sceneExists,
-          documentOnly: paths.every(documentOnlyPath), sceneHash: sceneExists ? this.hash(p.scene) : null,
+          documentOnly: paths.every(documentOnlyPath), nonSceneOnly: paths.every(nonScenePath), sceneHash: sceneExists ? this.hash(p.scene) : null,
         };
       } else if (action === 'extend') {
         if (!c || c.sealed || c.pending || c.documentOnly || c.readyToSeal) deny('extend requires an unsealed, unfinished scene change with no pending operation');
@@ -1346,7 +1348,7 @@ export class Harness {
         if (typeof args.message !== 'string' || !args.message.trim() || args.message.length > 200 || /[\r\n]/.test(args.message)) deny('one bounded commit message required');
         if (args.mode !== undefined && args.mode !== 'wip') deny('commit mode must be wip when provided');
         const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
-        const documentOnly = Boolean(c.documentOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
+        const documentOnly = Boolean(c.nonSceneOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
         if (args.mode === 'wip') {
           if (!c.failure && Date.now() <= c.deadline) deny('WIP commit requires a failed or expired change');
           if (c.verdict) deny('reviewed changes use the normal commit path');
@@ -1375,7 +1377,7 @@ export class Harness {
         if (!c) deny('no open change to checkpoint');
         const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
         const wip = Boolean(c.wip);
-        const documentOnly = Boolean(c.documentOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
+        const documentOnly = Boolean(c.nonSceneOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
         const failedReview = c.verdict && !['PASS', 'WIP'].includes(c.verdict);
         if (c.verdict === 'BLOCKED' && c.blockingKind === 'tooling') deny('retry the tooling-blocked grader before checkpoint');
         const partialApprovalRequired = p.records.workflow === 'Partially Autonomous' && !documentOnly && (!c.approval || c.approval.evidence !== c.evidenceKey);

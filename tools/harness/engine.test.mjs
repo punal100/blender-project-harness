@@ -1978,6 +1978,24 @@ test('intake copies references and external assets into the open change', (t) =>
   assert.ok(change.paths.includes(`${f.project}/Documents/INTAKE.md`));
 });
 
+test('reference-only intake closes as a non-scene change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/INTAKE.md'], final: false });
+  const sourceRoot = path.join(path.dirname(f.root), 'reference-only-intake');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'mood.png');
+  fs.writeFileSync(reference, Buffer.from('png'));
+  f.harness.intake('orchestrator', { project: f.project, files: [reference], generated: { tool: 'media-mcp', model: 'image-model', prompt: 'mood' } });
+  const change = f.harness.command('orchestrator', 'status').change;
+  assert.equal(change.documentOnly, false);
+  assert.equal(change.nonSceneOnly, true);
+  f.harness.command('orchestrator', 'commit', { message: 'assets: add reference intake' });
+  f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'DOCUMENT');
+});
+
 test('completion requires check_assets after an asset operation', (t) => {
   const f = useFixture(t);
   activate(f);

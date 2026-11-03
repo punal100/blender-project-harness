@@ -65,8 +65,9 @@ production. Do not generate paid images, download, or execute scripts without ex
    `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
    payload. Each operation auto-saves. Strict changes commit each successful apply batch. The
    orchestrator NEVER executes apply.
-4. A change whose declared paths are all markdown or source-only scripts under `scripts/` is
-   document-only: after editing, use `commit` and `checkpoint` without `apply`, `seal`, or review. Every scene change requires `finalize`, then
+4. A change whose declared paths are all markdown, source-only scripts under `scripts/`,
+   references, or assets is non-scene: after editing, use `commit` and `checkpoint` without
+   `apply`, `seal`, or review. Every scene change requires `finalize`, then
    `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
    also requires a WIP check. The harness denies a new apply ticket until the due WIP render has a
    `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a final PNG,
