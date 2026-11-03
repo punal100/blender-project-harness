@@ -24,6 +24,13 @@ function upstream(f) {
         f.write(f.scene, 'BLENDER fixture bytes');
         return result('HARNESS_JSON:' + JSON.stringify({ ok: true, filepath: path.join(f.root, f.scene) }));
       }
+      if (code.includes('bpy.ops.export_scene.gltf')) {
+        const exportPath = /"(exports\/[^"]+)"/.exec(code)?.[1];
+        assert.ok(exportPath, 'export output bound to generated path');
+        const bytes = Buffer.from('glTF' + '\u0002\u0000\u0000\u0000' + '\u0000'.repeat(8), 'binary');
+        f.write(`${f.project}/${exportPath}`, bytes);
+        return result('HARNESS_JSON:' + JSON.stringify({ ok: true, operation: 'export_scene', format: 'glb', path: exportPath, bytes: bytes.length, sha256: f.harness.hash(`${f.project}/${exportPath}`), scene: 'Scene' }));
+      }
       if (code.includes('bpy.ops.render.render')) {
         const render = /scene\.render\.filepath = "(\/\/[^"\n]+)"/.exec(code)?.[1];
         assert.ok(render, 'render output bound to generated path');
@@ -53,9 +60,19 @@ const meshOperation = {
 
 test('proxy hides raw mutation tools and rejects direct calls', async (t) => {
   const f = fixture(t), p = new BlenderProxy(f.harness, upstream(f));
-  assert.deepEqual((await p.listTools()).tools.map((v) => v.name), ['look', 'get_scene_info', 'harness_execute']);
+  assert.deepEqual((await p.listTools()).tools.map((v) => v.name), ['look', 'get_scene_info', 'harness_execute', 'blender_harness_scene_info']);
   await assert.rejects(p.call('execute_blender_code', { code: 'anything' }), /unregistered/);
   await assert.rejects(p.call('harness_execute', { token: 'forged', operation: 'save', payload: {}, user_prompt: 'test' }), /authorization/);
+});
+
+test('scene info is read-only and does not issue a ticket', async (t) => {
+  const f = fixture(t);
+  const mock = upstream(f);
+  const p = new BlenderProxy(f.harness, mock);
+  const response = await p.call('blender_harness_scene_info', { user_prompt: 'Inspect scenes.' });
+  assert.ok(response.content[0].text);
+  assert.equal(f.harness.command(f.session, 'status').change, null);
+  assert.ok(mock.calls.some((call) => call.name === 'execute_blender_code' && call.arguments.code.includes('payload = []')));
 });
 
 test('proxy needs hook receipt even when issued ticket exists', async (t) => {
@@ -101,6 +118,17 @@ test('proxy executes one batched apply ticket and saves each operation', async (
   const taskDoc = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'Tasks', 'T001', 'SUMMARY.md'), 'utf8');
   assert.match(taskDoc, /create_mesh/);
   assert.match(taskDoc, /Operation Results/);
+});
+
+test('proxy verifies export receipts and records them on the project', async (t) => {
+  const f = fixture(t); f.begin();
+  const p = new BlenderProxy(f.harness, upstream(f));
+  await execute(f, p, 'apply', { operation: 'export_scene', format: 'glb', path: 'exports/room.glb' });
+  const status = f.harness.command(f.session, 'status');
+  assert.equal(status.change.operations, 1);
+  assert.equal(status.exports.length, 1);
+  assert.equal(status.exports[0].path, `${f.project}/exports/room.glb`);
+  assert.match(status.exports[0].sha256, /^[a-f0-9]{64}$/);
 });
 
 test('proxy renders a WIP image without creating review evidence', async (t) => {

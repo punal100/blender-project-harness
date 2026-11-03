@@ -11,6 +11,7 @@ import {
   copyIntake,
   createIntakeDocument,
   planIntake,
+  sourceDocument,
 } from './intake.mjs';
 
 const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZQAAAABJRU5ErkJggg==', 'base64');
@@ -38,6 +39,17 @@ test('classifies only supported intake files', () => {
   assert.equal(classifyIntakeFile('build.py'), 'script');
   assert.equal(classifyIntakeFile('notes.txt'), null);
   assert.equal(classifyIntakeFile('archive.zip'), null);
+});
+
+test('records adjacent licence candidates without accepting them', (t) => {
+  const root = workspace(t);
+  const asset = write(root, 'vendor/model.glb', GLB);
+  write(root, 'vendor/LICENSE.txt', 'Example licence text\n');
+  const plan = planIntake({ root, projectName: 'Project', files: [asset], kind: 'model', source: { license: 'MIT', licenseText: 'MIT' } });
+  assert.deepEqual(plan.entries[0].licenseCandidates, ['LICENSE.txt']);
+  const source = sourceDocument({ entry: { ...plan.entries[0], stored: 'assets/external/vendor/model.glb' }, source: {}, license: '' });
+  assert.match(source, /Licence status: candidates only; not accepted/);
+  assert.match(source, /Adjacent licence candidates: LICENSE\.txt/);
 });
 
 test('plans generated references and copies them without treating them as assets', (t) => {
