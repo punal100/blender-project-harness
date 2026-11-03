@@ -10,6 +10,7 @@ summary: Building a believable scene - scale, grounding, composition, choosing b
 1. `get_scene_info` — know what's there and the scene's scale before adding anything.
 2. Block out with primitives at real-world size: the layout, the big shapes, the camera.
    `look(mode="camera")` or `look(mode="angles")` to check proportions before spending on assets.
+   Use `text` for labels and `modifier` for bevel, subdivision, solidify, mirror, and array detail.
 3. Replace blockout pieces with real assets, biggest and most visible first.
 4. Light, then set materials, then dress with small props.
 5. Judge the image, not your intentions: is anything

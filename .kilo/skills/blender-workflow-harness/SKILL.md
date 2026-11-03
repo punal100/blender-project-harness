@@ -42,6 +42,8 @@ Use `intake` before asking the user to organize anything.
   staging only. It does not import or register; pass the result to `intake` with source and licence.
 - Generated references use `generated:{tool,model,prompt,seed,width,height,c2pa}`. They are recorded
   as references, never as automatic textures or licensed third-party assets.
+- `status` exposes the latest `intake` summary (copied, duplicates, rejected, paths) and the
+  `assetUse`/`assetCheck` state.
 - External assets require `source.license` and `source.licenseText` or `source.licenseFile`; the
   action writes `SOURCE.md`, verbatim `LICENSE.txt`, and the register row.
 - Scripts may be copied only under `scripts/` and are source-only. The harness does not execute
@@ -90,8 +92,8 @@ production. Do not generate paid images, download, or execute scripts without ex
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. After any asset-using operation,
-   run `check_assets` on the final scene before sealing; completion is denied without a matching
-   receipt. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
+   run `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
+   without a matching strict receipt. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
    `TASKSTRACKER.md` complete and commits that tracker-only update. After a complete report, stop
    Blender through the harness unless it is intentionally left open for user inspection; report that
    choice.

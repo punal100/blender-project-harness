@@ -68,6 +68,14 @@ Every scene, material, lighting, or camera change MUST be inspected with `look` 
 - `look(mode="angles", target=["Object"])` for a multi-view check.
 - `blender_look(image=<returned absolute render>)` after `seal`.
 
+## Scene operations
+
+Reviewed operations cover primitives, text objects, transforms, materials, shared materials,
+duplication, lights, cameras, render settings, and the safe modifier subset: bevel, subdivision
+surface, solidify, mirror, and array. Modifiers are added through `modifier` and are applied only
+when the operation sets `apply:true`. Text objects can receive materials through `material` or
+`shared_material`.
+
 ## Assets
 
 External asset work requires `blender-assets`: licence, attribution, registration, relative paths,

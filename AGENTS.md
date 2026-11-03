@@ -146,8 +146,8 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - `.py` and `.pyw` files are accepted only under `scripts/` and are source-only. The harness never
   executes project Python. If a task requires script execution, stop for a separately reviewed
   isolation design.
-- After any asset-using operation, completion requires a `check_assets` receipt on the final
-  unchanged scene. Do not report complete with an unresolved missing-file report.
+- After any asset-using operation, completion requires a `check_assets` `{strict:true}` receipt on
+  the final unchanged scene. Do not report complete with an unresolved missing-file report.
 - Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
 - Keep `README.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and other non-registration
   documents current inside the change that changes them. Registration documents are frozen; stop for

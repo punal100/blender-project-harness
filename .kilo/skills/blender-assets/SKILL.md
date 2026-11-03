@@ -26,11 +26,14 @@ The user does not need to create folders or copy files. Use `blender_workflow {a
   requirements discovery.
 - `scan:false` copies accepted files into an open bounded change and adds their exact paths to the
   change. It writes `SOURCE.md`, `LICENSE.txt`, `Documents/INTAKE.md`, `Documents/ASSETS.md`, and
-  `Documents/References/README.md` as applicable.
-- `relations` and duplicates are reported. The original files are never moved or deleted.
+  `Documents/References/README.md` as applicable, including MIME type, bytes, dimensions, and
+  SHA-256. File signatures are checked against the extension.
+- Rejections, hashes, and duplicates are reported. The original files are never moved or deleted.
 - `download` fetches an HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does not
   import or register it. Pass the returned path to `intake` with source and licence details.
-- Project-owned models, textures, HDRIs, and audio use source.external:false; third-party files require source.license and verbatim source.licenseText or source.licenseFile.\n- Do not use shell copy, direct project writes, or manual Git for user files.
+- Project-owned models, textures, HDRIs, and audio use `source.external:false`; third-party files
+  require `source.license` and verbatim `source.licenseText` or `source.licenseFile`.
+- Do not use shell copy, direct project writes, or manual Git for user files.
 
 ## Workflow
 
@@ -46,8 +49,9 @@ The user does not need to create folders or copy files. Use `blender_workflow {a
    images. Paths stay project-relative (`assets/...`). NEVER leave absolute paths. Declare the
    import's parent Empty name in `begin.objects`; inspect the imported children after the apply and
    use `extend` if later operations need to target them.
-6. Check missing and packed files with `check_assets`; pack only when the licence permits
-   redistribution with `pack_assets`.
+6. Check missing and packed files with `check_assets`; use `{strict:true}` on the final scene so a
+   missing external file fails the apply. Pack only when the licence permits redistribution with
+   `pack_assets`.
 7. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
    third-party data even when source binaries are ignored.
 
@@ -70,8 +74,9 @@ using `generated` metadata; they are not automatically scene assets.
 
 ## Validation
 
-- Run the `check_assets` operation and inspect its missing/external/packed report before delivery.
-  Completion is denied after asset use until `check_assets` is sealed on the final unchanged scene.
+- Run `check_assets` with `{strict:true}` on the final scene before sealing. It fails on missing
+  external files. Completion is denied after asset use until the strict receipt is sealed on the
+  final unchanged scene.
 - Keep paths project-relative; verify moving the project folder does not break the scene.
 - Run `pack_assets` only after licence review when packing is required.
 - Require an `ASSETS.md` row for every third-party asset and derivative.
