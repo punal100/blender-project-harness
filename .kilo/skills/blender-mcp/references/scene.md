@@ -36,8 +36,8 @@ style restriction that the user has not confirmed.
 
 ## After every model import
 
-Imported models arrive at arbitrary scale, rotation and origin. The import result gives
-`world_bounding_box`; use it:
+Imported models arrive at arbitrary scale, rotation and origin. Inspect the imported parent or child
+bounds with `get_scene_info`; use those facts:
 
 - Scale to real size from the bounding box, not by eye.
 - Place it on its intended support surface. For an unparented object on world Z=0,
