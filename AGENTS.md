@@ -57,8 +57,8 @@ next call. `capabilities` is authoritative for actions, operations, document for
   Pass milestone-specific requirement IDs for intermediate changes; reserve the complete requirement
   set for the final full-spec change.
 - A **reviewable change** is a bounded change with at least one apply operation. A change whose
-  declared paths are all markdown is document-only: commit and checkpoint it without apply, seal, or
-  review. The bootstrap save is not reviewable.
+  declared paths are all markdown or source-only scripts under `scripts/` is document-only: commit
+  and checkpoint it without apply, seal, or review. The bootstrap save is not reviewable.
 - Every reviewable change MUST complete: apply tickets, a WIP render every three applies and before
   seal, `seal`, `blender_look` on the returned render, review, approval when required, one harness
   commit per apply batch, the review commit, and `checkpoint`. The harness denies further apply

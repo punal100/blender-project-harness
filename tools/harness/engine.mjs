@@ -21,6 +21,7 @@ export const digest = (data) => crypto.createHash('sha256').update(data).digest(
 export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
+const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
@@ -620,7 +621,7 @@ export class Harness {
       }
       addDocument(intakeRelative, intake, true);
       for (const relative of paths) if (!c.paths.includes(relative)) c.paths.push(relative);
-      c.documentOnly = c.paths.every((name) => /\.md$/i.test(name));
+      c.documentOnly = c.paths.every(documentOnlyPath);
       return {
         project: args.project,
         scan: false,
@@ -1179,7 +1180,7 @@ export class Harness {
           final: args.final === true, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
           deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: false,
           wipRender: null, wipLook: null, commits: [], graders: {}, reports: {}, bootstrap: !sceneExists,
-          documentOnly: paths.every((name) => /\.md$/i.test(name)), sceneHash: sceneExists ? this.hash(p.scene) : null,
+          documentOnly: paths.every(documentOnlyPath), sceneHash: sceneExists ? this.hash(p.scene) : null,
         };
       } else if (action === 'extend') {
         if (!c || c.sealed || c.pending || c.documentOnly || c.readyToSeal) deny('extend requires an unsealed, unfinished scene change with no pending operation');

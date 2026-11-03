@@ -1910,7 +1910,11 @@ test('synthetic live run: abrupt restart keeps the change and recovers an expire
 test('source-only scripts are allowed only under scripts', (t) => {
   const allowed = useFixture(t);
   activate(allowed);
-  assert.doesNotThrow(() => begin(allowed, 'orchestrator', { paths: ['scripts/build.py'] }));
+  begin(allowed, 'orchestrator', { paths: ['scripts/build.py'] });
+  assert.equal(allowed.harness.command('orchestrator', 'status').change.documentOnly, true);
+  write(allowed.root, `${allowed.project}/scripts/build.py`, 'print("hello")\n');
+  allowed.harness.command('orchestrator', 'commit', { message: 'docs: add source-only script' });
+  allowed.harness.command('orchestrator', 'checkpoint');
   const denied = useFixture(t);
   activate(denied);
   assert.throws(() => begin(denied, 'orchestrator', { paths: ['build.py'] }), /executable files/);
