@@ -1,6 +1,6 @@
 # CozyStudyRoom
 
-Status: Revision in progress — final review pending
+Status: Final revision — sealed review in progress
 Last updated: 2026-11-03
 
 ## Purpose
@@ -27,7 +27,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 - Mood / references: Late-evening study, lamp glow, quiet and warm; lived-in but tidy.
 - Colour and lighting: Warm amber key from desk lamp, cool low-level fill from window/ambient, wood brown, muted ochre, cream, deep shadow corners.
 - Camera / framing: Three-quarter view from the room corner, desk and monitor centered, chair and lamp included, 16:9.
-- Scale and units: Metric; room about 4 m x 4 m, desk 0.75 m tall, monitor 0.55 m wide.
+- Scale and units: Metric; room about 4 m x 4 m, desk surface 0.78 m (documented 4% tolerance), monitor 0.55 m wide.
 
 ## Deliverables
 
@@ -104,7 +104,8 @@ CozyStudyRoom/
 See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md`](assets/external/README.md).
 
 - User files are brought in through `blender_workflow {action:"intake"}`; originals are never moved.
-- No external assets are used. All materials are procedural, so the scene has no missing-file dependencies and no third-party data to pack or license.
+- Four CC0 Poly Haven 1k textures (wood table, fabric pattern, wood floor deck, painted plaster wall) are packed into `cozystudyroom.blend`. Source JPGs are git-ignored; `SOURCE.md`, `LICENSE.txt`, `INTAKE.md`, and `ASSETS.md` are tracked.
+- Strict `check_assets` passed on the final scene with no missing files and no linked libraries.
 
 ## Goals
 
@@ -126,5 +127,6 @@ Identify the active goal's actual path; use it for grading rather than assuming 
 
 - [x] Persist the exact confirmed requirements and workflow/review answers collected before scaffold.
 - [x] Fill the active goal, register, launch, and build the scene.
-- [x] Confirm no external assets are required; all materials are procedural.
-- [x] Build the scene, save and inspect a review render, and complete grading and commits.
+- [x] Intake four CC0 Poly Haven textures and pack them into the `.blend`.
+- [x] Build the scene, save and inspect the WIP render, and record scene-health evidence.
+- [ ] Complete the final sealed review, grader aggregation, commit, and checkpoint.

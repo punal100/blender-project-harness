@@ -1,0 +1,646 @@
+{
+  "round": "R02-20261103T152934Z",
+  "created": "2026-11-03T15:29:35.856Z",
+  "previous_round": null,
+  "active_goal": "Blender/CozyStudyRoom/Documents/Goals/01-project-brief.md",
+  "base_commit": "9ed8674333f2ca3aa157964679e79a5d655b8eb4",
+  "dirty": "M Blender/CozyStudyRoom/Documents/ASSETS.md\n M Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md\n M Blender/CozyStudyRoom/Documents/TASKSTRACKER.md\n M Blender/CozyStudyRoom/README.md\n M Blender/CozyStudyRoom/cozystudyroom.blend\n?? Blender/CozyStudyRoom/Documents/Tasks/T048/\n?? Blender/CozyStudyRoom/renders/final/R02-20261103T152934Z.png",
+  "scene": {
+    "path": "Blender/CozyStudyRoom/cozystudyroom.blend",
+    "sha256": "ac1930644bfd117a9eb2089d5c9b8f66e3971bfa8154115248ccf298834266bc"
+  },
+  "primary_scene": "Scene",
+  "scenes": [
+    {
+      "name": "Scene",
+      "render": "Blender/CozyStudyRoom/renders/final/R02-20261103T152934Z.png",
+      "camera": "Camera_Hero",
+      "use_sequencer": true,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "facts": "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/_evidence/scenes/Scene/scene-facts.json"
+    }
+  ],
+  "scene_requirements": {},
+  "specs": {
+    "Blender/CozyStudyRoom/Documents/REQUIREMENTS.md": "1c515b614722951ee9a660dc6844bd106abbf3006a911a82878b7cbe56e86740",
+    "Blender/CozyStudyRoom/Documents/WORKFLOW.md": "96de1de7a337fa19731576170d781206e7c89d6656580660ef9e4fc3bd93f8e9",
+    "Blender/CozyStudyRoom/Documents/REVIEW.md": "33995e7e45d85c0f92ab4ca72f875b4dd38dad466197f435c3685c1ae3f860ea",
+    "Blender/CozyStudyRoom/Documents/Goals/01-project-brief.md": "d212cfa4a6e601212d5f96948787ebe902e9e419fc6e82a83ffdba0c0872c1fe"
+  },
+  "evidence": {
+    "Blender/CozyStudyRoom/renders/final/R02-20261103T152934Z.png": "4c2a796dc24f7f5b0bdd4f2381099dabe21517fea9098ee8fe518c0b7f11500c",
+    "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/_evidence/scenes/Scene/camera.png": "4c2a796dc24f7f5b0bdd4f2381099dabe21517fea9098ee8fe518c0b7f11500c",
+    "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/_evidence/scenes/Scene/scene-facts.json": "9b4f0b4a0aaea4c3a68dab3b472c3210bd1fd9a05064eb3af2e2a8c26334adcf",
+    "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/_evidence/scenes/Scene/scene.txt": "9b4f0b4a0aaea4c3a68dab3b472c3210bd1fd9a05064eb3af2e2a8c26334adcf"
+  },
+  "evidence_key": "b103af17b44682f563094dacd892f2c14f0e9d8ef1f725ef1db03e6a8aa0ccb1",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "Codex-Everywhere-Claude/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "codex-everywhere/gpt-6.1-sol",
+        "variant": "xhigh"
+      },
+      "max_minutes": 5,
+      "max_steps": 10
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 5,
+      "max_steps": 12
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "b00818dd-bf05-4c28-911e-22f6f79df5a0",
+      "report": "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793720105806,
+      "steps": 10,
+      "child": "ses_e5df6a2bdffeyGixr3F0Kgro7M",
+      "modelRole": "backup",
+      "verdict": "CHANGES_REQUIRED",
+      "kind": "review"
+    },
+    "technical": {
+      "token": "15ad41e8-02f9-4b26-ace9-b0f78db81c3e",
+      "report": "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/technical/REPORT.md",
+      "attempt": 2,
+      "deadline": 1793720633873,
+      "steps": 10,
+      "child": "ses_e5def1ed9ffelipJF6ZGe6fslm",
+      "modelRole": "primary",
+      "verdict": "BLOCKED",
+      "error": "grader report missing: Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/technical/REPORT.md",
+      "kind": "tooling"
+    },
+    "spec": {
+      "token": "b30f8d39-fe44-4b9a-94fe-a6e3c3b51343",
+      "report": "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/spec/REPORT.md",
+      "attempt": 2,
+      "deadline": 1793720649400,
+      "steps": 10,
+      "child": "ses_e5def1d79ffeHR8eYiF8sG9j00",
+      "modelRole": "backup",
+      "verdict": "BLOCKED",
+      "error": "grader report missing: Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/spec/REPORT.md",
+      "kind": "tooling"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T041",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "apply x10",
+      "objects": [
+        "Monitor_Screen",
+        "Rug",
+        "Curtain_L",
+        "Curtain_R",
+        "PC_Tower",
+        "PC_Tower_Front",
+        "Window_Glass",
+        "Light_Lamp"
+      ],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "a4f5b5f0bf6d",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e5e0948ecffeKcOFuQJwHX8qbH",
+      "state": "done",
+      "created": "2026-11-03T15:10:44.370Z",
+      "finished": "2026-11-03T15:11:18.860Z",
+      "result": "ok (10 ops)",
+      "deadline": 1793719244370,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "create_light",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T041/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T041/SUMMARY.md"
+    },
+    {
+      "id": "T042",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "apply x10",
+      "objects": [
+        "Light_Fill",
+        "Desk_Lamp_Shade",
+        "Art_Frame",
+        "Book_1",
+        "Book_2",
+        "Blanket"
+      ],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "5ac0991cee3a",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e5e0765fdffeNijTWszpi17SCY",
+      "state": "done",
+      "created": "2026-11-03T15:12:51.128Z",
+      "finished": "2026-11-03T15:13:25.088Z",
+      "result": "ok (10 ops)",
+      "deadline": 1793719371127,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "pack_assets",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "render_settings",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "check_assets",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T042/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T042/SUMMARY.md"
+    },
+    {
+      "id": "T043",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "40eb6528ef83",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-03T15:19:19.063Z",
+      "finished": "2026-11-03T15:19:28.923Z",
+      "result": "ok",
+      "deadline": 1793719759063,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T043/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T043/SUMMARY.md"
+    },
+    {
+      "id": "T044",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "apply x7",
+      "objects": [
+        "Art_Frame",
+        "Wall_Art",
+        "Window_Glass",
+        "Monitor_Screen",
+        "Desk_Lamp_Shade",
+        "PC_Tower_Front"
+      ],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "1194cf7bd7ed",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e5dfefbb3ffedAm9A7SmQmFDmQ",
+      "state": "done",
+      "created": "2026-11-03T15:22:05.288Z",
+      "finished": "2026-11-03T15:22:41.524Z",
+      "result": "ok (7 ops)",
+      "deadline": 1793719925287,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "material",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T044/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T044/SUMMARY.md"
+    },
+    {
+      "id": "T045",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "edecfbf80daa",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-03T15:23:27.212Z",
+      "finished": "2026-11-03T15:23:39.712Z",
+      "result": "ok",
+      "deadline": 1793720007211,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T045/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T045/SUMMARY.md"
+    },
+    {
+      "id": "T046",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "apply",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "0bce43a72932",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e5dfefbb3ffedAm9A7SmQmFDmQ",
+      "state": "done",
+      "created": "2026-11-03T15:25:25.282Z",
+      "finished": "2026-11-03T15:25:45.844Z",
+      "result": "ok (1 ops)",
+      "deadline": 1793720125281,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "check_assets",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T046/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T046/SUMMARY.md"
+    },
+    {
+      "id": "T047",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "8f25ef46e7f3",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-03T15:28:11.892Z",
+      "finished": "2026-11-03T15:28:28.983Z",
+      "result": "ok",
+      "deadline": 1793720291892,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T047/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T047/SUMMARY.md"
+    },
+    {
+      "id": "T048",
+      "kind": "operation",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "seal",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/cozystudyroom.blend",
+        "Blender/CozyStudyRoom/README.md",
+        "Blender/CozyStudyRoom/Documents/DECISIONS.md",
+        "Blender/CozyStudyRoom/Documents/ASSETS.md",
+        "Blender/CozyStudyRoom/Documents/References/SCENE-HEALTH.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/SOURCE.md",
+        "Blender/CozyStudyRoom/assets/external/local/Poly-Haven/LICENSE.txt",
+        "Blender/CozyStudyRoom/Documents/INTAKE.md"
+      ],
+      "tokenHash": "ae060a35e29c",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "seal",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-03T15:29:21.790Z",
+      "finished": "2026-11-03T15:29:36.001Z",
+      "result": "ok",
+      "deadline": 1793720361790,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/T048/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/T048/SUMMARY.md"
+    },
+    {
+      "id": "G049",
+      "kind": "grader",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/visual/REPORT.md"
+      ],
+      "tokenHash": "3a89bd0a64d0",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5df6a2bdffeyGixr3F0Kgro7M",
+      "state": "done",
+      "created": "2026-11-03T15:30:05.807Z",
+      "finished": "2026-11-03T15:37:07.909Z",
+      "result": "ok",
+      "deadline": 1793720105806,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/G049/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/G049/SUMMARY.md"
+    },
+    {
+      "id": "G050",
+      "kind": "grader",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "grader:technical",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/technical/REPORT.md"
+      ],
+      "tokenHash": "84476dbfd274",
+      "worker": "technical",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5df66395ffeyGLoZKh1keitpy",
+      "state": "failed",
+      "created": "2026-11-03T15:30:31.302Z",
+      "finished": "2026-11-03T15:33:03.521Z",
+      "result": "grader returned BLOCKED",
+      "deadline": 1793720131302,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/G050/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/G050/SUMMARY.md"
+    },
+    {
+      "id": "G051",
+      "kind": "grader",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "grader:spec",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/spec/REPORT.md"
+      ],
+      "tokenHash": "3f2f4becb6c0",
+      "worker": "spec",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5df64eeeffefey75vkx6dC0WF",
+      "state": "failed",
+      "created": "2026-11-03T15:30:49.881Z",
+      "finished": "2026-11-03T15:33:09.275Z",
+      "result": "grader returned BLOCKED",
+      "deadline": 1793720149881,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/G051/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/G051/SUMMARY.md"
+    },
+    {
+      "id": "G052",
+      "kind": "grader",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "grader:technical",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/technical/REPORT.md"
+      ],
+      "tokenHash": "787e96d5809d",
+      "worker": "technical",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5def1ed9ffelipJF6ZGe6fslm",
+      "state": "failed",
+      "created": "2026-11-03T15:38:53.874Z",
+      "finished": "2026-11-03T15:43:45.332Z",
+      "result": "grader report missing: Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/technical/REPORT.md",
+      "deadline": 1793720633873,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/G052/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/G052/SUMMARY.md"
+    },
+    {
+      "id": "G053",
+      "kind": "grader",
+      "change": "284758cb-2e80-4f19-8829-9a8f1deb2192",
+      "operation": "grader:spec",
+      "objects": [],
+      "paths": [
+        "Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/spec/REPORT.md"
+      ],
+      "tokenHash": "ef22cfcf5830",
+      "worker": "spec",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5def1d79ffeHR8eYiF8sG9j00",
+      "state": "failed",
+      "created": "2026-11-03T15:39:09.400Z",
+      "finished": "2026-11-03T15:47:04.988Z",
+      "result": "grader report missing: Blender/CozyStudyRoom/Documents/Reviews/R02-20261103T152934Z/spec/REPORT.md",
+      "deadline": 1793720649400,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyStudyRoom/Documents/Tasks/G053/TASK.md",
+      "summaryDoc": "Blender/CozyStudyRoom/Documents/Tasks/G053/SUMMARY.md"
+    }
+  ],
+  "verdict": "WIP"
+}

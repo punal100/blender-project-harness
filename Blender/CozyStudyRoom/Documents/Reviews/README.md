@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261103T135102Z | 20261103T135102Z | ded80effe68b | All final | visual, technical, spec | BLOCKED | [R01-20261103T135102Z/REVIEW.md](R01-20261103T135102Z/REVIEW.md) |
+| R02-20261103T152934Z | 20261103T152934Z | ac1930644bfd | All final | visual, technical, spec | BLOCKED | [R02-20261103T152934Z/REVIEW.md](R02-20261103T152934Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261103T135102Z: Final cozy room: chair, rug, wall shelf with plant, mug and notebook, dusk-blue window, warm art, a proper desk-lamp shade, cool fill light, and a re-framed hero camera deliver the lived-in evening study; evidence 0603e52da4e1ef6f21be0e476c214e981a4e37152279678348575befddc66748
+
+- R02-20261103T152934Z: Final R01 correction: warm lamp-lit textured study with framed art, books, blanket, corrected monitor scale, packed CC0 textures, scene-health evidence, and strict asset receipt; evidence b103af17b44682f563094dacd892f2c14f0e9d8ef1f725ef1db03e6a8aa0ccb1
