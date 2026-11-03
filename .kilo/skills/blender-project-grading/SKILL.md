@@ -138,7 +138,8 @@ read its own prior `REPORT.md` under `Documents/Reviews/`; peer grader reports r
    blocker or major requires evidence that it is false or outside confirmed scope. Time pressure or
    preference is not a waiver.
 5. Call `review` `{notes,reason,dispositions}`. The harness validates reports, computes the verdict,
-   writes `REVIEW.md`, and auto-commits in Fully Autonomous mode. In Partially Autonomous mode it
+   writes `REVIEW.md`, appends the round row to `Documents/Reviews/README.md`, and auto-commits in
+   Fully Autonomous mode. In Partially Autonomous mode it
    writes the verdict and waits for approval; `commit` then creates the review commit. A tooling
    `BLOCKED` verdict is not auto-committed; retry the blocked grader with the configured backup.
 6. After the retry budget is exhausted, call `preserve {reason}` instead of looping. It commits the
