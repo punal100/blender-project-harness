@@ -23,18 +23,22 @@ Requirements, workflow mode, review mode, and scaffolding happen in ordinary cha
 starts. Kilo removes `question` during an active goal.
 
 1. Confirm requirements with `blender-project-requirements`.
-2. Collect workflow mode with `blender-project-workflow` and review mode with
+2. Ask the optional-workflow intake questions: generate or supply references, use supplied or
+   search/downloaded assets, handle scripts as none/source-only, and required deliverable formats.
+   Use `intake {scan:true}` to inspect supplied paths; it does not write the project. Do not generate
+   paid images, download, or execute scripts without explicit consent.
+3. Collect workflow mode with `blender-project-workflow` and review mode with
    `blender-project-grading`.
-3. Scaffold with `blender-project-scaffold`.
-4. Create or update README, requirements, workflow, review, assets, decisions, and the filled goal
+4. Scaffold with `blender-project-scaffold`.
+5. Create or update README, requirements, workflow, review, assets, decisions, and the filled goal
    with `bootstrap-document`. Use `capabilities.documentFormats`; the harness rejects malformed
    records.
-5. Commit the exact scaffold with `bootstrap-commit`. NEVER stage or commit project paths manually.
-6. Call `prepare` `{project,goal,scene}`. Pass its exact question and labels to `question`. Only the
+6. Commit the exact scaffold with `bootstrap-commit`. NEVER stage or commit project paths manually.
+7. Call `prepare` `{project,goal,scene}`. Pass its exact question and labels to `question`. Only the
    runtime answer registers the project.
-7. Call `goal(action="start", objective=<the entire filled prompt>)`. End the turn after a
+8. Call `goal(action="start", objective=<the entire filled prompt>)`. End the turn after a
    successful start.
-8. On the next goal turn, inspect `blender_workflow` `status` and continue with its `nextStep`.
+9. On the next goal turn, inspect `blender_workflow` `status` and continue with its `nextStep`.
 
 NEVER start a goal to ask questions. NEVER create new project documents outside the harness. Update
 existing documents only inside declared change paths.

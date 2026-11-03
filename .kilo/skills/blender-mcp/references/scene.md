@@ -22,8 +22,9 @@ the asset-type branches in `../SKILL.md`. Model size/support checks below do not
 worlds or texture materials; those require lighting/material inspection instead.
 
 - **Import locally** with the harness `import_asset` operation after the file is registered under
-  `assets/external/<source>/<asset>/`; use `link_library` for `.blend` libraries. The raw
-  `blender_import_asset` and `blender_generate_3d` tools stay blocked.
+  `assets/external/<source>/<asset>/`; use `link_library` for `.blend` libraries. Use
+  `blender_workflow {action:"intake"}` to copy user files and create the register and sidecars. The
+  raw `blender_import_asset` and `blender_generate_3d` tools stay blocked.
 - **Poly Haven** (`search_assets(source="polyhaven")`): HDRIs, PBR textures for large surfaces
   (floors, walls, terrain), and generic realistic props. CC0.
 - **Sketchfab**: specific real-world things (a named car model, a landmark), and realistic props.

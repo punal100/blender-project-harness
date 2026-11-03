@@ -18,30 +18,42 @@ registered before use.
 - Keep `SOURCE.md` and a verbatim `LICENSE.txt` beside every external asset. Preserve original
   licence files.
 
+## Harness intake
+
+The user does not need to create folders or copy files. Use `blender_workflow {action:"intake"}`.
+
+- `scan:true` inspects explicit files or folders without writing the project. Use it during
+  requirements discovery.
+- `scan:false` copies accepted files into an open bounded change and adds their exact paths to the
+  change. It writes `SOURCE.md`, `LICENSE.txt`, `Documents/INTAKE.md`, `Documents/ASSETS.md`, and
+  `Documents/References/README.md` as applicable.
+- `relations` and duplicates are reported. The original files are never moved or deleted.
+- `download` fetches an HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does not
+  import or register it. Pass the returned path to `intake` with source and licence details.
+- Project-owned models, textures, HDRIs, and audio use source.external:false; third-party files require source.license and verbatim source.licenseText or source.licenseFile.\n- Do not use shell copy, direct project writes, or manual Git for user files.
+
 ## Workflow
 
-1. Find an asset with `blender_search_assets` or manual source discovery. Do not import before
-   source, licence, and intended-use checks pass.
-2. Record source, author, licence, attribution, redistribution, local path, and packaging mode in
-   `Documents/ASSETS.md` through the harness document action.
-3. Create `SOURCE.md` from `../../../tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md`.
-4. Copy the applicable licence terms verbatim to `LICENSE.txt`. Record the licence source URL and
-   attribution exactly. If terms are missing or incompatible, STOP; never invent or summarize them.
+1. Ask how the user wants assets sourced: use supplied files, search/download, project-owned
+   primitives/materials, or a mix. Ask for exact paths when files are supplied.
+2. If download is chosen, search first, inspect licence and size, then use `download` to stage. If the
+   provider is not supported, ask the user to supply the file rather than inventing a URL.
+3. Scan with `intake`; resolve rejected files, missing licences, and ambiguous use.
+4. Open the bounded change with the intake document path, then call `intake` with `scan:false`. The
+   action copies files and registers metadata.
 5. Import a local model with the reviewed `import_asset` operation, link a `.blend` library with
    `link_library`, import audio with `import_audio`, and use `image_texture` or `world_hdri` for local
    images. Paths stay project-relative (`assets/...`). NEVER leave absolute paths. Declare the
    import's parent Empty name in `begin.objects`; inspect the imported children after the apply and
    use `extend` if later operations need to target them.
-6. The remote `blender_import_asset` tool and `blender_generate_3d` remain blocked. Search finds
-   library assets, but the supported path is to download the file manually into
-   `assets/external/<source>/<asset>/`, add `SOURCE.md` and `LICENSE.txt`, then run `import_asset`.
-7. Check missing and packed files with `check_assets`; pack only when the licence permits
+6. Check missing and packed files with `check_assets`; pack only when the licence permits
    redistribution with `pack_assets`.
-8. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
+7. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
    third-party data even when source binaries are ignored.
 
-Asset-library auto-download and 3D generation are not implemented. Asset search does not authorize an
-unsupported import.
+The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary project Python remain blocked.
+Asset search does not authorize a remote import. Generated images are registered with `intake`
+using `generated` metadata; they are not automatically scene assets.
 
 ## Git and delivery
 
@@ -59,6 +71,7 @@ unsupported import.
 ## Validation
 
 - Run the `check_assets` operation and inspect its missing/external/packed report before delivery.
+  Completion is denied after asset use until `check_assets` is sealed on the final unchanged scene.
 - Keep paths project-relative; verify moving the project folder does not break the scene.
 - Run `pack_assets` only after licence review when packing is required.
 - Require an `ASSETS.md` row for every third-party asset and derivative.

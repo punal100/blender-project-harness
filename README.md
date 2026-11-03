@@ -99,6 +99,9 @@ From there, the agent takes over:
 - it asks only for the requirements and decisions it genuinely needs from you;
 - creates the project, goal files, requirements, workflow, and review records;
 - launches and stops Blender through the guarded harness, tracking one instance per workspace;
+- copies user-supplied references, models, textures, HDRIs, audio, and source-only scripts through
+  the guarded `intake` action instead of asking you to make folders; `download` can stage an HTTPS
+  asset for the same intake flow when you provide a URL;
 - builds and checks the scene through the guarded MCP workflow;
 - saves renders and review evidence, keeps the project documents current, and tells you about any
   blockers or corrections.
@@ -120,6 +123,8 @@ goals as the work changes.
 - Run only one Blender instance from this workspace at a time.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.
+- Let the harness copy user files through `intake`; do not create project folders or copy by hand.
+- Project Python under `scripts/` is source-only; arbitrary script execution is not supported.
 - Check each project's `README.md` and `Documents/` for its own requirements and deliverables.
 
 ## Useful checks and fixes

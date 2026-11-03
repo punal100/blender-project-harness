@@ -25,7 +25,8 @@ Keep this order. Each heading MUST appear exactly once.
    rule.
 9. Workflow: links to `Documents/WORKFLOW.md` and `Documents/REVIEW.md`; selected modes; review index.
 10. External assets: summary plus links to `Documents/ASSETS.md` and
-    `assets/external/README.md`.
+    `assets/external/README.md`. User files are brought in through `intake`; never instruct the user
+    to create folders or copy by hand.
 11. Goals: index of `Documents/Goals/*.md`.
 12. References: links to `Documents/References/`.
 13. Open questions and next steps.

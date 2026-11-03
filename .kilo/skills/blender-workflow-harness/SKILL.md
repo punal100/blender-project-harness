@@ -31,6 +31,25 @@ Inspect bootstrap state with `status` `{project}`. Its `nextStep` names the miss
 scaffold commit, `prepare`, or registration question. Manual project writes and project
 `git add`/`git commit` are blocked before and after registration.
 
+## User files and optional workflows
+
+Use `intake` before asking the user to organize anything.
+
+- `intake {project,files?,folders?,kind?,source?,generated?,scan:true}` scans without writing.
+- `intake {project,files?,folders?,kind?,source?,generated?}` copies inside an open change, writes
+  sidecars and registers, and adds exact paths to the change. It never moves the originals.
+- `download {project?,url,filename?,maxBytes?}` fetches HTTPS bytes into ignored `.temp/Intake/...`
+  staging only. It does not import or register; pass the result to `intake` with source and licence.
+- Generated references use `generated:{tool,model,prompt,seed,width,height,c2pa}`. They are recorded
+  as references, never as automatic textures or licensed third-party assets.
+- External assets require `source.license` and `source.licenseText` or `source.licenseFile`; the
+  action writes `SOURCE.md`, verbatim `LICENSE.txt`, and the register row.
+- Scripts may be copied only under `scripts/` and are source-only. The harness does not execute
+  project Python. If execution is required, stop for a separately reviewed isolation design.
+
+Ask the user to choose references, asset source, script handling, and deliverables before
+production. Do not generate paid images, download, or execute scripts without explicit consent.
+
 ## Registered lifecycle
 
 1. `launch` `{}`. Verify `blender_get_addon_status` and
@@ -69,10 +88,12 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    `checkpoint`. With `Off`, or in Partially Autonomous, `commit` creates the scoped review commit.
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
-   clean project. Then start the next `begin` or report completion. Completion needs a final
-   full-spec change before `goal_report`; `goal-complete` marks `TASKSTRACKER.md` complete and commits
-   that tracker-only update. After a complete report, stop Blender through the harness unless it is
-   intentionally left open for user inspection; report that choice.
+   clean project. Then start the next `begin` or report completion. After any asset-using operation,
+   run `check_assets` on the final scene before sealing; completion is denied without a matching
+   receipt. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
+   `TASKSTRACKER.md` complete and commits that tracker-only update. After a complete report, stop
+   Blender through the harness unless it is intentionally left open for user inspection; report that
+   choice.
 10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
     then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
 

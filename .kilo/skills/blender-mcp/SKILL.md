@@ -71,7 +71,9 @@ Every scene, material, lighting, or camera change MUST be inspected with `look` 
 ## Assets
 
 External asset work requires `blender-assets`: licence, attribution, registration, relative paths,
-packing, and delivery rights. Use the reviewed harness operations for local files:
+packing, and delivery rights. Use `blender_workflow {action:"intake"}` for user files; it copies,
+hashes, registers, and adds exact paths to the open change. Use `download` only for HTTPS staging,
+then `intake`. Use the reviewed harness operations for local files:
 
 - `import_asset` for GLB/glTF/FBX/OBJ/USD/`.blend`.
 - `link_library` for `.blend` link/append.
@@ -79,8 +81,8 @@ packing, and delivery rights. Use the reviewed harness operations for local file
 - `check_assets`, `pack_assets`, and `export_scene`.
 
 The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary Python tools remain blocked.
-Library search does not authorize a remote import; download locally, register the source and licence,
-then use `import_asset`.
+Library search does not authorize a remote import. Scripts are source-only under `scripts/` and are
+never executed by the harness.
 
 ## API and documentation gaps
 
