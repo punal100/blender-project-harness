@@ -188,6 +188,8 @@ test('scene-aware operations target named scenes and render evidence', () => {
   assert.match(preflight, /bpy\.data\.scenes\.get\("SC_001"\)/);
   assert.match(preflight, /use_sequencer/);
   assert.match(sceneFactsCode('SC_001'), /scene-facts|"scenes"/);
+  assert.match(sceneFactsCode('SC_001'), /"dimensions"/);
+  assert.match(sceneFactsCode('SC_001'), /"non_manifold_edges"/);
 });
 
 test('batched apply validates one to ten operations', () => {
