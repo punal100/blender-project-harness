@@ -1006,6 +1006,7 @@ test('grader prompts distinguish partial milestone and final full-spec scope', (
   assert.match(partialTicket.prompt, /Final full-spec review: no/);
   assert.match(partialTicket.prompt, /Partial milestone review/);
   assert.match(partialTicket.prompt, /deferred, not a finding/);
+  assert.match(partialTicket.prompt, /Report timing: .*write the assigned REPORT\.md immediately/i);
 
   const final = useFixture(t, { review: 'All' });
   activate(final);

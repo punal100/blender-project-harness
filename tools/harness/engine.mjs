@@ -1093,6 +1093,7 @@ export class Harness {
           'User prompt: <verbatim user words for permitted live Blender calls>',
           'Prior findings / dispositions: <orchestrator-supplied re-review context or none>',
           `Budget: ${g.max_minutes} minutes, ${g.max_steps} steps`,
+          'Report timing: read the required evidence and spec documents, then write the assigned REPORT.md immediately; do not defer the write until the end.',
           `Deadline UTC / rounds already used: ${new Date(deadline).toISOString()}`,
           'Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached',
           'Output: verdict, findings, <= 20 lines',

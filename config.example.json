@@ -63,7 +63,7 @@
             "variant": "max"
           },
           "max_minutes": 5,
-          "max_steps": 10
+          "max_steps": 12
         }
       ]
     }

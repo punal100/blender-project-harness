@@ -64,7 +64,8 @@ tracked template. The harness validates the selected role before every dispatch.
 ```
 
 - `max_parallel` for workers MUST be 1. `max_steps` MUST fit the agent ceiling. Budgets MUST be
-  positive. `max_rounds` is 1-4.
+  positive. `max_rounds` is 1-4. A final full-spec `spec` grader needs 12 steps in practice; 10 can
+  expire before the documentation reads.
 - Every worker and grader MUST have one complete `backup` provider/model/variant. A partial backup is
   invalid, not absent. Runtime model metadata must match the primary or that backup exactly.
 - Missing, invalid, disabled, or mismatched config STOPS delegation. NEVER substitute, borrow, or

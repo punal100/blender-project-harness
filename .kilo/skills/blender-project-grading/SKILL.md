@@ -79,7 +79,8 @@ Read `blender_subagents.graders` from the gitignored workspace `config.json`; th
 
 The harness validates the roster at `prepare`: unique slug, non-empty focus/model fields, one complete
 backup provider/model/reasoning variant per grader, positive budgets, `max_steps` within the grader
-ceiling, `max_parallel` within the roster, and `max_rounds` 1-4. NEVER fabricate, drop, substitute, or
+ceiling, `max_parallel` within the roster, and `max_rounds` 1-4. Give the `spec` grader 12 steps when
+it must complete a final full-spec review; 10 can be exhausted before the documentation reads. NEVER fabricate, drop, substitute, or
 borrow a grader or model. Resolve models with `agent_manager_models`; per-task overrides require
 explicit user request. A primary dispatch failure may retry once with the configured backup; record
 `modelRole` and do not change the roster or review mode.
