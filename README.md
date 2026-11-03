@@ -4,9 +4,10 @@ This workspace takes you from an idea to a finished, reviewed Blender project. K
 Blender addon handle the building, inspection, grading, and records, while a guarded harness keeps
 edits bounded and the project history clean.
 
-Each project lives in its own folder under `Blender/<ProjectName>/`. Shared tooling, checks, and the
-workflow harness live in `tools/`. `AGENTS.md` contains the internal agent contract; this README is
-the human setup and usage guide.
+Each project lives in its own folder under `Blender/<ProjectName>/`. The harness and checks live in
+`.kilo/blender-project-harness/tools/`, with configuration at
+`.kilo/blender-project-harness/config.json`. `AGENTS.md` contains the internal agent contract; this
+README is the human setup and usage guide.
 
 ## What the workspace provides
 
@@ -59,15 +60,51 @@ the human setup and usage guide.
    Sign in or connect a model provider through Kilo. Keep provider credentials in Kilo's own user
    configuration — never in this repository.
 
-## Get the workspace running
+## Install with npm
 
-Clone the repository, open PowerShell in its root, and install the locked local Node dependencies:
+In an existing Kilo workspace, install the harness without cloning this repository:
+
+```powershell
+npx blender-project-harness@latest install
+```
+
+The installer:
+
+- copies the harness into `.kilo/blender-project-harness/tools/`;
+- writes `VERSION`, `install.json`, and `config.json` in `.kilo/blender-project-harness/`;
+- installs the harness dependencies with `npm ci`;
+- updates `.kilo/kilo.jsonc` and `.kilo/plugins/blender-workflow.js`;
+- adds missing workspace files such as `AGENTS.md`, `.kilo/skills/`, `.kilo/agent/`, and
+  `Blender/README.md`;
+- adds the local config and backups to `.gitignore`.
+
+Run the same command to update. The previous installation is moved to
+`.temp/blender-project-harness-backups/<version>-<timestamp>/` before the new version is installed.
+Edit worker and grader models in `.kilo/blender-project-harness/config.json`. That config is
+preserved across updates; use `--reset-config` to replace it with the package example.
+
+Useful installer commands:
+
+```powershell
+npx blender-project-harness@latest status
+npx blender-project-harness@latest doctor
+npx blender-project-harness@latest install --dry-run
+npx blender-project-harness@latest install --skip-deps
+```
+
+Use `--root <path>` when the workspace root is not the current directory. The installer requires
+Node.js 22 or newer and npm. Blender, uvx, and the MCP addon are still installed separately.
+
+## Work from a clone
+
+The repository clone is the development source and the full workspace template. Clone it, open
+PowerShell in its root, and install the locked local Node dependencies:
 
 ```powershell
 git clone <repository-url>
 Set-Location <repository-folder>
-npm ci --prefix tools/harness
-npm run doctor --prefix tools/harness
+npm ci --prefix .kilo/blender-project-harness/tools/harness
+npm run doctor --prefix .kilo/blender-project-harness/tools/harness
 ```
 
 The doctor command checks Node.js, the npm-installed harness packages, Git, uvx, the workspace
@@ -179,17 +216,21 @@ Run these from the workspace root when something looks off, or when you are cont
 tooling:
 
 ```powershell
-npm run doctor --prefix tools/harness
-python -B -m unittest discover -s tools -p "test_*.py" -v
-npm test --prefix tools/harness
+npx blender-project-harness@latest status
+npx blender-project-harness@latest doctor
+npm run test:installer
+npm test --prefix .kilo/blender-project-harness/tools/harness
+python -B -m unittest discover -s .kilo/blender-project-harness/tools -p "test_*.py" -v
 ```
 
-The Node suite is comprehensive and can take several minutes on Windows.
+The Node suite is comprehensive and can take several minutes on Windows. Use `npm run pack:check`
+to inspect the npm package contents without publishing.
 
 Common fixes:
 
 - **`uvx` not found:** reopen PowerShell after installing uv, then reload Kilo.
-- **Harness dependency missing:** run `npm ci --prefix tools/harness` again.
+- **Harness dependency missing:** rerun `npx blender-project-harness@latest install --force`, or run
+  `npm ci` in `.kilo/blender-project-harness/tools/harness`.
 - **Addon or port error:** reinstall with
   `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and reload
   Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc`; the harness reads it for launch and addon startup.
@@ -203,19 +244,28 @@ Common fixes:
 ```text
 AGENTS.md                 Internal agent contract and workflow rules
 README.md                 This human setup and usage guide
-config.json               Worker and grader models, budgets, and review settings
+package.json              npm package metadata and installer entry point
+bin/                      npm installer executable
+installer/                Versioned installer, update, and backup logic
 .kilo/                    Workspace Kilo config, skills, agents, and plugin
+.kilo/blender-project-harness/
+                          Harness, config, and version records
+.kilo/blender-project-harness/config.example.json
+                          Default worker and grader configuration
+.kilo/blender-project-harness/config.json
+                          Local worker and grader configuration (ignored)
+.kilo/blender-project-harness/tools/harness/
+                          Guarded Node.js workflow, MCP bridge, and harness tests
+.kilo/blender-project-harness/tools/harness/EXPECTED_FLOW.md
+                          Developer reference for the expected lifecycle and evidence
 Blender/                  Blender project collection
 Commands/                 Approved non-project shell-command records
-tools/                    Workspace checks and the guarded harness
-tools/harness/            Guarded Node.js workflow, MCP bridge, and harness tests
-tools/harness/EXPECTED_FLOW.md
-                          Developer reference for the expected lifecycle and evidence
 ```
 
 [`Blender/README.md`](Blender/README.md) covers the project-collection conventions. The generic
 harness lifecycle and evidence contract are documented in
-[`tools/harness/EXPECTED_FLOW.md`](tools/harness/EXPECTED_FLOW.md). Licensing lives in
+[`.kilo/blender-project-harness/tools/harness/EXPECTED_FLOW.md`](.kilo/blender-project-harness/tools/harness/EXPECTED_FLOW.md).
+Licensing lives in
 [`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Known limits
