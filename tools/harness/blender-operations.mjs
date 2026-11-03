@@ -1,5 +1,7 @@
 const OPERATION_NAMES = new Set([
   'create_mesh',
+  'text',
+  'modifier',
   'transform',
   'material',
   'shared_material',
@@ -22,6 +24,9 @@ const OPERATION_NAMES = new Set([
 
 const PRIMITIVES = new Set(['cube', 'uv_sphere', 'plane', 'cylinder']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
+const MODIFIER_KINDS = new Set(['BEVEL', 'SUBSURF', 'SOLIDIFY', 'MIRROR', 'ARRAY']);
+const TEXT_ALIGN_X = new Set(['LEFT', 'CENTER', 'RIGHT', 'JUSTIFY', 'FLUSH']);
+const TEXT_ALIGN_Y = new Set(['TOP', 'TOP_BASELINE', 'CENTER', 'BOTTOM_BASELINE', 'BOTTOM']);
 const NAME_RE = /^[\x20-\x7e]+(?![\s\S])/;
 const MAX_BATCH = 10;
 const MODEL_EXTENSIONS = new Set(['.glb', '.gltf', '.fbx', '.obj', '.usd', '.usdz', '.blend']);
@@ -60,6 +65,13 @@ function requireKeys(value, keys, label) {
 function validateString(value, label) {
   if (typeof value !== 'string' || value.length > 100 || !NAME_RE.test(value) || value.trim().length === 0) {
     fail(`${label} must be a non-blank printable ASCII string of at most 100 characters`);
+  }
+  return value;
+}
+
+function validateText(value, label) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 1000 || value.includes('\0')) {
+    fail(`${label} must be a non-empty string of at most 1000 characters`);
   }
   return value;
 }
@@ -186,6 +198,66 @@ function validateOperation(operation, allowedObjects) {
       validateVector(operation.location, `${kind}.location`, 3);
       validateVector(operation.scale, `${kind}.scale`, 3, 0, 1e4);
       if (operation.scale.some((value) => value === 0)) fail(`${kind}.scale values must be positive`);
+      break;
+    }
+    case 'text': {
+      strictObject(operation, ['operation', 'name', 'body', 'size', 'extrude', 'align_x', 'align_y', 'location', 'rotation', 'scale'], kind);
+      requireKeys(operation, ['name', 'body'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateText(operation.body, `${kind}.body`);
+      if (Object.hasOwn(operation, 'size')) validateFiniteNumber(operation.size, `${kind}.size`, 0.01, 100);
+      if (Object.hasOwn(operation, 'extrude')) validateFiniteNumber(operation.extrude, `${kind}.extrude`, 0, 10);
+      if (Object.hasOwn(operation, 'align_x')) {
+        validateString(operation.align_x, `${kind}.align_x`);
+        if (!TEXT_ALIGN_X.has(operation.align_x)) fail(`${kind}.align_x is invalid`);
+      }
+      if (Object.hasOwn(operation, 'align_y')) {
+        validateString(operation.align_y, `${kind}.align_y`);
+        if (!TEXT_ALIGN_Y.has(operation.align_y)) fail(`${kind}.align_y is invalid`);
+      }
+      validateOptionalTransform(operation, kind);
+      break;
+    }
+    case 'modifier': {
+      strictObject(operation, ['operation', 'name', 'modifier', 'apply', 'width', 'segments', 'limit_method', 'angle_limit', 'levels', 'render_levels', 'thickness', 'offset', 'use_rim', 'axis', 'use_clip', 'count', 'relative_offset'], kind);
+      requireKeys(operation, ['name', 'modifier'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateString(operation.modifier, `${kind}.modifier`);
+      if (!MODIFIER_KINDS.has(operation.modifier)) fail(`${kind}.modifier is invalid`);
+      if (Object.hasOwn(operation, 'apply')) validateBoolean(operation.apply, `${kind}.apply`);
+      if (operation.modifier === 'BEVEL') {
+        if (Object.hasOwn(operation, 'width')) validateFiniteNumber(operation.width, `${kind}.width`, 0, 1000);
+        if (Object.hasOwn(operation, 'segments')) {
+          if (!Number.isInteger(operation.segments)) fail(`${kind}.segments must be an integer`);
+          validateFiniteNumber(operation.segments, `${kind}.segments`, 1, 32);
+        }
+        if (Object.hasOwn(operation, 'limit_method') && !['NONE', 'ANGLE', 'WEIGHT', 'VGROUP'].includes(operation.limit_method)) fail(`${kind}.limit_method is invalid`);
+        if (Object.hasOwn(operation, 'angle_limit')) validateFiniteNumber(operation.angle_limit, `${kind}.angle_limit`, 0, Math.PI);
+      }
+      if (operation.modifier === 'SUBSURF') {
+        for (const field of ['levels', 'render_levels']) {
+          if (Object.hasOwn(operation, field)) {
+            if (!Number.isInteger(operation[field])) fail(`${kind}.${field} must be an integer`);
+            validateFiniteNumber(operation[field], `${kind}.${field}`, 0, 6);
+          }
+        }
+      }
+      if (operation.modifier === 'SOLIDIFY') {
+        if (Object.hasOwn(operation, 'thickness')) validateFiniteNumber(operation.thickness, `${kind}.thickness`, -1000, 1000);
+        if (Object.hasOwn(operation, 'offset')) validateFiniteNumber(operation.offset, `${kind}.offset`, -1, 1);
+        if (Object.hasOwn(operation, 'use_rim')) validateBoolean(operation.use_rim, `${kind}.use_rim`);
+      }
+      if (operation.modifier === 'MIRROR') {
+        if (Object.hasOwn(operation, 'axis') && !['X', 'Y', 'Z'].includes(operation.axis)) fail(`${kind}.axis is invalid`);
+        if (Object.hasOwn(operation, 'use_clip')) validateBoolean(operation.use_clip, `${kind}.use_clip`);
+      }
+      if (operation.modifier === 'ARRAY') {
+        if (Object.hasOwn(operation, 'count')) {
+          if (!Number.isInteger(operation.count)) fail(`${kind}.count must be an integer`);
+          validateFiniteNumber(operation.count, `${kind}.count`, 1, 100);
+        }
+        if (Object.hasOwn(operation, 'relative_offset')) validateVector(operation.relative_offset, `${kind}.relative_offset`, 3);
+      }
       break;
     }
     case 'transform': {
@@ -326,7 +398,11 @@ function validateOperation(operation, allowedObjects) {
       if (Object.hasOwn(operation, 'rotation')) validateFiniteNumber(operation.rotation, `${kind}.rotation`, -1e6, 1e6);
       break;
     }
-    case 'check_assets':
+    case 'check_assets': {
+      strictObject(operation, ['operation', 'strict'], kind);
+      if (Object.hasOwn(operation, 'strict')) validateBoolean(operation.strict, `${kind}.strict`);
+      break;
+    }
     case 'pack_assets': {
       strictObject(operation, ['operation'], kind);
       break;
@@ -369,6 +445,51 @@ function createMeshCode(operation) {
   }[operation.primitive];
   const name = quote(operation.name);
   return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${primitive}\nmesh = bpy.data.meshes.new(${name} + "_Mesh")\nmesh.from_pydata(verts, [], faces)\nmesh.update()\nobj = bpy.data.objects.new(${name}, mesh)\nbpy.context.collection.objects.link(obj)\nobj.location = ${quote(operation.location)}\nobj.scale = ${quote(operation.scale)}\n${jsonReceipt('create_mesh', operation.name)}`;
+}
+
+function textCode(operation) {
+  const size = operation.size ?? 1;
+  const extrude = operation.extrude ?? 0;
+  const alignX = operation.align_x ?? 'CENTER';
+  const alignY = operation.align_y ?? 'CENTER';
+  return `${objectModeGuard()}\n${creationGuard(operation.name)}\ntext_data = bpy.data.curves.new(${quote(operation.name)} + "_Text", type='FONT')\ntext_data.body = ${quote(operation.body)}\ntext_data.size = ${size}\ntext_data.extrude = ${extrude}\ntext_data.align_x = ${quote(alignX)}\ntext_data.align_y = ${quote(alignY)}\ntext = bpy.data.objects.new(${quote(operation.name)}, text_data)\nbpy.context.collection.objects.link(text)\n${transformCode(operation, 'text')}\n${jsonReceipt('text', operation.name)}`;
+}
+
+function modifierCode(operation) {
+  const settings = [];
+  if (operation.modifier === 'BEVEL') {
+    if (Object.hasOwn(operation, 'width')) settings.push(`modifier.width = ${operation.width}`);
+    if (Object.hasOwn(operation, 'segments')) settings.push(`modifier.segments = ${operation.segments}`);
+    if (Object.hasOwn(operation, 'limit_method')) settings.push(`modifier.limit_method = ${quote(operation.limit_method)}`);
+    if (Object.hasOwn(operation, 'angle_limit')) settings.push(`modifier.angle_limit = ${operation.angle_limit}`);
+  }
+  if (operation.modifier === 'SUBSURF') {
+    if (Object.hasOwn(operation, 'levels')) settings.push(`modifier.levels = ${operation.levels}`);
+    if (Object.hasOwn(operation, 'render_levels')) settings.push(`modifier.render_levels = ${operation.render_levels}`);
+  }
+  if (operation.modifier === 'SOLIDIFY') {
+    if (Object.hasOwn(operation, 'thickness')) settings.push(`modifier.thickness = ${operation.thickness}`);
+    if (Object.hasOwn(operation, 'offset')) settings.push(`modifier.offset = ${operation.offset}`);
+    if (Object.hasOwn(operation, 'use_rim')) settings.push(`modifier.use_rim = ${operation.use_rim ? 'True' : 'False'}`);
+  }
+  if (operation.modifier === 'MIRROR') {
+    const axis = operation.axis ?? 'X';
+    settings.push(`modifier.use_axis[0] = ${axis === 'X' ? 'True' : 'False'}`);
+    settings.push(`modifier.use_axis[1] = ${axis === 'Y' ? 'True' : 'False'}`);
+    settings.push(`modifier.use_axis[2] = ${axis === 'Z' ? 'True' : 'False'}`);
+    if (Object.hasOwn(operation, 'use_clip')) settings.push(`modifier.use_clip = ${operation.use_clip ? 'True' : 'False'}`);
+  }
+  if (operation.modifier === 'ARRAY') {
+    if (Object.hasOwn(operation, 'count')) settings.push(`modifier.count = ${operation.count}`);
+    if (Object.hasOwn(operation, 'relative_offset')) {
+      settings.push(`modifier.use_relative_offset = True`);
+      settings.push(`modifier.relative_offset_displace = ${quote(operation.relative_offset)}`);
+    }
+  }
+  const apply = operation.apply === true
+    ? `bpy.context.view_layer.objects.active = obj\nobj.select_set(True)\nbpy.ops.object.modifier_apply(modifier=modifier.name)`
+    : '';
+  return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'MESH':\n    raise RuntimeError("modifier requires a mesh object")\nmodifier = obj.modifiers.new(${quote(operation.name + ' ' + operation.modifier)}, ${quote(operation.modifier)})\n${settings.join('\n')}\n${apply}\n${jsonReceipt('modifier', operation.name)}`;
 }
 
 function assetPathCode(path, { file = true } = {}) {
@@ -415,8 +536,9 @@ function worldHdriCode(operation) {
   return `scene = bpy.context.scene\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nworld = scene.world\nif world is None:\n    world = bpy.data.worlds.new("World")\n    scene.world = world\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links\nnodes.clear()\noutput = nodes.new('ShaderNodeOutputWorld')\nbackground = nodes.new('ShaderNodeBackground')\nenvironment = nodes.new('ShaderNodeTexEnvironment')\nmapping = nodes.new('ShaderNodeMapping')\ncoordinates = nodes.new('ShaderNodeTexCoord')\nenvironment.image = image\nmapping.inputs['Rotation'].default_value = (0, 0, ${rotation})\nlinks.new(coordinates.outputs['Generated'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], environment.inputs['Vector'])\nlinks.new(environment.outputs['Color'], background.inputs['Color'])\nbackground.inputs['Strength'].default_value = ${strength}\nlinks.new(background.outputs['Background'], output.inputs['Surface'])\n${jsonReceipt('world_hdri')}`;
 }
 
-function checkAssetsCode() {
-  return `external = bpy.utils.blend_paths(absolute=True, packed=False, local=True)\nmissing = [path for path in external if not os.path.exists(path)]\npacked = [image.name for image in bpy.data.images if image.packed_file is not None]\nlibraries = [{"path": library.filepath, "packed": bool(getattr(library, "packed_file", None))} for library in bpy.data.libraries]\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "check_assets", "external": external, "missing": missing, "packed": packed, "libraries": libraries}, separators=(",", ":")))`;
+function checkAssetsCode(operation) {
+  const strict = operation.strict === true;
+  return `external = bpy.utils.blend_paths(absolute=True, packed=False, local=True)\nmissing = [path for path in external if not os.path.exists(path)]\n${strict ? 'if missing:\n    raise RuntimeError("missing external files: " + ", ".join(missing))\n' : ''}packed = [image.name for image in bpy.data.images if image.packed_file is not None]\nlibraries = [{"path": library.filepath, "packed": bool(getattr(library, "packed_file", None))} for library in bpy.data.libraries]\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "check_assets", "strict": ${strict ? 'True' : 'False'}, "external": external, "missing": missing, "packed": packed, "libraries": libraries}, separators=(",", ":")))`;
 }
 
 function packAssetsCode() {
@@ -455,13 +577,17 @@ function operationBody(operation) {
     case 'world_hdri':
       return worldHdriCode(operation);
     case 'check_assets':
-      return checkAssetsCode();
+      return checkAssetsCode(operation);
     case 'pack_assets':
       return packAssetsCode();
     case 'export_scene':
       return exportSceneCode(operation);
     case 'create_mesh':
       return createMeshCode(operation);
+    case 'text':
+      return textCode(operation);
+    case 'modifier':
+      return modifierCode(operation);
     case 'transform': {
       const fields = [];
       if (Object.hasOwn(operation, 'location')) fields.push(`obj.location = ${quote(operation.location)}`);
@@ -471,11 +597,11 @@ function operationBody(operation) {
     }
     case 'material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'MESH':\n    raise RuntimeError("material requires mesh object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("material requires mesh, text, or curve object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
     }
     case 'shared_material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-      const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type != 'MESH':\n    raise RuntimeError("shared_material requires mesh objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
+      const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("shared_material requires mesh, text, or curve objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
       return `${objectModeGuard()}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('shared_material', operation.name)}`;
     }
     case 'duplicate': {
