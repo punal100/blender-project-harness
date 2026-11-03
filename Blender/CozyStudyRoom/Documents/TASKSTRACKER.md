@@ -1,7 +1,7 @@
 # Task Tracker — CozyStudyRoom
 
 Status: Active
-Last updated: 2026-11-03T13:25:04.478Z
+Last updated: 2026-11-03T13:25:35.218Z
 
 ## Tasks
 
@@ -27,3 +27,4 @@ Last updated: 2026-11-03T13:25:04.478Z
 | [T018](Tasks/T018/TASK.md) | operation | c0abab90-4204-4067-9fb4-7ca1ae47dd2b | apply | 6 | blender-worker | ses_e5e6c37ccffem10x4xmKU0M6Sp | done | 2026-11-03T13:22:49.931Z | 2026-11-03T13:23:09.563Z | ok (1 ops) |
 | [T019](Tasks/T019/TASK.md) | operation | c0abab90-4204-4067-9fb4-7ca1ae47dd2b | apply x3 | 1 | blender-worker | ses_e5e6b7aebffeZQSaNmqJGEjfX1 | done | 2026-11-03T13:23:38.634Z | 2026-11-03T13:24:10.201Z | ok (3 ops) |
 | [T020](Tasks/T020/TASK.md) | operation | c0abab90-4204-4067-9fb4-7ca1ae47dd2b | wip | 0 | orchestrator |  | done | 2026-11-03T13:24:53.629Z | 2026-11-03T13:25:04.475Z | ok |
+| [T021](Tasks/T021/TASK.md) | operation | c0abab90-4204-4067-9fb4-7ca1ae47dd2b | seal | 0 | orchestrator |  | failed | 2026-11-03T13:25:23.410Z | 2026-11-03T13:25:35.215Z | Workflow gate: Blender execution failed: Error executing code: Communication error with Blender: {"exception_type": "AttributeError", "message": "'SequenceEdito |
