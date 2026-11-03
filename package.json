@@ -1,0 +1,48 @@
+{
+  "name": "blender-project-harness",
+  "version": "1.0.0",
+  "description": "Install and update the guarded Blender project harness for Kilo workspaces.",
+  "type": "module",
+  "bin": {
+    "blender-project-harness": "bin/blender-project-harness.mjs"
+  },
+  "files": [
+    "AGENTS.md",
+    "Blender/README.md",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "bin/",
+    "installer/",
+    ".kilo/blender-project-harness/config.example.json",
+    ".kilo/blender-project-harness/tools/",
+    "!.kilo/blender-project-harness/tools/**/node_modules/",
+    "!.kilo/blender-project-harness/tools/**/__pycache__/",
+    "!.kilo/blender-project-harness/tools/**/.pytest_cache/",
+    ".kilo/agent/",
+    ".kilo/plugins/",
+    ".kilo/skills/"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test installer/*.test.mjs .kilo/blender-project-harness/tools/harness/*.test.mjs",
+    "test:installer": "node --test installer/*.test.mjs",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "jsonc-parser": "3.3.1"
+  },
+  "keywords": [
+    "blender",
+    "kilo",
+    "mcp",
+    "workflow",
+    "harness"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
