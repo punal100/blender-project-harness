@@ -1521,6 +1521,8 @@ test('goal completion requires active goal after a clean checkpoint', (t) => {
   f.harness.command('orchestrator', 'checkpoint');
   f.harness.command('orchestrator', 'goal-complete');
   assert.equal(f.harness.command('orchestrator', 'status').complete, true);
+  assert.match(read(f.root, `${f.project}/Documents/TASKSTRACKER.md`), /^Status: Complete$/m);
+  assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
 });
 
 test('strict milestone commits each apply, requires finalize/WIP look, and accepts a commit range', (t) => {

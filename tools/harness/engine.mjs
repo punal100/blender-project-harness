@@ -281,7 +281,7 @@ export class Harness {
     const text = [
       `# Task Tracker — ${p.project.slice('Blender/'.length)}`,
       '',
-      'Status: Active',
+      `Status: ${p.complete ? 'Complete' : 'Active'}`,
       `Last updated: ${new Date().toISOString()}`,
       '',
       '## Tasks',
@@ -297,6 +297,18 @@ export class Harness {
     if (previous !== null && withoutTimestamp(previous) === withoutTimestamp(text)) return;
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, text);
+  }
+  commitTaskTrackerCompletion(p) {
+    this.writeTaskLedger(p);
+    const tracker = this.taskDocument(p);
+    if (!gitText(this.root, ['status', '--porcelain', '--', tracker])) return null;
+    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before completion metadata commit');
+    git(this.root, ['add', '--', tracker]);
+    if (!gitText(this.root, ['diff', '--cached', '--name-only'])) return null;
+    git(this.root, ['commit', '-m', 'chore: mark task tracker complete']);
+    p.lastCommit = this.head();
+    p.checkpoint = this.head();
+    return p.lastCommit;
   }
   ensureTaskLedger(p) {
     p.tasks ??= [];
@@ -955,7 +967,9 @@ export class Harness {
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
-        this.assertCommitted(p.project, this.snapshot(p.project)); p.complete = true;
+        this.assertCommitted(p.project, this.snapshot(p.project));
+        p.complete = true;
+        this.commitTaskTrackerCompletion(p);
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
         if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
