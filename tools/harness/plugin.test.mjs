@@ -211,6 +211,20 @@ test('production worker delegation requires valid read-only limits', async (t) =
   );
 });
 
+test('grader delegation requires the exact ticket evidence key and scene hash', async (t) => {
+  const f = fixture(t, { review: 'Single' }), h = hooks(f); f.begin();
+  const token = '11111111-1111-1111-1111-111111111111';
+  f.harness.transaction((s) => {
+    const change = s.projects[f.project].change;
+    change.inspected = true;
+    change.graders.visual = { token };
+  });
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-grader', prompt: `HARNESS_GRADER:${token}\nhand-written prompt without evidence`, background: false }),
+    /saved scene SHA-256/,
+  );
+});
+
 test('manual creation of new project documents is blocked', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   f.harness.transaction((s) => s.projects[f.project].change.paths.push(`${f.project}/Documents/NEW.md`));

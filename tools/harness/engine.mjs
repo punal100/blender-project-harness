@@ -990,7 +990,8 @@ export class Harness {
           ? clean.slice(reportPrefix.length, clean.length - reportSuffix.length)
           : '';
         const ownPriorReport = Boolean(round) && !round.includes('/');
-        if (!allowed.has(`${project}/${clean}`) && !ownPriorReport) deny('grader document read outside assigned spec documents');
+        const reference = `${project}/Documents/References/`;
+        if (!allowed.has(`${project}/${clean}`) && !ownPriorReport && !`${project}/${clean}`.startsWith(reference)) deny('grader document read outside assigned spec documents');
       }
       if (!fs.existsSync(full)) deny(`project document missing: ${clean}`);
       const content = fs.readFileSync(full, 'utf8');

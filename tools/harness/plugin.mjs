@@ -450,6 +450,9 @@ export function createHooks(harness, client) {
           return;
         }
         if (args.subagent_type !== 'blender-grader' || !/HARNESS_GRADER:[a-f0-9-]{36}/.test(args.prompt ?? '')) deny('production delegation requires foreground assigned grader');
+        if (!/saved scene SHA-256 [a-f0-9]{64}/.test(args.prompt ?? '') || !/Evidence key: [a-f0-9]{64}/.test(args.prompt ?? '')) {
+          deny('grader task must use the exact grader-ticket prompt including the saved scene SHA-256 and evidence key');
+        }
         const token = args.prompt.match(/HARNESS_GRADER:([a-f0-9-]{36})/)[1];
         if (!p.change?.inspected || !Object.values(p.change.graders).some((g) => g.token === token)) deny('grader ticket missing');
         taskArgs.set(input.callID, args); return;
