@@ -17,7 +17,7 @@ MUST:
 
 ## Bootstrap before registration
 
-1. Scaffold with `node tools/harness/cli.mjs scaffold --name "Name"`.
+1. Scaffold with `node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "Name"`.
 2. Create or update project markdown with `bootstrap-document`
    `{project,path,content}`. `capabilities.documentFormats` defines required headings and fields;
    `bootstrap-document` rejects malformed documents.

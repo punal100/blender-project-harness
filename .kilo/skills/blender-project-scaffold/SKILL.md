@@ -14,7 +14,7 @@ registration are complete.
 ## Create
 
 ```powershell
-node tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request" --goal-title "Initial Brief"
+node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request" --goal-title "Initial Brief"
 ```
 
 The command validates the name, builds a slug, copies the template, and replaces project tokens.
@@ -24,8 +24,8 @@ If the command fails, stop and report the exact error. Do not copy the template 
 
 ## Template ownership
 
-`tools/harness/templates/project` is authoritative. `tools/harness/scaffold.mjs` copies it and renders
-the project tokens. Do not duplicate the tree in documentation; use the command, `--dry-run`, or the
+`.kilo/blender-project-harness/tools/harness/templates/project` is authoritative.
+`.kilo/blender-project-harness/tools/harness/scaffold.mjs` copies it and renders the project tokens. Do not duplicate the tree in documentation; use the command, `--dry-run`, or the
 template itself when exact contents matter.
 
 ## Bootstrap through the harness

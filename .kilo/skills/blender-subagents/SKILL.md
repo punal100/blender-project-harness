@@ -16,8 +16,9 @@ call, one writer at a time. Start a new worker only after the worker is blocked 
 
 ## Config validation
 
-Read `blender_subagents` from the gitignored workspace `config.json`; `config.example.json` is the
-tracked template. The harness validates the selected role before every dispatch.
+Read `blender_subagents` from `.kilo/blender-project-harness/config.json`. The tracked
+`.kilo/blender-project-harness/config.example.json` is the template. The harness validates the
+selected role before every dispatch.
 
 ```json
 {

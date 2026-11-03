@@ -16,7 +16,9 @@ registered before use.
   duties.
 - Register every third-party original and derivative in `Documents/ASSETS.md`.
 - Keep `SOURCE.md` and a verbatim `LICENSE.txt` beside every external asset. Preserve original
-  licence files.
+  licence files. Use
+  `../../../.kilo/blender-project-harness/tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md`
+  as the source metadata template.
 
 ## Harness intake
 

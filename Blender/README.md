@@ -10,7 +10,7 @@ Do not put a Blender project at the workspace root.
 Confirm requirements and collect workflow and review answers before scaffolding. Then run:
 
 ```powershell
-node tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request"
+node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "ProjectName" --description "What it is" --goal "First design request"
 ```
 
 Fill the records through the harness `bootstrap-document` action, commit the exact scaffold through

@@ -14,8 +14,8 @@ except ImportError:
     yaml = None
 
 
-ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = Path("tools/harness/templates/project")
+ROOT = Path(__file__).resolve().parents[3]
+TEMPLATE = Path(".kilo/blender-project-harness/tools/harness/templates/project")
 
 
 class IgnoreTests(unittest.TestCase):
@@ -98,9 +98,9 @@ class WorkspaceContractTests(unittest.TestCase):
 
     def test_skill_template_references_resolve(self):
         references = {
-            "blender-assets": "../../../tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md",
-            "blender-project-goal": "../../../tools/harness/templates/project/Documents/Goals/01-project-brief.md",
-            "blender-project-readme": "../../../tools/harness/templates/project/README.md",
+            "blender-assets": "../../../.kilo/blender-project-harness/tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md",
+            "blender-project-goal": "../../../.kilo/blender-project-harness/tools/harness/templates/project/Documents/Goals/01-project-brief.md",
+            "blender-project-readme": "../../../.kilo/blender-project-harness/tools/harness/templates/project/README.md",
         }
         for name, relative in references.items():
             skill = ROOT / ".kilo/skills" / name
@@ -172,7 +172,7 @@ class WorkspaceContractTests(unittest.TestCase):
                 for tool in ("read", "glob", "grep"):
                     target = "Blender/Example/Documents/Reviews/R01-20261031T081500Z/_evidence/scene.txt"
                     self.assertEqual(self.permission_action(permissions, tool, target), "allow", tool)
-                    self.assertEqual(self.permission_action(permissions, tool, "config.json"), "deny", tool)
+                    self.assertEqual(self.permission_action(permissions, tool, ".kilo/blender-project-harness/config.json"), "deny", tool)
                     self.assertEqual(self.permission_action(permissions, tool, ".git/config"), "deny", tool)
                 self.assertEqual(self.permission_action(permissions, "context7_query-docs"), "allow")
 
@@ -190,9 +190,9 @@ class WorkspaceContractTests(unittest.TestCase):
             self.assertEqual(permissions[tool], "deny", tool)
         self.assertEqual(list(permissions["edit"].items()), [("*", "deny")])
         for target in ("Blender/Example/example.blend", "Blender/Example/Documents/DECISIONS.md",
-                       "Blender/Example/README.md", "AGENTS.md", "tools/harness/plugin.mjs"):
+                       "Blender/Example/README.md", "AGENTS.md", ".kilo/blender-project-harness/tools/harness/plugin.mjs"):
             self.assertEqual(self.permission_action(permissions, "edit", target), "deny", target)
-        for path in (ROOT / "config.example.json", ROOT / "config.json"):
+        for path in (ROOT / ".kilo/blender-project-harness/config.example.json", ROOT / ".kilo/blender-project-harness/config.json"):
             if not path.exists():
                 continue
             with self.subTest(config=path.name):
@@ -213,7 +213,7 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertEqual(config["max_parallel"], 1)
 
     def test_subagent_roles_share_namespace(self):
-        for path in (ROOT / "config.example.json", ROOT / "config.json"):
+        for path in (ROOT / ".kilo/blender-project-harness/config.example.json", ROOT / ".kilo/blender-project-harness/config.json"):
             if not path.exists():
                 continue
             with self.subTest(config=path.name):
@@ -295,7 +295,7 @@ class WorkspaceContractTests(unittest.TestCase):
             (ROOT / ".kilo/agent/blender-grader.md").read_text(encoding="utf-8").split("---", 2)[1]
         )
         graders = json.loads(
-            (ROOT / "config.example.json").read_text(encoding="utf-8-sig")
+            (ROOT / ".kilo/blender-project-harness/config.example.json").read_text(encoding="utf-8-sig")
         )["blender_subagents"]["graders"]
         self.assertEqual(graders["agent"], "blender-grader")
         self.assertIs(type(graders["enabled"]), bool)
@@ -333,8 +333,8 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIn("`../REVIEW.md`", brief)
         self.assertIn("review answers", brief)
         scaffold = (ROOT / ".kilo/skills/blender-project-scaffold/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("node tools/harness/cli.mjs scaffold", scaffold)
-        self.assertIn("tools/harness/templates/project", scaffold)
+        self.assertIn("node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold", scaffold)
+        self.assertIn(".kilo/blender-project-harness/tools/harness/templates/project", scaffold)
         self.assertNotIn("## Project structure", scaffold)
 
     def test_atomic_commit_policy_is_mandatory(self):

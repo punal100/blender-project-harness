@@ -5,7 +5,7 @@ description: Use when creating or updating a Blender project README. Enforces th
 
 # Blender Project README
 
-Canonical template: `../../../tools/harness/templates/project/README.md`. Write the project copy
+Canonical template: `../../../.kilo/blender-project-harness/tools/harness/templates/project/README.md`. Write the project copy
 at `Blender/<Project>/README.md` through `bootstrap-document` before registration or `document`
 inside a declared bounded change.
 

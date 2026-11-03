@@ -45,8 +45,8 @@ stop and report the need for explicit re-registration instead of editing it insi
 
 ## Config
 
-Read `blender_subagents.graders` from the gitignored workspace `config.json`; the tracked
-`config.example.json` is the template.
+Read `blender_subagents.graders` from `.kilo/blender-project-harness/config.json`. The tracked
+`.kilo/blender-project-harness/config.example.json` is the template.
 
 ```json
 {
@@ -181,4 +181,4 @@ with evidence, then adds new findings. NEVER permit peer report reads or rewrite
 ## References
 
 - `.kilo/agent/blender-grader.md` for the report rubric and output contract.
-- `config.example.json` for the tracked config template.
+- `.kilo/blender-project-harness/config.example.json` for the tracked config template.

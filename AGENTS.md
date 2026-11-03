@@ -7,8 +7,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
 ## Workspace
 
 - Projects MUST live under `Blender/<ProjectName>/`. Create them only with
-  `node tools/harness/cli.mjs scaffold --name "ProjectName"`.
-- Shared tooling MUST stay in `tools/`. No project files or scripts at the workspace root.
+  `node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "ProjectName"`.
+- Shared tooling MUST stay in `.kilo/blender-project-harness/tools/`. No project files or scripts
+  at the workspace root.
 - `.kilo/kilo.jsonc` MUST own the single MCP port. No per-project Kilo configs.
 - Only one Blender instance spawned by this workspace MAY run. One writer per instance; parallel
   read-only inspection is allowed.
@@ -23,7 +24,7 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - State at `~/.local/state/blender-workflow-harness/<workspace-hash>` is runtime-owned. NEVER edit
   it. Manual Blender or external-shell edits invalidate evidence.
 - This is a design workspace. Do not create `PLAN/`, plan-check, or verifier records. Tooling tests
-  belong under `tools/`.
+  belong under `.kilo/blender-project-harness/tools/`.
 
 ## Entry and records
 
@@ -118,9 +119,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
 
 - Read `blender-subagents` before delegating and `blender-project-grading` for review modes,
   evidence, and aggregation.
-- Validate `config.json` through the harness before delegation. Every worker and grader MUST define a
-  backup provider/model/reasoning variant; runtime matching accepts primary or backup only. NEVER
-  guess, substitute, or borrow a model or budget.
+- Validate `.kilo/blender-project-harness/config.json` through the harness before delegation. Every
+  worker and grader MUST define a backup provider/model/reasoning variant; runtime matching accepts
+  primary or backup only. NEVER guess, substitute, or borrow a model or budget.
 - With review mode `All` or `Single`, every reviewable change MUST be graded before commit. Missing
   or disabled grader configuration stops production. NEVER downgrade silently to self-review.
 - Graders are read-only. Each writes only its assigned `REPORT.md`, through `blender_document`

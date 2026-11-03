@@ -15,7 +15,7 @@ Use `blender_document` `{action:"read"}` for structured project-document access;
 reads are acceptable but discouraged. Use `blender_workflow {action:"status"}` after compaction,
 restart, or any gate error. Execute `status.nextStep.command`; it names the required goal, document,
 registration, launch, or production step. The canonical goal template is
-`../../../tools/harness/templates/project/Documents/Goals/01-project-brief.md`.
+`../../../.kilo/blender-project-harness/tools/harness/templates/project/Documents/Goals/01-project-brief.md`.
 
 ## New project
 
