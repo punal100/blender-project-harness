@@ -33,7 +33,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| R01-20261103T022750Z | 20261103T022750Z | deaf18d0e7bd | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261103T022750Z/REVIEW.md](R01-20261103T022750Z/REVIEW.md) |
 
 ## Rules
 
@@ -46,3 +46,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
   the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
   are blocked.
+
+- R01-20261103T022750Z: Room shell, window, rug, desk, chair, and hero camera exist at human scale in the saved scene; evidence e30e529031ccc1fb262b5eb189a4bb9f69bb8bde7958ef57e6129365ec32d653
