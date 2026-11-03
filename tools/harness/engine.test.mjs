@@ -1906,3 +1906,83 @@ test('synthetic live run: abrupt restart keeps the change and recovers an expire
   assert.equal(recovered.change.pending, null);
   assert.equal(restarted.command('orchestrator', 'status').change.operations, 0);
 });
+
+test('source-only scripts are allowed only under scripts', (t) => {
+  const allowed = useFixture(t);
+  activate(allowed);
+  assert.doesNotThrow(() => begin(allowed, 'orchestrator', { paths: ['scripts/build.py'] }));
+  const denied = useFixture(t);
+  activate(denied);
+  assert.throws(() => begin(denied, 'orchestrator', { paths: ['build.py'] }), /executable files/);
+});
+
+test('intake can scan a supplied file before registration', (t) => {
+  const f = useFixture(t);
+  const sourceRoot = path.join(path.dirname(f.root), 'pre-registration-intake');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'reference.png');
+  fs.writeFileSync(reference, Buffer.from('png'));
+  const scan = f.harness.intake('orchestrator', { project: f.project, files: [reference], scan: true, generated: { tool: 'media-mcp', model: 'image-model', prompt: 'mood' } });
+  assert.equal(scan.scan, true);
+  assert.equal(scan.entries.length, 1);
+  assert.match(scan.next, /Register/);
+});
+
+test('intake copies references and external assets into the open change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const sourceRoot = path.join(path.dirname(f.root), 'intake-source');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'mood board.png');
+  const model = path.join(sourceRoot, 'chair.glb');
+  fs.writeFileSync(reference, Buffer.from('png-bytes'));
+  fs.writeFileSync(model, Buffer.from('glb-bytes'));
+
+  const queued = f.harness.intake('orchestrator', {
+    project: f.project,
+    files: [reference],
+    generated: { tool: 'media-mcp', model: 'image-model', prompt: 'warm desk', seed: '7' },
+  });
+  assert.equal(queued.copied.length, 1);
+  assert.match(queued.copied[0].stored, /^Documents\/References\/mood-board-[a-f0-9]{8}\.png$/);
+  assert.ok(fs.existsSync(path.join(f.root, f.project, queued.copied[0].stored)));
+  assert.match(fs.readFileSync(path.join(f.root, f.project, 'Documents', 'References', 'README.md'), 'utf8'), /mood-board/);
+  assert.match(fs.readFileSync(path.join(f.root, f.project, 'Documents', 'INTAKE.md'), 'utf8'), /mood-board/);
+
+  const asset = f.harness.intake('orchestrator', {
+    project: f.project,
+    files: [model],
+    kind: 'model',
+    source: { external: true, name: 'Desk chair', vendor: 'Example', author: 'Example', license: 'CC0-1.0', licenseText: 'CC0 text' },
+  });
+  assert.equal(asset.copied.length, 1);
+  assert.equal(asset.copied[0].stored, 'assets/external/Example/Desk-chair/chair.glb');
+  const directory = path.join(f.root, f.project, 'assets', 'external', 'Example', 'Desk-chair');
+  assert.equal(fs.readFileSync(path.join(directory, 'LICENSE.txt'), 'utf8'), 'CC0 text');
+  assert.match(fs.readFileSync(path.join(directory, 'SOURCE.md'), 'utf8'), /Desk chair/);
+  assert.match(fs.readFileSync(path.join(f.root, f.project, 'Documents', 'ASSETS.md'), 'utf8'), /Desk-chair/);
+
+  const scan = f.harness.intake('orchestrator', { project: f.project, files: [reference], scan: true });
+  assert.equal(scan.scan, true);
+  assert.equal(scan.copied, undefined);
+  assert.equal(scan.entries.length, 1);
+  const change = f.harness.command('orchestrator', 'status').change;
+  assert.ok(change.paths.includes(`${f.project}/${queued.copied[0].stored}`));
+  assert.ok(change.paths.includes(`${f.project}/Documents/INTAKE.md`));
+});
+
+test('completion requires check_assets after an asset operation', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = issueAndConsume(f, 'orchestrator', 'apply', { operation: 'import_asset', name: 'Desk', path: 'assets/models/desk.glb' });
+  f.harness.finish(issued.token, { ok: true, completed: 1, operationResults: [{ index: 1, operation: 'import_asset', ok: true }] });
+  seal(f);
+  selfReview(f);
+  scopedCommit(f);
+  f.harness.command('orchestrator', 'checkpoint');
+  assert.throws(() => f.harness.command('orchestrator', 'goal-complete'), /check_assets/);
+});

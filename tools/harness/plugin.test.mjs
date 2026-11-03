@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import path from 'node:path';
 import { createHooks } from './plugin.mjs';
+import { OPERATION_NAMES } from './blender-operations.mjs';
 import { git, Harness } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
@@ -62,6 +63,9 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.operations.includes('import_asset'));
   assert.ok(result.operations.includes('export_scene'));
+  assert.deepEqual([...result.operations].sort(), [...OPERATION_NAMES].sort());
+  assert.ok(result.actions.some((action) => action.name === 'intake'));
+  assert.ok(result.actions.some((action) => action.name === 'download'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
