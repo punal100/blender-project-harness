@@ -629,6 +629,13 @@ test('deadline and twenty apply operations block edits but preserve recovery sav
   activate(f);
   begin(f);
   for (let index = 0; index < 20; index += 1) {
+    if (index > 0 && index % 3 === 0) {
+      const wipPath = `${f.project}/renders/wip/WIP-budget-${index}.png`;
+      write(f.root, wipPath, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+      const wip = issueAndConsume(f, 'orchestrator', 'wip');
+      f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
+      f.harness.inspect('orchestrator', path.resolve(f.root, wipPath), true);
+    }
     const issued = issueAndConsume(f, 'orchestrator', 'apply', { index });
     f.harness.finish(issued.token, { ok: true });
   }
