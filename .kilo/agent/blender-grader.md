@@ -103,6 +103,16 @@ dimension `not-assessed`; if it blocks the whole review, return `BLOCKED`.
 If a dimension required by your assigned focus cannot be assessed, the review verdict must be
 `BLOCKED`, not `PASS`. Dimensions outside your assigned focus may remain `not-assessed`.
 
+## Milestone scope
+
+- `Final full-spec review: no` means a partial milestone. Grade only the declared milestone and the
+  requirements it advances. Future or unbuilt scope is deferred, not a finding; do not report absent
+  future content as a blocker or major.
+- `Final full-spec review: yes` means the complete deliverable and every assigned requirement must be
+  assessed.
+- The ticket's `Review scope` line is authoritative. Do not broaden a partial review into the full
+  deliverable.
+
 ## Rubric
 
 Grade each applicable dimension PASS or FAIL with evidence. When the task gives a focus area, grade
