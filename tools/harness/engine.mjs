@@ -764,6 +764,24 @@ export class Harness {
   reviewPaths(p, c) {
     return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
   }
+  updateReviewIndex(p, c) {
+    const relative = `${p.project}/Documents/Reviews/README.md`;
+    const full = path.join(this.root, ...relative.split('/'));
+    if (!fs.existsSync(full)) return;
+    const raw = fs.readFileSync(full, 'utf8');
+    const eol = raw.includes('\r\n') ? '\r\n' : '\n';
+    const lines = raw.split(/\r?\n/);
+    const header = lines.findIndex((line) => /^\|\s*Round\s*\|/.test(line));
+    if (header < 0 || lines.some((line) => line.startsWith(`| ${c.round} |`))) return;
+    const utc = c.round.replace(/^R\d+-/, '');
+    const row = `| ${c.round} | ${utc} | ${c.sceneHash.slice(0, 12)} | ${p.records.review} ${c.final ? 'final' : 'milestone'} | ${Object.keys(c.graders).join(', ')} | ${c.verdict} | [${c.round}/REVIEW.md](${c.round}/REVIEW.md) |`;
+    let end = header + 2;
+    while (end < lines.length && lines[end].startsWith('|')) end += 1;
+    const placeholder = lines.findIndex((line, index) => index > header && /^\|\s*—\s*\|/.test(line));
+    if (placeholder >= 0 && placeholder < end) lines[placeholder] = row;
+    else lines.splice(end, 0, row);
+    fs.writeFileSync(full, lines.join(eol));
+  }
   commitProgress(p, c, task) {
     const expectedHead = c.commits?.at(-1) ?? c.base;
     if (this.head() !== expectedHead) deny('apply commit must directly follow the prior change commit');
@@ -1136,6 +1154,7 @@ export class Harness {
         ].join('\n');
         fs.writeFileSync(contained(this.root, name, true), text);
         c.reports[name] = digest(text); c.notes = args.notes; c.reason = args.reason; c.dispositions = args.dispositions;
+        this.updateReviewIndex(p, c);
         this.updateManifest(p);
         if (p.records.workflow === 'Fully Autonomous' && c.verdict !== 'BLOCKED') this.autoCommit(p, c, `review: ${c.round} ${c.verdict}`);
       } else if (action === 'commit') {

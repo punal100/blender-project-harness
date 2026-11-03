@@ -151,7 +151,7 @@ function createProject(root, {
     '# Goal: Fixture',
     ...['Mission', 'Project', 'Visual outcome', 'Scope', 'Deliverables', 'Acceptance', 'Workflow', 'Done'].flatMap((name) => [`## ${name}`, prompt, '']),
   ].join('\n'));
-  write(root, `${project}/Documents/Reviews/README.md`, '# Review rounds\n\n## Index\n\nFixture index.\n\n## Rules\n\nFixture rules.\n');
+  write(root, `${project}/Documents/Reviews/README.md`, '# Review rounds\n\n## Index\n\n| Round | UTC | Target | Mode | Graders | Verdict | Report |\n|---|---|---|---|---|---|---|\n| — | — | — | — | — | — | — |\n\n## Rules\n\nFixture rules.\n');
   write(root, `${project}/Documents/Reviews/.gitignore`, '_evidence/\ntmp/\n');
   write(root, `${project}/.gitignore`, 'logs/\nrenders/wip/**\n');
   write(root, `${project}/.gitattributes`, '*.md text eol=crlf\n');
@@ -1452,6 +1452,18 @@ test('review auto-commits reports and the verdict before checkpoint', (t) => {
   assert.match(review, /## Reason/);
   const status = f.harness.command('orchestrator', 'checkpoint');
   assert.equal(status.change, null);
+});
+
+test('review writes the round index before auto-commit', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  const reviewed = reviewAll(f);
+  const index = read(f.root, `${f.project}/Documents/Reviews/README.md`);
+  assert.match(index, new RegExp(`\\| ${reviewed.round} \\| 20261031T110000Z \\| [a-f0-9]{12} \\| All final \\| visual \\| PASS \\|`));
+  assert.match(index, new RegExp(`\\[${reviewed.round}/REVIEW\\.md\\]`));
+  assert.doesNotMatch(index, /\| — \| — \|/);
+  assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
 });
 
 test('commit helper stages the exact scoped change', (t) => {
