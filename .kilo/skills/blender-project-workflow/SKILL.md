@@ -30,6 +30,15 @@ maintenance is exempt.
 - STOP for a requirements conflict, destructive or irreversible choice, missing asset or licence,
   missing required grader, or technical blocker.
 
+## Capped-review escalation
+
+- When `max_rounds` is exhausted, `escalate` is an intentional user gate, not a silent retry.
+- `escalate` records the reason and enters re-registration. `prepare` returns one exact registration
+  question; only a runtime answer may register the new cap.
+- If the goal is active, `question` is unavailable. Call `goal_report(status="blocked", reason=<the
+  exact registration question>)`, end the turn, and wait for the user's answer.
+- NEVER auto-confirm, raise `max_rounds` without `escalate`, or continue with the old cap.
+
 ## Partially Autonomous
 
 - Obtain approval after every reviewable change and before its commit.

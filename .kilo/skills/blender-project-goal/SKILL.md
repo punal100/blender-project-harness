@@ -106,4 +106,5 @@ Kilo has no `question` during an active goal.
 - Unsupported material is not made acceptable by a written goal. Stop for reviewed tooling.
 - NEVER claim completion without a clean checkpoint, inspected sealed render, and final applicable
   `PASS` or recorded `Off` self-review. Call `goal_report(status="complete",reason=<evidence>)` only
-  after that state; then give the final response.
+  after that state; then give the final response. Stop Blender through `blender_workflow` unless it
+  is intentionally left open for user inspection, and report which choice was made.

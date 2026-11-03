@@ -69,7 +69,8 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. Completion needs a final
-   full-spec change before `goal_report`.
+   full-spec change before `goal_report`. After a complete report, stop Blender through the harness
+   unless it is intentionally left open for user inspection; report that choice.
 10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
     then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
 

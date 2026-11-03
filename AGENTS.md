@@ -97,7 +97,9 @@ next call. `capabilities` is authoritative for actions, operations, document for
   `{reason}`, then stop Blender. A stale expired owner may be transferred only with `reclaim`
   `{project,reason}`; never leave an open change owned by a dead session.
 - `revision:true` requires a committed prior verdict and stays within configured `max_rounds`.
-  Exhausting the cap requires `escalate`, a reason, and re-registration. NEVER override it silently.
+  Exhausting the cap requires `escalate`, a reason, and re-registration. This is an intentional user
+  gate: if it occurs during an active goal, report the exact pending registration question with
+  `goal_report(status="blocked")`; NEVER auto-confirm, loop, or raise the cap silently.
 - To change frozen registration records, close the change and call `reregister` `{reason}`. Update
   records with `bootstrap-document`, commit with `bootstrap-commit`, then call `prepare` and answer
   the new registration question. Re-registration clears the active goal and completion evidence.
@@ -168,7 +170,8 @@ Blender production is complete only when all acceptance checks pass; the scene i
 review render exists and was inspected with `look`; requirements, workflow, and review records are
 current; every required review has an applicable `PASS` or recorded `Off` self-review; no genuine
 blocker or major remains; `checkpoint` is clean; and the goal prompt is recorded. Call
-`goal_report {status:"complete",reason:<evidence>}` only after that state.
+`goal_report {status:"complete",reason:<evidence>}` only after that state. Then stop Blender through
+`blender_workflow` unless it is intentionally left open for user inspection; report that choice.
 
 Workspace maintenance requires the relevant format, tooling, and diff checks. Report checks that
 could not run; do not invent scene verification.
