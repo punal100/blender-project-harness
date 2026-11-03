@@ -1,24 +1,35 @@
 # Blender Project Workspace
 
-This workspace takes you from an idea to a finished Blender scene, with Kilo and MCP for Blender
-handling the building and checking along the way. Each project lives in its own folder under
-`Blender/<ProjectName>/`, and the shared MCP harness and checks live in `tools/harness/`.
+This workspace takes you from an idea to a finished, reviewed Blender project. Kilo and the MCP for
+Blender addon handle the building, inspection, grading, and records, while a guarded harness keeps
+edits bounded and the project history clean.
 
-`AGENTS.md` holds the internal rules the agent follows. You bring the creative brief, constraints,
-answers, feedback, and approvals. The agent turns those into project documents and goals through the
-harness, runs the workflow, keeps records up to date, operates Blender, and reports back as it goes.
-Project document creation and project commits go through `blender_workflow`; manual project Git
-commits are blocked.
+Each project lives in its own folder under `Blender/<ProjectName>/`. Shared tooling, checks, and the
+workflow harness live in `tools/`. `AGENTS.md` contains the internal agent contract; this README is
+the human setup and usage guide.
+
+## What the workspace provides
+
+- Requirements confirmation, project registration, and an active production goal.
+- One guarded Blender instance per workspace and one writer at a time.
+- Bounded scene changes with exact object names, paths, and declared scenes.
+- Worker-executed apply tickets, WIP renders, and inspected review evidence.
+- Independent visual, technical, and spec graders with primary and backup models.
+- Scoped project commits, review records, checkpoints, and completion checks.
+- Guarded intake for references, models, textures, HDRIs, audio, and source-only scripts.
+- Strict asset checks, relative paths, licence records, and verified export receipts.
+- Optional multi-scene projects, master Video Sequencer scenes, and media generation through the
+  configured Media MCP when you approve the credits.
 
 ## Quick Start
 
 1. **Git** — install from [git-scm.com/download/win](https://git-scm.com/download/win).
 2. **Blender** — install the current stable or LTS Windows build from
-   [blender.org/download](https://www.blender.org/download/), using the Windows installer. The MCP
-   addon needs Blender 3.0 or newer.
+   [blender.org/download](https://www.blender.org/download/), using the Windows installer. Blender
+   5.2 is the current tested baseline; the MCP addon requires Blender 3.0 or newer.
 3. **Node.js and npm** — install the current LTS Windows installer from
-   [nodejs.org/download](https://nodejs.org/en/download). This repository needs Node.js 22 or newer;
-   npm comes bundled with Node.js.
+   [nodejs.org/download](https://nodejs.org/en/download). This repository requires Node.js 22 or
+   newer; npm comes bundled with Node.js.
 4. **uv and uvx** — install them with the Windows package manager:
 
    ```powershell
@@ -59,8 +70,9 @@ npm ci --prefix tools/harness
 npm run doctor --prefix tools/harness
 ```
 
-The doctor command checks Node.js, the npm-installed harness packages, Git, uvx, your workspace
-config, and the pinned `mcp-for-blender==2.2.6`. It does not open Blender.
+The doctor command checks Node.js, the npm-installed harness packages, Git, uvx, the workspace
+config, the pinned `mcp-for-blender==2.2.6`, and the running Blender instance state. It does not open
+Blender.
 
 ## Add MCP for Blender to Blender
 
@@ -75,16 +87,16 @@ Open Blender and enable **Interface: MCP for Blender** under **Edit > Preference
 
 This workspace routes MCP through `.kilo/kilo.jsonc`, which sets `BLENDER_PORT` (default `9877`).
 The harness and the addon both use that value, so you can change it to any free port as long as it
-stays in one place. Please don't create a project-local Kilo config or run a second MCP server. If
-you installed `uvx` or the addon while Kilo was open, fully reload Kilo so it picks up the new PATH
-and workspace configuration.
+stays in one place. Do not create a project-local Kilo config or run a second MCP server. If you
+installed `uvx` or the addon while Kilo was open, fully reload Kilo so it picks up the new PATH and
+workspace configuration.
 
 ## Start building
 
 Open this repository in Kilo and reload the workspace after the dependencies are installed. Then
-just describe what you want to make. The more you share up front — subject, style, key objects,
-camera and lighting preferences, dimensions, and required deliverables — the less the agent has to
-ask later.
+describe what you want to make. The more you share up front — subject, style, key objects, camera and
+lighting preferences, dimensions, required deliverables, and whether external files or paid media
+generation are allowed — the fewer follow-up questions you will get.
 
 For example:
 
@@ -94,48 +106,76 @@ CRT monitor, keyboard, mug, chair, rug, and wall decor. Make one hero camera vie
 inside a new Blender project.
 ```
 
-From there, the agent takes over:
+The agent then follows the harness flow:
 
-- it asks only for the requirements and decisions it genuinely needs from you;
-- creates the project, goal files, requirements, workflow, and review records;
-- launches and stops Blender through the guarded harness, tracking one instance per workspace;
-- copies user-supplied references, models, textures, HDRIs, audio, and source-only scripts through
-  the guarded `intake` action instead of asking you to make folders; `download` can stage a public
-  HTTPS asset for the same intake flow when you provide a URL;
-- can build multiple authored scenes in one project, with a scene-specific camera and render
-  evidence for each, plus an optional master Video Sequencer scene;
-- builds and checks the scene through the guarded MCP workflow;
-- saves per-scene renders and review evidence, verifies exports, keeps the project documents
-  current, and tells you about any blockers or corrections.
+1. Confirms requirements and asks for the workflow mode: **Fully Autonomous** or **Partially
+   Autonomous**.
+2. Asks for the review mode: **Off**, **Single**, or **All**.
+3. Scaffolds the project, fills its records, registers it, and starts the goal.
+4. Launches Blender through the harness and saves the bootstrap scene.
+5. Builds the project in bounded changes using worker apply tickets.
+6. Renders and inspects WIP evidence, then seals a review round.
+7. Dispatches the configured graders and aggregates their reports.
+8. Commits the scoped change, checkpoints the project, and reports the result.
 
 The agent owns goals and project records end to end, so you can stay in plain language. You provide
-requirements, answers, feedback, and approvals through the conversation, and it creates and updates
-goals as the work changes.
+requirements, answers, feedback, and approvals through the conversation.
+
+## Files, assets, and media
+
+- Put user-supplied files wherever you like and give the agent their paths. The harness
+  `intake` action copies them into canonical project paths without moving or deleting the originals.
+  You do not need to create project folders or rename files.
+- `download` can stage a public HTTPS asset into ignored staging. The agent still has to inspect it,
+  provide source and licence metadata, and run `intake` before using it.
+- Generated references and images go through the configured Media MCP only with your permission.
+  The agent saves the actual file, records provenance, shows it to you, and asks before using it as a
+  texture or reference.
+- External assets require `SOURCE.md` and `LICENSE.txt` beside them. Non-redistributable binaries
+  stay out of Git; their metadata and acquisition details are recorded instead.
+- Project scripts under `scripts/` are source-only. The harness never executes project Python.
+- Every produced export needs a verified receipt with format, path, bytes, SHA-256, source scene, and
+  signature. A missing or changed export blocks completion.
+
+## Review and completion
+
+- **Off** uses self-review only. **Single** uses one configured grader. **All** uses every configured
+  grader, up to `max_parallel`.
+- **Fully Autonomous** proceeds through reviewable changes; **Partially Autonomous** requires your
+  approval before each reviewable change commits.
+- Every worker and grader has a primary model and a backup model with a reasoning variant. A missing
+  or disabled grader is a tooling failure, not a silent pass.
+- A review round seals the saved scene, per-scene renders, camera evidence, scene facts, manifest,
+  evidence key, and review folder. The sealed render must be inspected before review.
+- Technical evidence includes object dimensions and topology, not just names and types.
+- When assets are used, a strict `check_assets` run must leave a receipt on the final unchanged
+  scene, and the sealed manifest must include it.
+- A design review can end in `PASS` or `CHANGES_REQUIRED`; missing evidence or tooling problems end
+  in `BLOCKED`. A blocked round is preserved and checkpointed, never downgraded to a pass.
+- Completion requires the final full-spec pass, a clean checkpoint, current documents, a complete
+  goal, and a completed task tracker. Blender is stopped unless you ask to leave it open for
+  inspection.
 
 ## House rules
 
 - Keep every Blender project under `Blender/<ProjectName>/`.
-- Let the agent launch and stop Blender through `blender_workflow`; don't run `blender.exe` or any
-  script directly for workspace work.
+- Let the agent launch and stop Blender through `blender_workflow`; do not run `blender.exe` or any
+  legacy script directly for workspace work.
 - Project documents and project commits go through the harness; manual project Git commits are
   blocked.
+- Requirements, workflow, review, and goal records are frozen after registration. Changing them
+  requires an explicit re-registration, not a normal edit.
 - Read-only shell inspection is allowed. Other non-project shell commands require a reasoned,
   two-step approval committed under the project's `Documents/Commands/` or the root `Commands/`.
-- Every worker and grader uses a configured primary model plus a backup model and reasoning variant.
 - Run only one Blender instance from this workspace at a time.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.
-- Let the harness copy user files through `intake`; do not create project folders or copy by hand.
-- Project Python under `scripts/` is source-only; arbitrary Blender Python execution is not
-  supported. Media generation uses the configured Media MCP only with your permission; generated
-  files go through `intake` with provenance.
-- External binaries are committed only when their source metadata allows redistribution; every
-  produced export has a verified receipt.
+- Do not edit the harness-owned task tracker or task records by hand.
 - Check each project's `README.md` and `Documents/` for its own requirements and deliverables.
 
 ## Useful checks and fixes
 
-Run these from the workspace root when something looks off, or when you're contributing to the
+Run these from the workspace root when something looks off, or when you are contributing to the
 tooling:
 
 ```powershell
@@ -143,6 +183,8 @@ npm run doctor --prefix tools/harness
 python -B -m unittest discover -s tools -p "test_*.py" -v
 npm test --prefix tools/harness
 ```
+
+The Node suite is comprehensive and can take several minutes on Windows.
 
 Common fixes:
 
@@ -153,17 +195,35 @@ Common fixes:
   Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc`; the harness reads it for launch and addon startup.
 - **Blender not found:** point `BLENDER_EXE` at your installed Blender executable, then relaunch
   with `blender_workflow`.
+- **Stale or conflicting instance:** stop the running instance through the harness before launching
+  another project.
 
 ## What's in the repo
 
 ```text
-AGENTS.md                 Internal agent contract
-README.md                 This human setup guide
+AGENTS.md                 Internal agent contract and workflow rules
+README.md                 This human setup and usage guide
+config.json               Worker and grader models, budgets, and review settings
 .kilo/                    Workspace Kilo config, skills, agents, and plugin
 Blender/                  Blender project collection
+Commands/                 Approved non-project shell-command records
 tools/                    Workspace checks and the guarded harness
-tools/harness/             Guarded Node.js workflow and MCP bridge
+tools/harness/            Guarded Node.js workflow, MCP bridge, and harness tests
+tools/harness/EXPECTED_FLOW.md
+                          Developer reference for the expected lifecycle and evidence
 ```
 
-[`Blender/README.md`](Blender/README.md) covers the project-collection conventions. Licensing lives
-in [`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+[`Blender/README.md`](Blender/README.md) covers the project-collection conventions. The generic
+harness lifecycle and evidence contract are documented in
+[`tools/harness/EXPECTED_FLOW.md`](tools/harness/EXPECTED_FLOW.md). Licensing lives in
+[`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Known limits
+
+- No arbitrary Blender Python execution.
+- No browser or authentication bypass.
+- No automatic licence acceptance.
+- Media generation is agent-owned; the harness intakes and records the result.
+- Multi-scene, media-generation, and export paths are implemented, but the current live acceptance
+  run is a single scene. Verify those paths in the project where they are used.
+- One live Blender instance and one writer at a time; parallel read-only inspection is allowed.
