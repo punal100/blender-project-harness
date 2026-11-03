@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Rebuild the npm package so the published README matches the repository README.
+- No runtime changes.
+
 ## 1.0.1
 
 - Publish the package as `@punal_manalan/blender-project-harness`.
