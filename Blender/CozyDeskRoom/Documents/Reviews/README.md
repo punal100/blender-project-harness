@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261103T022750Z | 20261103T022750Z | deaf18d0e7bd | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261103T022750Z/REVIEW.md](R01-20261103T022750Z/REVIEW.md) |
+| R02-20261103T023635Z | 20261103T023635Z | 6ab3c9ce00f9 | All milestone | visual, technical, spec | PASS | [R02-20261103T023635Z/REVIEW.md](R02-20261103T023635Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261103T022750Z: Room shell, window, rug, desk, chair, and hero camera exist at human scale in the saved scene; evidence e30e529031ccc1fb262b5eb189a4bb9f69bb8bde7958ef57e6129365ec32d653
+
+- R02-20261103T023635Z: Back wall has a real window opening with recessed frame, sill, and glass; a left wall closes the frame; chair base sits on the rug with no gap; evidence fba94b8367825cb37cd9b2761aa21c539fec79af2e5bc0c3021d661b995a85f9
