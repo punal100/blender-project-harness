@@ -12,7 +12,7 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
@@ -47,6 +47,8 @@ const capabilities = () => ({
     { name: 'status', actor: 'orchestrator', phase: 'any', payload: '{project?:string}' },
     { name: 'bootstrap-document', actor: 'orchestrator', phase: 'before registration', payload: '{project,path,content}' },
     { name: 'bootstrap-commit', actor: 'orchestrator', phase: 'before registration', payload: '{project,message}' },
+    { name: 'intake', actor: 'orchestrator', phase: 'scan or open change', payload: '{project,files?,folders?,kind?,source?,generated?,scan?}' },
+    { name: 'download', actor: 'orchestrator', phase: 'before or during production', payload: '{project?,url,filename?,maxBytes?}' },
     { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
     { name: 'reregister', actor: 'orchestrator', phase: 'paused project', payload: '{reason}' },
     { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
@@ -268,7 +270,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -279,6 +281,8 @@ export function createHooks(harness, client) {
           if (args.action === 'capabilities') result = capabilities();
           else if (args.action === 'bootstrap-document') result = harness.bootstrapDocument(context.sessionID, payload);
           else if (args.action === 'bootstrap-commit') result = harness.bootstrapCommit(context.sessionID, payload);
+          else if (args.action === 'intake') result = harness.intake(context.sessionID, payload);
+          else if (args.action === 'download') result = await harness.download(context.sessionID, payload);
           else if (args.action === 'prepare') result = harness.prepare(context.sessionID, payload);
           else if (args.action === 'ticket') {
             const p = stateFor(context.sessionID);

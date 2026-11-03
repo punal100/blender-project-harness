@@ -5,10 +5,22 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { instanceStatus, launchProject, stopProject } from './blender.mjs';
 import { describeDocumentFormats, documentOutline, documentSection, isBootstrapDocument, isBootstrapFile, validateDocument } from './documents.mjs';
+import {
+  appendAssetRow,
+  appendIntakeRow,
+  appendReferenceRow,
+  copyIntake,
+  createIntakeDocument,
+  planIntake,
+  referenceSourceDocument,
+  sourceDocument,
+} from './intake.mjs';
+import { downloadToStaging } from './download.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
+const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
@@ -475,6 +487,160 @@ export class Harness {
       return { project: args.project, path: clean, sha256: digest(args.content), next: 'Commit the exact scaffold with bootstrap-commit, then call prepare.' };
     });
   }
+  intake(session, args) {
+    return this.transaction((s) => {
+      const allowed = ['project', 'files', 'folders', 'kind', 'source', 'generated', 'scan'];
+      if (Object.keys(args).some((key) => !allowed.includes(key))) deny('intake accepts project, files, folders, kind, source, generated and scan only');
+      if (typeof args.project !== 'string' || !/^Blender\/[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(args.project)) deny('intake project must be Blender/<Name>');
+      if (args.scan !== undefined && typeof args.scan !== 'boolean') deny('intake scan must be a boolean');
+      if (args.files !== undefined && (!Array.isArray(args.files) || args.files.length > 100 || args.files.some((item) => typeof item !== 'string'))) {
+        deny('intake files must be an array of paths');
+      }
+      if (args.folders !== undefined && (!Array.isArray(args.folders) || args.folders.length > 20 || args.folders.some((item) => typeof item !== 'string'))) {
+        deny('intake folders must be an array of paths');
+      }
+      const projectName = path.basename(args.project);
+      const p = Object.values(s.projects).find((item) => item.project === args.project);
+      if (p && p.orchestrator !== session) deny('intake requires the owning session');
+      const c = p?.change;
+      if (args.scan !== true && !p) deny('intake copy requires a registered project; scan first, then register and begin a change');
+      if (args.scan !== true && !c) deny('intake copy requires an open bounded change; call begin with the intake document path first');
+      if (args.scan !== true && (c.bootstrap || c.sealed || c.pending || c.readyToSeal)) deny('intake copy requires an unsealed, unfinished, non-bootstrap scene change with no pending operation');
+      const plan = planIntake({
+        root: this.root,
+        projectName,
+        files: args.files ?? [],
+        folders: args.folders ?? [],
+        kind: args.kind ?? 'auto',
+        source: args.source,
+        generated: args.generated,
+        home: this.home,
+      });
+      if (args.scan === true || !c) {
+        return {
+          project: args.project,
+          scan: true,
+          entries: plan.entries.map(({ sourcePath, ...entry }) => ({ source: sourcePath, ...entry })),
+          rejected: plan.rejected,
+          next: c
+            ? 'Review the plan, then call intake with scan:false to copy accepted files into the open change.'
+            : p
+              ? 'Open a bounded change with begin, then call intake with scan:false.'
+              : 'Register the project and call begin with the intake document path before copying files.',
+        };
+      }
+      const base = this.projectPath(args.project);
+      const result = copyIntake({ projectRoot: base, plan, licenseText: plan.licenseText });
+      const paths = new Set(c.paths);
+      const addPath = (relative) => paths.add(`${p.project}/${relative}`);
+      const addDocument = (relative, content, validate = false) => {
+        if (validate) {
+          try { validateDocument(relative, content); } catch (error) { deny(error.message); }
+        }
+        const full = path.join(base, ...relative.split('/'));
+        fs.mkdirSync(path.dirname(full), { recursive: true });
+        fs.writeFileSync(full, content, 'utf8');
+        addPath(relative);
+        return content;
+      };
+      const readOrCreate = (relative, create) => {
+        const full = path.join(base, ...relative.split('/'));
+        return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : create();
+      };
+      const assetsRelative = 'Documents/ASSETS.md';
+      const referencesRelative = 'Documents/References/README.md';
+      const intakeRelative = 'Documents/INTAKE.md';
+      let assets = null;
+      let references = null;
+      let intake = readOrCreate(intakeRelative, () => createIntakeDocument(projectName));
+      for (const entry of result.copied) {
+        addPath(entry.stored);
+        const sourceName = plan.source?.url || plan.source?.author || plan.source?.vendor || 'user-supplied';
+        if (entry.external) {
+          const sourceRelative = path.posix.join(path.posix.dirname(entry.stored), 'SOURCE.md');
+          const licenseRelative = path.posix.join(path.posix.dirname(entry.stored), 'LICENSE.txt');
+          addDocument(sourceRelative, sourceDocument({
+            entry,
+            source: plan.source,
+            license: plan.source?.license ?? '',
+            generated: plan.generated,
+          }));
+          addPath(licenseRelative);
+          assets ??= readOrCreate(assetsRelative, () => `# External Assets — ${projectName}\n\n## Rules\n\nExternal assets are registered by the harness.\n`);
+          assets = appendAssetRow(assets, {
+            asset: plan.source?.name || plan.source?.asset || entry.name,
+            sourceUrl: plan.source?.url || '',
+            author: plan.source?.author || plan.source?.vendor || '',
+            license: plan.source?.license || '',
+            localPath: entry.stored,
+            packaging: plan.source?.packaging || 'none',
+            redistributable: plan.source?.redistributable === undefined ? '' : plan.source.redistributable ? 'yes' : 'no',
+            notes: plan.source?.notes || '',
+          });
+        }
+        if (entry.kind === 'reference') {
+          const sidecar = entry.stored.replace(/\.[^/.]+$/, '') + '.md';
+          addDocument(sidecar, referenceSourceDocument({ entry, source: plan.source, generated: plan.generated }));
+          references ??= readOrCreate(referencesRelative, () => `# References — ${projectName}\n\n## Index\n\n| Reference | Source | What it informs | Notes |\n|---|---|---|---|\n`);
+          references = appendReferenceRow(references, {
+            reference: entry.stored,
+            source: plan.generated ? `generated: ${plan.generated.tool || 'image tool'}` : sourceName,
+            informs: plan.source?.notes || 'visual direction',
+            notes: plan.generated ? `model ${plan.generated.model || '—'}; prompt ${plan.generated.prompt || '—'}` : 'user-supplied reference',
+          });
+        }
+        intake = appendIntakeRow(intake, {
+          time: new Date().toISOString(),
+          kind: entry.kind,
+          stored: entry.stored,
+          sha256: entry.sha256,
+          source: plan.generated ? `generated: ${plan.generated.tool || 'image tool'}` : sourceName,
+          license: plan.source?.license || (plan.generated ? 'generated' : ''),
+          status: 'copied',
+        });
+      }
+      for (const duplicate of result.duplicates) {
+        intake = appendIntakeRow(intake, {
+          time: new Date().toISOString(),
+          kind: duplicate.kind,
+          stored: duplicate.stored,
+          sha256: duplicate.sha256,
+          source: plan.generated ? `generated: ${plan.generated.tool || 'image tool'}` : (plan.source?.url || plan.source?.author || 'user-supplied'),
+          license: plan.source?.license || (plan.generated ? 'generated' : ''),
+          status: 'duplicate',
+        });
+      }
+      if (assets !== null) {
+        addDocument(assetsRelative, assets, true);
+        if (!c.paths.includes(`${p.project}/${assetsRelative}`)) c.paths.push(`${p.project}/${assetsRelative}`);
+      }
+      if (references !== null) {
+        addDocument(referencesRelative, references, true);
+        if (!c.paths.includes(`${p.project}/${referencesRelative}`)) c.paths.push(`${p.project}/${referencesRelative}`);
+      }
+      addDocument(intakeRelative, intake, true);
+      for (const relative of paths) if (!c.paths.includes(relative)) c.paths.push(relative);
+      c.documentOnly = c.paths.every((name) => /\.md$/i.test(name));
+      return {
+        project: args.project,
+        scan: false,
+        copied: result.copied.map(({ sourcePath, target, ...entry }) => entry),
+        duplicates: result.duplicates,
+        rejected: result.rejected,
+        paths: [...paths].filter((name) => name.startsWith(`${p.project}/`)).map((name) => name.slice(p.project.length + 1)),
+        next: 'Import copied assets with apply operations, record their use, then continue the bounded change.',
+      };
+    });
+  }
+  async download(session, args) {
+    const allowed = ['project', 'url', 'filename', 'maxBytes'];
+    if (Object.keys(args).some((key) => !allowed.includes(key))) deny('download accepts project, url, filename and maxBytes only');
+    if (args.project !== undefined && (typeof args.project !== 'string' || !/^Blender\/[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(args.project))) deny('download project must be Blender/<Name>');
+    if (typeof args.url !== 'string' || !args.url.trim()) deny('download requires url');
+    if (args.filename !== undefined && typeof args.filename !== 'string') deny('download filename must be a string');
+    if (args.maxBytes !== undefined && (!Number.isInteger(args.maxBytes) || args.maxBytes < 1)) deny('download maxBytes must be a positive integer');
+    return downloadToStaging({ root: this.root, project: args.project, url: args.url, filename: args.filename, maxBytes: args.maxBytes });
+  }
   bootstrapCommit(session, args) {
     return this.transaction((s) => {
       if (Object.keys(args).some((key) => !['project', 'message'].includes(key))) deny('bootstrap-commit accepts project and message only');
@@ -643,7 +809,7 @@ export class Harness {
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -953,6 +1119,7 @@ export class Harness {
         p.complete = false;
         p.escalation = null;
         p.lastRender = null;
+        p.assetCheck = null;
         return this.reregisterStatus(p);
       }
       const c = p.change;
@@ -966,6 +1133,7 @@ export class Harness {
       } else if (action === 'goal-complete') {
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
+        if (p.assetUse && (!p.assetCheck || p.assetCheck.sceneHash !== last.sceneHash)) deny('completion requires check_assets on the final unchanged scene; import or repair the asset receipt first');
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project));
         p.complete = true;
@@ -987,7 +1155,7 @@ export class Harness {
         const paths = [...new Set(args.paths.map((name) => {
           const full = contained(this.projectPath(p.project), name, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
-          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files');
+          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
           return `${p.project}/${clean}`;
         }))];
         if (stable(this.snapshot(p.project)) !== stable(p.snapshot)) deny('project changed since checkpoint');
@@ -1020,7 +1188,7 @@ export class Harness {
         const added = [...new Set(args.paths.map((name) => {
           const full = contained(this.projectPath(p.project), name, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
-          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files');
+          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
           return `${p.project}/${clean}`;
         }))];
         c.objects = [...new Set([...c.objects, ...(args.objects ?? [])])];
@@ -1322,6 +1490,14 @@ export class Harness {
         c.evidenceKey = digest(stable({ scene: c.sceneHash, specs: p.records.specs, evidence: c.evidence }));
         c.manifestPath = `${p.project}/Documents/Reviews/${c.round}/manifest.json`;
         c.manifestHash = this.hash(c.manifestPath);
+      }
+      if (t.operation === 'apply') {
+        const operations = (result.operationResults ?? []).map((item) => item.operation);
+        if (operations.some((name) => ASSET_USING_OPERATIONS.has(name))) p.assetUse = true;
+        if (operations.includes('check_assets')) c.assetChecked = true;
+      }
+      if (t.operation === 'seal' && c.assetChecked) {
+        p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString() };
       }
       this.recordTaskFinished(p, token, result);
       if (t.operation === 'apply') {
