@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the documentation
+    url: https://github.com/punal100/blender-project-harness#readme
+    about: Installation, workflow, and troubleshooting guidance.
+  - name: Check the published package
+    url: https://www.npmjs.com/package/@punal_manalan/blender-project-harness
+    about: Verify the latest npm version and package metadata.
+  - name: Contributing guide
+    url: https://github.com/punal100/blender-project-harness/blob/main/CONTRIBUTING.md
+    about: Development setup, checks, pull requests, and the release process.
+  - name: Security policy and advisories
+    url: https://github.com/punal100/blender-project-harness/security
+    about: Review security advisories and reporting options. Do not open a public issue for a vulnerability.

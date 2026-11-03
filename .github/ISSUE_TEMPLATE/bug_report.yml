@@ -1,0 +1,90 @@
+name: Bug report
+description: Report a reproducible installer, harness, or Blender workflow problem.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Search existing issues first, and remove tokens, secrets, and private project paths from logs and screenshots.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong?
+      placeholder: A clear, one-paragraph description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence.
+      placeholder: |
+        1. Install with ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the exact error, traceback, or failed receipt.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Installer or npm package
+        - Harness lifecycle or workflow
+        - Blender or MCP operations
+        - Skills, agents, or prompts
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Harness version
+      description: Run `npx @punal_manalan/blender-project-harness --version` or check `.kilo/blender-project-harness/VERSION`.
+      placeholder: 1.0.2
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node.js, Blender, and Kilo versions.
+      placeholder: Windows 11, Node 22.14, Blender 5.2, Kilo ...
+    validations:
+      required: true
+  - type: upload
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Optional. Upload logs, screenshots, or renders. Remove private data first.
+      accept: ".png,.jpg,.jpeg,.gif,.log,.txt,.zip"
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and release notes.
+          required: true
+        - label: I removed tokens, secrets, and private data from the report.
+          required: true
+        - label: I can reproduce this on the latest release.
+          required: false

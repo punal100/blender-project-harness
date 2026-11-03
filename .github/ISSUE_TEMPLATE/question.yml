@@ -1,0 +1,61 @@
+name: Usage question
+description: Ask for help installing or using Blender Project Harness.
+title: "[Question]: "
+labels: ["question", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read the README and release notes first. Do not post tokens, secrets, or private project paths.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do, and where are you stuck?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Commands, configuration, documentation, or workarounds you already tested.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Installation
+        - Harness lifecycle or workflow
+        - Blender or MCP operations
+        - Skills, agents, or prompts
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Harness version
+      description: Run `npx @punal_manalan/blender-project-harness --version` or check `.kilo/blender-project-harness/VERSION`.
+      placeholder: 1.0.2
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node.js, Blender, and Kilo versions.
+      placeholder: Windows 11, Node 22.14, Blender 5.2, Kilo ...
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I read the README and searched existing issues.
+          required: true
+        - label: I removed tokens, secrets, and private data.
+          required: true
