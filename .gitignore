@@ -1,5 +1,5 @@
 # Local subagent model and budget configuration
-/config.json
+/.kilo/blender-project-harness/config.json
 
 # Workspace runtime and local state
 **/.kilo/*.log

@@ -7,9 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { findBlender, instanceStatus } from './blender.mjs';
 import { Harness } from './engine.mjs';
 import { scaffold } from './scaffold.mjs';
+import { configPath, workspaceRoot } from './workspace.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
+const root = workspaceRoot(packageRoot);
 
 function fail(message) {
   throw new Error(`Harness: ${message}`);
@@ -33,17 +34,21 @@ function stateHome() {
 
 function checkPackage() {
   const pkg = readJson(path.join(packageRoot, 'package.json'));
+  const packagePath = path.relative(root, packageRoot).replaceAll('\\', '/') || '.';
   if (pkg.type !== 'module' || pkg.engines?.node !== '>=22') fail('package requires ESM and Node >=22');
   for (const dependency of ['@modelcontextprotocol/sdk', 'zod']) {
-    if (!fs.existsSync(path.join(packageRoot, 'node_modules', dependency))) fail(`dependency missing: ${dependency}; run npm ci --prefix tools/harness`);
+    if (!fs.existsSync(path.join(packageRoot, 'node_modules', dependency))) fail(`dependency missing: ${dependency}; run npm ci in ${packagePath}`);
   }
-  if (!fs.existsSync(path.join(packageRoot, 'package-lock.json'))) fail('package-lock.json missing; run npm install --prefix tools/harness');
+  if (!fs.existsSync(path.join(packageRoot, 'package-lock.json'))) fail(`package-lock.json missing; run npm install in ${packagePath}`);
 }
 
 function checkConfig() {
-  const configPath = path.join(root, '.kilo', 'kilo.jsonc');
-  const text = fs.readFileSync(configPath, 'utf8');
-  if (!text.includes('tools/harness/server.mjs')) fail('.kilo/kilo.jsonc does not route Blender MCP through harness server');
+  const kiloConfig = path.join(root, '.kilo', 'kilo.jsonc');
+  const text = fs.readFileSync(kiloConfig, 'utf8');
+  const command = /"command"\s*:\s*\[([^\]]*)\]/.exec(text);
+  const server = command ? /"([^"]*server\.mjs)"/.exec(command[1])?.[1] : null;
+  if (!server) fail('.kilo/kilo.jsonc does not route Blender MCP through a harness server');
+  if (!fs.existsSync(path.resolve(root, server))) fail(`.kilo/kilo.jsonc points at missing harness server: ${server}`);
   if (!/"BLENDER_PORT"\s*:\s*"\d+"/.test(text)) fail('.kilo/kilo.jsonc lacks BLENDER_PORT');
   if (!fs.existsSync(path.join(root, '.kilo', 'plugins', 'blender-workflow.js'))) fail('auto-loaded Blender workflow plugin missing');
 }
@@ -87,7 +92,7 @@ async function main() {
   if (command === 'doctor') return doctor(parseOptions(process.argv.slice(3)));
   if (command === 'scaffold') {
     const options = parseOptions(process.argv.slice(3));
-    if (!options.name) fail('usage: node tools/harness/cli.mjs scaffold --name "Project Name" [--description "..."] [--goal "..."] [--goal-title "..."] [--dry-run]');
+    if (!options.name) fail('usage: node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "Project Name" [--description "..."] [--goal "..."] [--goal-title "..."] [--dry-run]');
     const result = scaffold(root, {
       name: options.name,
       description: options.description,
@@ -109,13 +114,13 @@ async function main() {
   if (command === 'development') {
     const state = process.argv[3];
     if (!['on', 'off'].includes(state)) fail('invalid command');
-    const file = path.join(root, 'config.json');
+    const file = configPath(root);
     const config = readJson(file);
     config.development_mode = state === 'on';
     fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
     return undefined;
   }
-  fail('usage: node tools/harness/cli.mjs doctor [--project "Blender/Name"] | scaffold --name "Project Name"');
+  fail('usage: node .kilo/blender-project-harness/tools/harness/cli.mjs doctor [--project "Blender/Name"] | scaffold --name "Project Name"');
 }
 
 try { await main(); }

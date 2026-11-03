@@ -7,8 +7,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Harness } from './engine.mjs';
 import { BlenderProxy } from './proxy.mjs';
+import { workspaceRoot } from './workspace.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const root = workspaceRoot(path.dirname(fileURLToPath(import.meta.url)));
 const harness = new Harness(root);
 const client = new Client({ name: 'blender-workflow-proxy', version: '1.0.0' });
 const transport = new StdioClientTransport({ command: 'uvx', args: ['mcp-for-blender==2.2.6'], cwd: root,

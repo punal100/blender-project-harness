@@ -16,6 +16,7 @@ import {
   sourceDocument,
 } from './intake.mjs';
 import { downloadToStaging } from './download.mjs';
+import { configPath } from './workspace.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
@@ -245,7 +246,7 @@ export class Harness {
     if (goalText.includes('{{') || goalText.trim().length < 100) deny('goal prompt not filled');
     let roster = [], maxParallel = 1, maxRounds = 2;
     if (review !== 'Off') {
-      const config = readJson(contained(this.root, 'config.json'));
+      const config = readJson(configPath(this.root));
       const cfg = config.blender_subagents?.graders;
       if (config.blender_graders || config.workers || !cfg || cfg.enabled !== true || cfg.agent !== 'blender-grader' || !Array.isArray(cfg.graders) || !cfg.graders.length) deny('grader config missing, legacy, or disabled');
       const names = new Set();
@@ -276,7 +277,7 @@ export class Harness {
     return Number.isInteger(steps) ? steps : null;
   }
   developmentMode(session) {
-    const file = contained(this.root, 'config.json', true);
+    const file = configPath(this.root);
     if (!fs.existsSync(file)) return false;
     try {
       const config = readJson(file);
@@ -288,7 +289,7 @@ export class Harness {
   }
 
   workerConfig() {
-    const file = contained(this.root, 'config.json', true);
+    const file = configPath(this.root);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
     const cfg = readJson(file).blender_subagents?.workers;
     if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg) || cfg.agent !== 'blender-worker') {
@@ -927,7 +928,7 @@ export class Harness {
     if (!/^Blender\/[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(project ?? '')) deny('project must be Blender/<Name>');
     if (!fs.existsSync(path.join(this.root, ...project.split('/')))) {
       const name = project.slice('Blender/'.length);
-      return { project, registered: false, next: 'Scaffold the project folder with the workspace CLI.', nextStep: { phase: 'scaffold', actor: 'orchestrator', action: 'scaffold', command: `node tools/harness/cli.mjs scaffold --name "${name}"`, reason: 'The project folder does not exist yet.' } };
+      return { project, registered: false, next: 'Scaffold the project folder with the workspace CLI.', nextStep: { phase: 'scaffold', actor: 'orchestrator', action: 'scaffold', command: `node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "${name}"`, reason: 'The project folder does not exist yet.' } };
     }
     this.projectPath(project);
     const existing = Object.values(state.projects).find((p) => p.project === project);

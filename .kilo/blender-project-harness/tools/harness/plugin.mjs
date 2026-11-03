@@ -394,7 +394,7 @@ export function createHooks(harness, client) {
           const files = editPaths(tool, args).map(relative);
           if (files.some((f) => path.resolve(harness.root, f).startsWith(harness.home))) deny('harness state is runtime-owned; never write it directly');
           const blocked = files.filter((f) => /^Blender\/[^/]+\//.test(f));
-          if (blocked.length) deny(`project files are harness-owned: ${blocked.join(', ')}. Before registration use blender_workflow bootstrap-document for markdown and bootstrap-commit for the exact scaffold; scaffold the folder with node tools/harness/cli.mjs scaffold. Do not write project files directly.`);
+          if (blocked.length) deny(`project files are harness-owned: ${blocked.join(', ')}. Before registration use blender_workflow bootstrap-document for markdown and bootstrap-commit for the exact scaffold; scaffold the folder with node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold. Do not write project files directly.`);
         }
         if (tool === 'bash') {
           const command = args.command ?? '';

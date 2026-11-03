@@ -176,9 +176,9 @@ function fixture({
   const stateRoot = fs.mkdtempSync(path.join(tempRoot, 'state-'));
   const project = createProject(root, { workflow, review, goalText });
   if (review !== 'Off' && config !== false) {
-    write(root, 'config.json', JSON.stringify(configValue ?? validGraderConfig(), null, 2));
+    write(root, '.kilo/blender-project-harness/config.json', JSON.stringify(configValue ?? validGraderConfig(), null, 2));
   } else if (configValue !== undefined) {
-    write(root, 'config.json', JSON.stringify(configValue, null, 2));
+    write(root, '.kilo/blender-project-harness/config.json', JSON.stringify(configValue, null, 2));
   }
   git(root, ['init', '--quiet']);
   git(root, ['config', 'user.name', 'Harness Tests']);
@@ -1948,7 +1948,7 @@ test('seal and grader task metadata commit at the task boundary', (t) => {
 test('roster drift permits goal sync but blocks new work', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
-  const file = path.join(f.root, 'config.json');
+  const file = path.join(f.root, '.kilo', 'blender-project-harness', 'config.json');
   const config = JSON.parse(fs.readFileSync(file, 'utf8'));
   config.blender_subagents.graders.graders[0].backup.model = 'changed-backup';
   fs.writeFileSync(file, JSON.stringify(config));
