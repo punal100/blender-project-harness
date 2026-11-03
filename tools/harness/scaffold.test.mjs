@@ -44,6 +44,8 @@ test('scaffold renders tokens, hidden files, and binaries', (t) => {
   assert.ok(fs.existsSync(path.join(project, '.gitignore')));
   assert.ok(fs.existsSync(path.join(project, 'Documents', 'TASKSTRACKER.md')));
   assert.ok(fs.existsSync(path.join(project, 'Documents', 'Tasks', 'README.md')));
+  assert.ok(fs.existsSync(path.join(project, 'Documents', 'INTAKE.md')));
+  assert.match(fs.readFileSync(path.join(project, 'Documents', 'INTAKE.md'), 'utf8'), /Intake — Cozy Room/);
   assert.equal(fs.existsSync(path.join(project, 'Documents', 'TASKS.md')), false);
   assert.ok(fs.existsSync(path.join(project, 'exports', '.gitkeep')));
   assert.equal(fs.readdirSync(path.join(root, 'Blender')).some((name) => name.startsWith('.scaffold-')), false);

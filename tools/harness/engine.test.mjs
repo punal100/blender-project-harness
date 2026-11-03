@@ -797,6 +797,42 @@ test('task ledger records batched tickets and WIP commit preserves a failed chan
   assert.doesNotThrow(() => begin(f));
 });
 
+test('apply commits skip ignored external asset binaries', (t) => {
+  const f = useFixture(t);
+  const asset = `${f.project}/assets/external/Poly-Haven/wood.jpg`;
+  write(f.root, asset, Buffer.from('ignored image bytes\n'));
+  write(f.root, `${f.project}/assets/external/Poly-Haven/SOURCE.md`, 'Source: Poly Haven\nRedistribution allowed: yes\n');
+  write(f.root, `${f.project}/assets/external/Poly-Haven/LICENSE.txt`, 'CC0-1.0\n');
+  fs.appendFileSync(path.join(f.root, f.project, '.gitignore'), 'assets/external/**/*.jpg\n');
+  commit(f.root, 'test: ignored external asset fixture', [f.project]);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['notes.txt', 'assets/external/Poly-Haven/wood.jpg'] });
+  write(f.root, `${f.project}/notes.txt`, 'texture batch changed notes\n');
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { simulation: 1 });
+  f.harness.finish(applied.token, { ok: true, operationResults: [{ operation: 'image_texture' }] });
+  assert.equal(f.harness.command('orchestrator', 'status').change.operations, 1);
+  const committed = git(f.root, ['show', '--name-only', '--pretty=format:', 'HEAD']).split(/\r?\n/).filter(Boolean);
+  assert.ok(!committed.includes(asset));
+  assert.ok(committed.includes(`${f.project}/notes.txt`));
+});
+
+test('WIP commit accepts an index staged by an interrupted apply', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  write(f.root, `${f.project}/notes.txt`, 'staged before the apply failed\n');
+  git(f.root, ['add', '--', `${f.project}/notes.txt`]);
+  f.harness.transaction((state) => {
+    const change = state.projects[f.project].change;
+    change.failure = 'simulated staging failure';
+    change.deadline = 0;
+  });
+  const result = f.harness.command('orchestrator', 'commit', { message: 'wip: preserve interrupted apply', mode: 'wip' });
+  assert.equal(result.nextStep.phase, 'checkpoint');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+});
+
 test('failed change at the apply cap routes to WIP instead of an impossible recover', (t) => {
   const f = useFixture(t);
   activate(f);

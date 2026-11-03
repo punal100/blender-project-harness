@@ -148,6 +148,12 @@ export function git(root, args, { binary = false, allowExitOne = false } = {}) {
   return binary ? result.stdout : result.stdout;
 }
 const gitText = (root, args) => git(root, args).trim();
+function committableFiles(root, files) {
+  if (!files.length) return [];
+  const ignored = new Set(git(root, ['check-ignore', '--', ...files], { allowExitOne: true })
+    .split(/\r?\n/).filter(Boolean));
+  return files.filter((name) => !ignored.has(name));
+}
 function field(text, key) {
   const matches = [...text.matchAll(new RegExp(`^${key}:[ \\t]*([^\\r\\n]*)`, 'gm'))];
   if (matches.length !== 1) deny(`record needs exactly one ${key}`);
@@ -984,7 +990,8 @@ export class Harness {
           ? clean.slice(reportPrefix.length, clean.length - reportSuffix.length)
           : '';
         const ownPriorReport = Boolean(round) && !round.includes('/');
-        if (!allowed.has(`${project}/${clean}`) && !ownPriorReport) deny('grader document read outside assigned spec documents');
+        const reference = `${project}/Documents/References/`;
+        if (!allowed.has(`${project}/${clean}`) && !ownPriorReport && !`${project}/${clean}`.startsWith(reference)) deny('grader document read outside assigned spec documents');
       }
       if (!fs.existsSync(full)) deny(`project document missing: ${clean}`);
       const content = fs.readFileSync(full, 'utf8');
@@ -1051,9 +1058,9 @@ export class Harness {
   commitProgress(p, c, task) {
     const expectedHead = c.commits?.at(-1) ?? c.base;
     if (this.head() !== expectedHead) deny('apply commit must directly follow the prior change commit');
-    const files = [...new Set([...c.paths, p.scene, this.taskDocument(p), task.taskDoc, task.summaryDoc])]
-      .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/'))));
-    git(this.root, ['add', '--', ...files]);
+    const files = committableFiles(this.root, [...new Set([...c.paths, p.scene, this.taskDocument(p), task.taskDoc, task.summaryDoc])]
+      .filter((name) => typeof name === 'string' && fs.existsSync(path.join(this.root, ...name.split('/')))));
+    if (files.length) git(this.root, ['add', '--', ...files]);
     if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no apply files changed');
     git(this.root, ['commit', '-m', `apply: ${task.id} ${String(c.outcome).slice(0, 120)}`]);
     c.commits ??= [];
@@ -1145,17 +1152,19 @@ export class Harness {
   autoCommit(p, c, message, { review = true } = {}) {
     const expectedHead = c.commits?.at(-1) ?? c.base;
     if (this.head() !== expectedHead) deny('commit must directly follow the prior change commit');
-    if (gitText(this.root, ['diff', '--cached', '--name-only'])) deny('index must be clean before the scoped commit');
     const artifacts = review ? this.reviewPaths(p, c) : [];
     const declared = new Set(c.paths);
     const taskDocument = this.taskDocument(p);
     const tracked = new Set(git(this.root, ['ls-files', '-z', '--', p.project]).split('\0').filter(Boolean));
-    const files = [...new Set([...c.paths, p.scene, taskDocument, ...this.taskFiles(p, c), ...artifacts])]
+    const files = committableFiles(this.root, [...new Set([...c.paths, p.scene, taskDocument, ...this.taskFiles(p, c), ...artifacts])]
       .filter((name) => typeof name === 'string' && (
         fs.existsSync(path.join(this.root, ...name.split('/')))
         || (declared.has(name) && name !== p.scene && name !== taskDocument && tracked.has(name))
-      ));
-    git(this.root, ['add', '--', ...files]);
+      )));
+    const allowed = new Set(files);
+    const staged = gitText(this.root, ['diff', '--cached', '--name-only']).split(/\r?\n/).filter(Boolean);
+    if (staged.some((name) => !allowed.has(name))) deny('index contains files outside the bounded change');
+    if (files.length) git(this.root, ['add', '--', ...files]);
     externalBinaryPolicy(this.root, p.project, git(this.root, ['diff', '--cached', '--name-only', '--', p.project]).split(/\r?\n/).filter(Boolean));
     if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no review files changed');
     git(this.root, ['commit', '-m', message]);
@@ -1638,12 +1647,13 @@ export class Harness {
         if (operations.some((name) => ASSET_USING_OPERATIONS.has(name))) p.assetUse = true;
         if (operations.includes('check_assets') && checkAssetsStrict(t.payload)) c.assetChecked = true;
         for (const item of result.operationResults ?? []) {
+          if (item.operation === 'check_assets' && item.receipt?.strict === true) c.assetCheckReceipt = item.receipt;
           if (item.operation !== 'export_scene' || !item.receipt?.path) continue;
           p.exports = [...(p.exports ?? []).filter((receipt) => receipt.path !== item.receipt.path), { ...item.receipt, change: c.id, at: new Date().toISOString() }];
         }
       }
       if (t.operation === 'seal' && c.assetChecked) {
-        p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString() };
+        p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString(), receipt: c.assetCheckReceipt ?? null };
       }
       this.recordTaskFinished(p, token, result);
       if (t.operation === 'apply') {

@@ -69,6 +69,7 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
+  assert.ok(result.bootstrapDocuments.includes('Documents/INTAKE.md'));
   assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKSTRACKER.md'));
   assert.equal(result.bootstrapDocuments.includes('Documents/TASKS.md'), false);
   assert.equal(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'), false);
@@ -208,6 +209,20 @@ test('production worker delegation requires valid read-only limits', async (t) =
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false }),
     /steps ceiling/,
+  );
+});
+
+test('grader delegation requires the exact ticket evidence key and scene hash', async (t) => {
+  const f = fixture(t, { review: 'Single' }), h = hooks(f); f.begin();
+  const token = '11111111-1111-1111-1111-111111111111';
+  f.harness.transaction((s) => {
+    const change = s.projects[f.project].change;
+    change.inspected = true;
+    change.graders.visual = { token };
+  });
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-grader', prompt: `HARNESS_GRADER:${token}\nhand-written prompt without evidence`, background: false }),
+    /saved scene SHA-256/,
   );
 });
 

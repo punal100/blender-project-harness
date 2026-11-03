@@ -102,7 +102,7 @@ export class BlenderProxy {
             throw error;
           }
           await this.run(saveCode(scenePath), args.user_prompt);
-          operationResults.push({ index: index + 1, operation: names[index], ok: true, ...(names[index] === 'export_scene' ? { receipt } : {}) });
+          operationResults.push({ index: index + 1, operation: names[index], ok: true, ...(['export_scene', 'check_assets'].includes(names[index]) ? { receipt } : {}) });
           completed += 1;
         }
         const result = this.harness.finish(args.token, { ok: true, completed, operationResults });
@@ -172,6 +172,7 @@ export class BlenderProxy {
         base_commit: context.change.base, dirty: git(this.harness.root, ['status', '--porcelain', '--', context.project]).trim(),
         scene: { path: context.scene, sha256: this.harness.hash(context.scene) }, primary_scene: primary, scenes,
         scene_requirements: context.change.sceneRequirements ?? {}, specs: context.records.specs,
+        asset_check: context.change.assetCheckReceipt ?? null,
         evidence, evidence_key: evidenceKey, graders: context.records.roster, tasks: {}, operation_tasks: context.operationTasks ?? [] };
       fs.writeFileSync(contained(this.harness.root, `${roundRoot}/manifest.json`, true), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
        indexPath = `${context.project}/Documents/Reviews/README.md`;
