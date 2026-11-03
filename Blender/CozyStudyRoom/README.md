@@ -104,7 +104,7 @@ CozyStudyRoom/
 See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md`](assets/external/README.md).
 
 - User files are brought in through `blender_workflow {action:"intake"}`; originals are never moved.
-- Four CC0 Poly Haven 1k textures (wood table, fabric pattern, wood floor deck, painted plaster wall) are packed into `cozystudyroom.blend`. Source JPGs are git-ignored; `SOURCE.md`, `LICENSE.txt`, `INTAKE.md`, and `ASSETS.md` are tracked.
+- Four CC0 Poly Haven 1k textures (wood table, fabric pattern, wood floor deck, painted plaster wall) are packed into `cozystudyroom.blend`. Three are applied to the desk/shelf, chair, and floor; the painted plaster texture is packed and registered while the final wall finish is a warm painted solid. Source JPGs are git-ignored; `SOURCE.md`, `LICENSE.txt`, `INTAKE.md`, and `ASSETS.md` are tracked.
 - Strict `check_assets` passed on the final scene with no missing files and no linked libraries.
 
 ## Goals
