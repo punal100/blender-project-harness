@@ -31,6 +31,7 @@ const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
 const MAX_CHANGE_SCENES = 32;
+const MAX_DOWNLOADS_PER_PROJECT = 20;
 const TASKSTRACKER_DOCUMENT = 'Documents/TASKSTRACKER.md';
 const validSceneName = (name) => typeof name === 'string' && /^[\x20-\x7e]{1,100}$/.test(name) && name.trim().length > 0;
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -45,6 +46,26 @@ const sceneNamesFromOperations = (payload) => {
     if (['switch_scene', 'delete_scene'].includes(operation.operation) && validSceneName(operation.name)) names.push(operation.name);
   }
   return [...new Set(names)];
+};
+const EXTERNAL_BINARY_EXTENSIONS = new Set(['.glb', '.gltf', '.fbx', '.obj', '.usd', '.usdz', '.blend', '.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp', '.hdr', '.exr', '.wav', '.mp3', '.ogg', '.flac', '.zip', '.7z', '.rar']);
+const externalBinaryPolicy = (root, project, names) => {
+  for (const name of names) {
+    const relative = name.startsWith(`${project}/`) ? name.slice(project.length + 1) : name;
+    if (!relative.startsWith('assets/external/')) continue;
+    if (!EXTERNAL_BINARY_EXTENSIONS.has(path.extname(relative).toLowerCase())) continue;
+    let directory = path.dirname(path.join(root, ...relative.split('/')));
+    let source = null;
+    while (directory.startsWith(path.join(root, ...project.split('/'), 'assets', 'external'))) {
+      const candidate = path.join(directory, 'SOURCE.md');
+      if (fs.existsSync(candidate)) { source = fs.readFileSync(candidate, 'utf8'); break; }
+      const parent = path.dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+    if (!source || !/Redistribution allowed:\s*yes\b/i.test(source)) {
+      deny(`external binary is not cleared for commit: ${name}`);
+    }
+  }
 };
 const sceneInspectionsComplete = (change) => {
   const renders = change?.renders ?? {};
@@ -605,13 +626,18 @@ export class Harness {
           addPath(licenseRelative);
           assets ??= readOrCreate(assetsRelative, () => `# External Assets — ${projectName}\n\n## Rules\n\nExternal assets are registered by the harness.\n`);
           assets = appendAssetRow(assets, {
+            assetId: entry.sha256.slice(0, 12),
             asset: plan.source?.name || plan.source?.asset || entry.name,
+            type: entry.kind,
             sourceUrl: plan.source?.url || '',
             author: plan.source?.author || plan.source?.vendor || '',
             license: plan.source?.license || '',
             localPath: entry.stored,
             packaging: plan.source?.packaging || 'none',
             redistributable: plan.source?.redistributable === undefined ? '' : plan.source.redistributable ? 'yes' : 'no',
+            sha256: entry.sha256,
+            preview: '',
+            usedIn: '',
             notes: plan.source?.notes || '',
           });
         }
@@ -687,7 +713,16 @@ export class Harness {
     if (typeof args.url !== 'string' || !args.url.trim()) deny('download requires url');
     if (args.filename !== undefined && typeof args.filename !== 'string') deny('download filename must be a string');
     if (args.maxBytes !== undefined && (!Number.isInteger(args.maxBytes) || args.maxBytes < 1)) deny('download maxBytes must be a positive integer');
-    return downloadToStaging({ root: this.root, project: args.project, url: args.url, filename: args.filename, maxBytes: args.maxBytes });
+    if (args.project) this.transaction((s) => {
+      const p = Object.values(s.projects).find((item) => item.project === args.project);
+      if (p && (p.downloads ?? []).length >= MAX_DOWNLOADS_PER_PROJECT) deny(`downloads are capped at ${MAX_DOWNLOADS_PER_PROJECT} per project`);
+    });
+    const result = await downloadToStaging({ root: this.root, project: args.project, url: args.url, filename: args.filename, maxBytes: args.maxBytes });
+    if (args.project) this.transaction((s) => {
+      const p = Object.values(s.projects).find((item) => item.project === args.project);
+      if (p) p.downloads = [...(p.downloads ?? []), { at: new Date().toISOString(), url: result.url, path: result.relative, bytes: result.bytes, sha256: result.sha256 }];
+    });
+    return result;
   }
   bootstrapCommit(session, args) {
     return this.transaction((s) => {
@@ -861,7 +896,7 @@ export class Harness {
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1120,6 +1155,7 @@ export class Harness {
         || (declared.has(name) && name !== p.scene && name !== taskDocument && tracked.has(name))
       ));
     git(this.root, ['add', '--', ...files]);
+    externalBinaryPolicy(this.root, p.project, git(this.root, ['diff', '--cached', '--name-only', '--', p.project]).split(/\r?\n/).filter(Boolean));
     if (!gitText(this.root, ['diff', '--cached', '--name-only'])) deny('no review files changed');
     git(this.root, ['commit', '-m', message]);
     c.commits ??= [];
@@ -1173,6 +1209,7 @@ export class Harness {
         p.lastRender = null;
         p.lastRenders = null;
         p.assetCheck = null;
+        p.exports = [];
         return this.reregisterStatus(p);
       }
       const c = p.change;
@@ -1188,6 +1225,10 @@ export class Harness {
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
         if (p.lastRenders && Object.values(p.lastRenders).some((render) => !fs.existsSync(path.join(this.root, ...render.path.split('/'))) || this.hash(render.path) !== render.hash)) deny('completion requires every sealed scene render to remain unchanged');
         if (p.assetUse && (!p.assetCheck || p.assetCheck.sceneHash !== last.sceneHash)) deny('completion requires check_assets on the final unchanged scene; import or repair the asset receipt first');
+        for (const receipt of p.exports ?? []) {
+          const full = path.join(this.root, ...receipt.path.split('/'));
+          if (!fs.existsSync(full) || this.hash(receipt.path) !== receipt.sha256) deny(`completion requires a valid export receipt: ${receipt.path}`);
+        }
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project));
         p.complete = true;
@@ -1293,7 +1334,7 @@ export class Harness {
         if (!c?.inspected || p.records.review !== 'Off' || !args.notes?.trim()) deny('inspect sealed render before self-review');
         c.verdict = 'PASS'; c.notes = args.notes;
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
-        const text = `# Orchestrator Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
+        const text = `# Orchestrator Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nScenes: ${(c.scenes ?? []).join(', ') || 'active'}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
         fs.writeFileSync(contained(this.root, name, true), text, { flag: 'wx' });
         c.reports[name] = digest(text);
         this.updateManifest(p);
@@ -1402,6 +1443,7 @@ export class Harness {
           '# Review aggregate',
           `Verdict: ${c.verdict}`,
           `Scene SHA-256: ${c.sceneHash}`,
+          `Scenes: ${(c.scenes ?? []).join(', ') || 'active'}`,
           `Evidence key: ${c.evidenceKey}`,
           '',
           '## Inspection notes',
@@ -1471,6 +1513,7 @@ export class Harness {
         for (const name of [p.scene, ...reviewed]) {
           if (!gitText(this.root, ['ls-files', '--error-unmatch', '--', name])) deny('required deliverable missing from checkpoint');
         }
+        externalBinaryPolicy(this.root, p.project, git(this.root, ['ls-files', '-z', '--', p.project]).split('\0').filter(Boolean));
         const snapshot = this.snapshot(p.project); this.assertCommitted(p.project, snapshot);
         p.history.push({ id: c.id, round: c.round ?? null, verdict: bootstrap ? 'BOOTSTRAP' : wip ? 'WIP' : documentOnly ? 'DOCUMENT' : c.verdict, commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, final: Boolean(c.final), approval: c.approval?.label ?? null });
         p.checkpoint = this.head(); p.snapshot = snapshot;
@@ -1593,6 +1636,10 @@ export class Harness {
         const operations = (result.operationResults ?? []).map((item) => item.operation);
         if (operations.some((name) => ASSET_USING_OPERATIONS.has(name))) p.assetUse = true;
         if (operations.includes('check_assets') && checkAssetsStrict(t.payload)) c.assetChecked = true;
+        for (const item of result.operationResults ?? []) {
+          if (item.operation !== 'export_scene' || !item.receipt?.path) continue;
+          p.exports = [...(p.exports ?? []).filter((receipt) => receipt.path !== item.receipt.path), { ...item.receipt, change: c.id, at: new Date().toISOString() }];
+        }
       }
       if (t.operation === 'seal' && c.assetChecked) {
         p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString() };
@@ -1729,6 +1776,8 @@ export class Harness {
       const text = fs.readFileSync(full, 'utf8');
       const verdicts = [...text.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
       if (verdicts.length !== 1 || !text.includes(p.change.sceneHash) || !text.includes(p.change.evidenceKey)) return fail(`grader report invalid: ${g.report}`);
+      const missingScene = (p.change.scenes ?? []).length > 1 ? p.change.scenes.find((name) => !text.includes(name)) : null;
+      if (missingScene) return fail(`grader report does not cite scene ${missingScene}: ${g.report}`);
       if (verdicts[0][1] === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) return fail(`PASS report contains blocker/major finding: ${g.report}`);
       g.verdict = verdicts[0][1];
       g.kind = g.verdict === 'BLOCKED' ? 'tooling' : 'review';

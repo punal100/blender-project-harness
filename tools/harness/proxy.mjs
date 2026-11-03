@@ -4,6 +4,11 @@ import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
 import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode, sceneFactsCode } from './blender-operations.mjs';
 
 export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
+export const SCENE_INFO_TOOL = {
+  name: 'blender_harness_scene_info',
+  description: 'Read-only scene facts for one scene or all scenes. No ticket, save, or mutation.',
+  inputSchema: { type: 'object', properties: { scene: { type: 'string' }, user_prompt: { type: 'string' } }, required: ['user_prompt'], additionalProperties: false },
+};
 export const EXECUTE_TOOL = {
   name: 'harness_execute',
   description: 'Execute one ticketed bounded Blender apply batch, save, WIP render, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
@@ -24,8 +29,28 @@ export function firstJson(text) {
   deny('upstream response lacks JSON receipt');
 }
 
+function exportSignature(format, buffer) {
+  if (format === 'glb') return buffer.subarray(0, 4).toString('ascii') === 'glTF';
+  if (format === 'gltf') return buffer.toString('utf8', 0, Math.min(buffer.length, 4096)).trimStart().startsWith('{');
+  if (format === 'fbx') return buffer.toString('ascii', 0, Math.min(buffer.length, 32)).startsWith('Kaydara FBX Binary') || buffer.toString('utf8', 0, Math.min(buffer.length, 4096)).trimStart().startsWith('; FBX');
+  if (format === 'usd') return buffer.subarray(0, 8).toString('ascii') === 'PXR-USDC' || buffer.toString('utf8', 0, Math.min(buffer.length, 4096)).trimStart().startsWith('#usda');
+  if (format === 'obj') return !buffer.includes(0);
+  return false;
+}
+
 export class BlenderProxy {
   constructor(harness, upstream) { this.harness = harness; this.upstream = upstream; }
+  verifyExport(context, receipt) {
+    if (!receipt || typeof receipt.path !== 'string' || !receipt.path.startsWith('exports/')) deny('export receipt path is invalid');
+    const projectPath = `${context.project}/${receipt.path}`;
+    const full = contained(this.harness.root, projectPath);
+    if (!fs.existsSync(full)) deny('export file is missing');
+    const buffer = fs.readFileSync(full);
+    if (buffer.length === 0) deny('export file is empty');
+    if (buffer.length !== receipt.bytes || this.harness.hash(projectPath) !== receipt.sha256) deny('export receipt hash does not match the file');
+    if (!exportSignature(receipt.format, buffer)) deny('export file signature does not match the format');
+    return { ...receipt, path: projectPath };
+  }
   async listTools() {
     const tools = [], seen = new Set();
     let cursor;
@@ -36,9 +61,13 @@ export class BlenderProxy {
       tools.push(...response.tools.filter((t) => READ_TOOLS.has(t.name)));
       cursor = response.nextCursor;
     } while (cursor);
-    return { tools: [...tools, EXECUTE_TOOL] };
+    return { tools: [...tools, EXECUTE_TOOL, SCENE_INFO_TOOL] };
   }
   async call(name, args) {
+    if (name === SCENE_INFO_TOOL.name) {
+      if (!args || Object.keys(args).some((key) => !['scene', 'user_prompt'].includes(key)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim() || (args.scene !== undefined && (typeof args.scene !== 'string' || !args.scene.trim()))) deny('scene info requires user_prompt and optional scene name');
+      return this.result(await this.run(sceneFactsCode(args.scene ?? null), args.user_prompt));
+    }
     if (READ_TOOLS.has(name)) return this.upstream.callTool({ name, arguments: args });
     if (name !== 'harness_execute') deny('unregistered Blender operation');
     if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
@@ -64,14 +93,16 @@ export class BlenderProxy {
         const operations = operationBatchCode(args.payload, context.change.objects);
         const names = Array.isArray(args.payload?.operations) ? args.payload.operations.map((operation) => operation.operation) : [args.payload?.operation ?? 'apply'];
         for (const [index, operation] of operations.entries()) {
+          let receipt;
           try {
-            await this.run(operation, args.user_prompt);
+            receipt = await this.run(operation, args.user_prompt);
+            if (names[index] === 'export_scene') receipt = this.verifyExport(context, receipt);
           } catch (error) {
             operationResults.push({ index: index + 1, operation: names[index], ok: false, error: String(error.message) });
             throw error;
           }
           await this.run(saveCode(scenePath), args.user_prompt);
-          operationResults.push({ index: index + 1, operation: names[index], ok: true });
+          operationResults.push({ index: index + 1, operation: names[index], ok: true, ...(names[index] === 'export_scene' ? { receipt } : {}) });
           completed += 1;
         }
         const result = this.harness.finish(args.token, { ok: true, completed, operationResults });

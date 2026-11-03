@@ -206,6 +206,18 @@ function walkDirectory(directory, depth, state, rejected) {
   }
 }
 
+function adjacentLicenseCandidates(file) {
+  const directory = path.dirname(file);
+  try {
+    return fs.readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && (/^(LICENSE|LICENCE|COPYING|COPYRIGHT|ATTRIBUTION|README)(\.|$)/i.test(entry.name) || /\.(license|licence)$/i.test(entry.name)))
+      .map((entry) => entry.name)
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
 function addFile(file, state, rejected) {
   if (state.files >= MAX_INTAKE_FILES) {
     rejected.push({ path: file, reason: `file count exceeds ${MAX_INTAKE_FILES}` });
@@ -246,6 +258,7 @@ function addFile(file, state, rejected) {
     kind,
     bytes: stat.size,
     sha256: hashFile(file),
+    licenseCandidates: adjacentLicenseCandidates(file),
     ...metadata,
   });
 }
@@ -454,9 +467,9 @@ function insertTableRow(content, header, row, placeholder) {
 }
 
 export function appendAssetRow(content, row) {
-  const header = '| Asset | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | Notes |';
-  const placeholder = '| None yet | — | — | — | — | — | — | — |';
-  const line = `| ${cell(row.asset)} | ${cell(row.sourceUrl)} | ${cell(row.author)} | ${cell(row.license)} | ${cell(row.localPath)} | ${cell(row.packaging)} | ${cell(row.redistributable)} | ${cell(row.notes)} |`;
+  const header = '| Asset ID | Asset | Type | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | SHA-256 | Preview | Used in | Notes |';
+  const placeholder = '| — | None yet | — | — | — | — | — | — | — | — | — | — | — |';
+  const line = `| ${cell(row.assetId || row.sha256?.slice(0, 12) || '—')} | ${cell(row.asset)} | ${cell(row.type)} | ${cell(row.sourceUrl)} | ${cell(row.author)} | ${cell(row.license)} | ${cell(row.localPath)} | ${cell(row.packaging)} | ${cell(row.redistributable)} | ${cell(row.sha256)} | ${cell(row.preview)} | ${cell(row.usedIn)} | ${cell(row.notes)} |`;
   if (content.includes(`| ${cell(row.localPath)} |`)) return content;
   return insertTableRow(content, header, line, placeholder);
 }
@@ -514,6 +527,9 @@ export function sourceDocument({ entry, source = {}, license = '', generated = n
     '- Verbatim licence copy: LICENSE.txt (required; preserve original licence files too)',
     `- Attribution required: ${source.attribution || '—'}`,
     `- Redistribution allowed: ${source.redistributable === undefined ? '—' : source.redistributable ? 'yes' : 'no'}`,
+    `- Licence status: ${source.license ? 'provided' : entry.licenseCandidates?.length ? 'candidates only; not accepted' : 'missing'}`,
+    `- Adjacent licence candidates: ${entry.licenseCandidates?.length ? entry.licenseCandidates.join(', ') : '—'}`,
+    '- Licence candidate policy: candidates are evidence only; verify and provide the accepted licence text',
     `- Packaging in .blend: ${source.packaging || 'none'}`,
     `- Local path: ${entry.stored}`,
     `- Bytes: ${entry.bytes}`,

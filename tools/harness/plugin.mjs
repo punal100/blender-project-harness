@@ -9,9 +9,9 @@ import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-p
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
-const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
+const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
-const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_look']);
+const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
 const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
@@ -52,8 +52,8 @@ const capabilities = () => ({
     { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
     { name: 'reregister', actor: 'orchestrator', phase: 'paused project', payload: '{reason}' },
     { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
-    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,milestone?,requirements?,revision?}' },
-    { name: 'extend', actor: 'orchestrator', phase: 'open change', payload: '{objects?,paths}' },
+    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,revision?}' },
+    { name: 'extend', actor: 'orchestrator', phase: 'open change', payload: '{objects?,paths,scenes?,sceneRequirements?}' },
     { name: 'finalize', actor: 'orchestrator', phase: 'open change', payload: '{}' },
     { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation:apply|save|seal|wip,payload}' },
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
@@ -61,7 +61,7 @@ const capabilities = () => ({
     { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
     { name: 'recover|escalate|pause|reclaim|preserve', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, {project,reason}, or {reason} for a sealed tooling block' },
   ],
-  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A non-scene change containing only documentation, source-only scripts, references, or assets commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; a sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
   shellPolicy: 'Read-only and trusted harness commands run directly. Any other non-project shell command requires a warning acknowledgement: repeat the exact command with description "Reason: ... [HARNESS_SHELL:<id>]". The command and reason are committed atomically under <project>/Documents/Commands/ or root Commands/; command output is never captured or committed. Blender launches, project mutations, and command substitution stay blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
