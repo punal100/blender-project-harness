@@ -23,6 +23,18 @@ replace the orchestrator's mandatory `blender_look` inspection.
 - Missing, disabled, invalid, or unavailable required grading STOPS production. NEVER silently
   downgrade to self-review.
 
+## Milestone scope
+
+- `final:false` is a partial milestone. Graders must judge only the declared milestone and the
+  requirements it advances. Future or unbuilt scope is deferred, not a finding; absent future content
+  MUST NOT be reported as a blocker or major.
+- `final:true` is the full-spec review. Only then must every confirmed requirement and the complete
+  deliverable be present.
+- For intermediate changes, pass the milestone-specific requirement IDs the change advances. Do not
+  pass full-deliverable IDs whose content is intentionally deferred; reserve the complete set for the
+  final change.
+- The grader ticket prompt includes the partial/final scope contract. Do not remove or weaken it.
+
 ## Review mode record
 
 `Documents/REVIEW.md` MUST contain one `Mode:` value (`Off`, `All`, or `Single`), one `Selected:`

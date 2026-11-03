@@ -36,9 +36,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 1. `launch` `{}`. Verify `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
 2. `begin` `{outcome,objects,paths,milestone?,requirements?,final?,revision?}`. One bounded change;
-   exact object names and project-relative paths. Use `milestone` and requirement IDs for
-   intermediate changes; use `final:true` only for the final full-spec change. `extend` adds exact
-   scope while the change is open; `finalize` marks the change ready to seal.
+   exact object names and project-relative paths. Use `milestone` and the requirement IDs the change
+   advances for intermediate changes; use `final:true` only for the final full-spec change. Do not
+   pass full-deliverable IDs whose content is intentionally deferred. `extend` adds exact scope
+   while the change is open; `finalize` marks the change ready to seal.
    `revision:true` requires the prior committed verdict.
 3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
    up to 10 operations and executes sequentially under one token. Pass the token to one foreground
@@ -53,8 +54,10 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
    `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
-   lists exact evidence files; read those paths, not a folder. If a task fails before binding a
-   child, call `grader-fail {name,reason}`. A tooling-blocked grader is retried without a scene
+   lists exact evidence files; read those paths, not a folder. Non-final tickets grade only their
+   milestone; absent future scope is deferred, not a finding. Final tickets require the complete
+   deliverable. If a task fails before binding a child, call `grader-fail {name,reason}`. A
+   tooling-blocked grader is retried without a scene
    revision. When retries are exhausted, aggregate with `review` `{notes,reason,dispositions}`; the
    harness records the missing/expired grader as `BLOCKED`, computes the verdict, and writes
    `REVIEW.md`. Seal and grader task metadata commit at task completion; review artifacts and the

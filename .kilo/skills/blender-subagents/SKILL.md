@@ -150,6 +150,10 @@ Dispatch only after seal and successful sealed-render `look`:
 6. If the task fails before binding a child session and no hook recorded the failure, call
    `grader-fail {name,reason}`. Do not mint a new ticket without recording the failed start.
 
+For a `final:false` milestone, the ticket prompt requires the grader to treat unbuilt future scope
+as deferred, not a finding. Do not accept absent future content as a blocker or major in a partial
+round. For `final:true`, require the complete deliverable and the full requirement set.
+
 One pass per grader per round. One failed or missing report permits one replacement ticket; a
 second failure is aggregated as `BLOCKED` by `review`. A tooling/evidence `BLOCKED` is retried
 without a scene revision; a design `BLOCKED`/`CHANGES_REQUIRED` follows the review path. A single

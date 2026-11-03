@@ -1060,6 +1060,9 @@ export class Harness {
           `Milestone: ${c.milestone ?? c.outcome}`,
           `Requirements to grade: ${c.requirements?.length ? c.requirements.join(', ') : 'all requirements in the spec'}`,
           `Final full-spec review: ${c.final ? 'yes' : 'no'}`,
+          `Review scope: ${c.final
+            ? 'Final full-spec review. Grade the complete deliverable and every assigned requirement.'
+            : 'Partial milestone review. Grade only this milestone and the requirements it advances. Treat future or unbuilt scope as deferred, not a finding; do not report absent future content as blocker or major.'}`,
           `Spec: ${Object.keys(p.records.specs).map(absolute).join(', ')}`,
           `Target: base ${c.base}, saved scene SHA-256 ${c.sceneHash}, project ${dirty}`,
           `Evidence key: ${c.evidenceKey}`,

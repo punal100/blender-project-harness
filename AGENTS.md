@@ -52,6 +52,10 @@ next call. `capabilities` is authoritative for actions, operations, document for
   names, exact project-relative paths, and `revision` only when authorized. Every scene change has a
   milestone; use requirement IDs for intermediate changes, `extend` for added exact scope,
   `finalize` before sealing, and `final:true` only for the final full-spec change.
+- A non-final milestone is graded only against the milestone and the requirements it advances.
+  Unbuilt future scope is deferred, not a finding, and MUST NOT be reported as a blocker or major.
+  Pass milestone-specific requirement IDs for intermediate changes; reserve the complete requirement
+  set for the final full-spec change.
 - A **reviewable change** is a bounded change with at least one apply operation. A change whose
   declared paths are all markdown is document-only: commit and checkpoint it without apply, seal, or
   review. The bootstrap save is not reviewable.

@@ -993,6 +993,29 @@ test('grader tickets expose exact evidence paths and refuse tampered evidence', 
   gate(() => second.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }), /missing path|frozen evidence/);
 });
 
+test('grader prompts distinguish partial milestone and final full-spec scope', (t) => {
+  const partial = useFixture(t, { review: 'All' });
+  activate(partial);
+  begin(partial, 'orchestrator', {
+    milestone: 'Fixture partial milestone',
+    requirements: ['R1'],
+    final: false,
+  });
+  seal(partial);
+  const partialTicket = partial.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.match(partialTicket.prompt, /Final full-spec review: no/);
+  assert.match(partialTicket.prompt, /Partial milestone review/);
+  assert.match(partialTicket.prompt, /deferred, not a finding/);
+
+  const final = useFixture(t, { review: 'All' });
+  activate(final);
+  begin(final);
+  seal(final);
+  const finalTicket = final.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.match(finalTicket.prompt, /Final full-spec review: yes/);
+  assert.match(finalTicket.prompt, /Final full-spec review\. Grade the complete deliverable/);
+});
+
 test('missing grader report records BLOCKED and allows re-dispatch before review', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
