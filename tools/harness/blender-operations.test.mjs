@@ -170,6 +170,83 @@ test('camera DOF, light color/temperature, emission, shared materials, and dupli
   assert.match(duplicate, /duplicate\.location/);
 });
 
+test('asset, image, audio, validation, and export operations generate bounded code', () => {
+  const full = [...allowed, 'Imported', 'Linked', 'Reference', 'Rain'];
+  const imported = operationCode({
+    operation: 'import_asset',
+    name: 'Imported',
+    path: 'assets/models/model.glb',
+    location: [0, 0, 0],
+  }, full);
+  assert.match(imported, /bpy\.data\.libraries\.load|import_scene\.gltf/);
+  assert.match(imported, /creation_parent/);
+  const external = operationCode({
+    operation: 'import_asset',
+    name: 'Imported',
+    path: 'assets/external/vendor/asset/model.fbx',
+  }, full);
+  assert.match(external, /SOURCE\.md/);
+  assert.match(external, /LICENSE\.txt/);
+  const library = operationCode({
+    operation: 'link_library',
+    name: 'Linked',
+    path: 'assets/models/library.blend',
+    link: true,
+  }, full);
+  assert.match(library, /bpy\.data\.libraries\.load/);
+  assert.match(library, /link=True/);
+  const reference = operationCode({
+    operation: 'image_reference',
+    name: 'Reference',
+    path: 'Documents/References/mood.png',
+    location: [1, 2, 3],
+  }, full);
+  assert.match(reference, /empty_display_type = 'IMAGE'/);
+  assert.match(reference, /hide_render = True/);
+  const texture = operationCode({
+    operation: 'image_texture',
+    name: 'Wood',
+    objects: ['Cube'],
+    path: 'assets/textures/wood.png',
+    roughness: 0.5,
+    metallic: 0,
+    colorSpace: 'sRGB',
+  }, full);
+  assert.match(texture, /ShaderNodeTexImage/);
+  assert.match(texture, /ShaderNodeTexCoord/);
+  assert.match(texture, /colorspace_settings\.name/);
+  const hdri = operationCode({
+    operation: 'world_hdri',
+    path: 'assets/hdri/studio.exr',
+    strength: 1.2,
+    rotation: 0.5,
+  }, full);
+  assert.match(hdri, /ShaderNodeTexEnvironment/);
+  assert.match(hdri, /ShaderNodeBackground/);
+  const audio = operationCode({
+    operation: 'import_audio',
+    name: 'Rain',
+    path: 'assets/audio/rain.ogg',
+    volume: 0.6,
+  }, full);
+  assert.match(audio, /bpy\.data\.sounds\.load/);
+  assert.match(audio, /bpy\.data\.speakers\.new/);
+  const checked = operationCode({ operation: 'check_assets' }, []);
+  assert.match(checked, /blend_paths/);
+  assert.match(checked, /missing/);
+  const packed = operationCode({ operation: 'pack_assets' }, []);
+  assert.match(packed, /pack_all/);
+  const exported = operationCode({ operation: 'export_scene', format: 'glb', path: 'exports/room.glb' }, []);
+  assert.match(exported, /export_scene\.gltf/);
+  assert.match(exported, /export_format='GLB'/);
+  assert.throws(() => operationCode({ operation: 'import_asset', name: 'Imported', path: '../outside.glb' }, full), /stay within/);
+  assert.throws(() => operationCode({ operation: 'import_asset', name: 'Imported', path: 'C:\\outside.glb' }, full), /relative/);
+  assert.throws(() => operationCode({ operation: 'import_asset', name: 'Imported', path: 'assets/models/model.txt' }, full), /extension/);
+  assert.throws(() => operationCode({ operation: 'export_scene', format: 'glb', path: 'exports/room.fbx' }, []), /extension/);
+  assert.throws(() => operationCode({ operation: 'export_scene', format: 'glb', path: 'scenes/room.glb' }, []), /under exports/);
+  assert.throws(() => operationCode({ operation: 'image_texture', name: 'Wood', objects: ['Cube'], path: 'assets/textures/wood.txt', roughness: 0.5, metallic: 0 }, full), /extension/);
+});
+
 test('preflight, save, and render code enforce explicit project paths', () => {
   const preflight = preflightCode('//project.blend');
   assert.match(preflight, /bpy\.utils\.blend_paths\(absolute=True, packed=False, local=True\)/);
@@ -204,8 +281,17 @@ test('every operation and lifecycle script compiles as Python without importing 
     { operation: 'set_camera', name: 'Camera' }, { operation: 'delete_object', name: 'Cube' },
     { operation: 'render_settings', width: 1920, height: 1080, samples: 64 },
     { ...meshOperation(), name: 'Floor "Lamp" \\ 1' },
+    { operation: 'import_asset', name: 'Imported', path: 'assets/models/model.glb' },
+    { operation: 'link_library', name: 'Linked', path: 'assets/models/library.blend', link: true },
+    { operation: 'import_audio', name: 'Rain', path: 'assets/audio/rain.ogg', volume: 0.6 },
+    { operation: 'image_reference', name: 'Reference', path: 'Documents/References/mood.png' },
+    { operation: 'image_texture', name: 'Wood', objects: ['Cube'], path: 'assets/textures/wood.png', roughness: 0.5, metallic: 0 },
+    { operation: 'world_hdri', path: 'assets/hdri/studio.exr', strength: 1.2 },
+    { operation: 'check_assets' },
+    { operation: 'pack_assets' },
+    { operation: 'export_scene', format: 'glb', path: 'exports/room.glb' },
   ];
-  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1']));
+  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Imported', 'Linked', 'Rain', 'Reference']));
   scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'));
   const count = runPython(`import json, sys
 scripts = json.load(sys.stdin)

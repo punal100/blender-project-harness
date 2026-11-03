@@ -9,12 +9,26 @@ const OPERATION_NAMES = new Set([
   'set_camera',
   'render_settings',
   'delete_object',
+  'import_asset',
+  'link_library',
+  'import_audio',
+  'image_reference',
+  'image_texture',
+  'world_hdri',
+  'check_assets',
+  'pack_assets',
+  'export_scene',
 ]);
 
 const PRIMITIVES = new Set(['cube', 'uv_sphere', 'plane', 'cylinder']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
 const NAME_RE = /^[\x20-\x7e]+(?![\s\S])/;
 const MAX_BATCH = 10;
+const MODEL_EXTENSIONS = new Set(['.glb', '.gltf', '.fbx', '.obj', '.usd', '.usdz', '.blend']);
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp']);
+const HDRI_EXTENSIONS = new Set(['.hdr', '.exr']);
+const AUDIO_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac']);
+const EXPORT_EXTENSIONS = new Map([['glb', '.glb'], ['gltf', '.gltf'], ['fbx', '.fbx'], ['usd', '.usd'], ['obj', '.obj']]);
 
 function fail(message) {
   throw new TypeError(message);
@@ -75,6 +89,44 @@ function validateAllowedName(name, allowed, label = 'name') {
   if (!allowed.includes(name)) fail(`${label} is not allowed: ${name}`);
 }
 
+function validateBoolean(value, label) {
+  if (typeof value !== 'boolean') fail(`${label} must be a boolean`);
+  return value;
+}
+
+function validateProjectRelativePath(value, label, directories, extensions) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 300 || value.includes('\0')) {
+    fail(`${label} must be a non-empty project-relative path`);
+  }
+  if (value.startsWith('/') || value.startsWith('\\') || /^[A-Za-z]:/.test(value) || value.includes('\\')) {
+    fail(`${label} must be a relative forward-slash project path`);
+  }
+  const segments = value.split('/');
+  if (segments.some((segment) => segment.length === 0 || segment === '.' || segment === '..')) {
+    fail(`${label} must stay within the project`);
+  }
+  if (!directories.some((directory) => value.startsWith(`${directory}/`) && value.length > directory.length + 1)) {
+    fail(`${label} must be under ${directories.join(', ')}`);
+  }
+  const dot = value.lastIndexOf('.');
+  const extension = dot < 0 ? '' : value.slice(dot).toLowerCase();
+  if (!extensions.has(extension)) fail(`${label} has an unsupported extension`);
+  return value;
+}
+
+function validateOptionalTransform(operation, kind) {
+  if (Object.hasOwn(operation, 'location')) validateVector(operation.location, `${kind}.location`, 3);
+  if (Object.hasOwn(operation, 'rotation')) validateVector(operation.rotation, `${kind}.rotation`, 3);
+  if (Object.hasOwn(operation, 'scale')) {
+    validateVector(operation.scale, `${kind}.scale`, 3, 0, 1e4);
+    if (operation.scale.some((value) => value === 0)) fail(`${kind}.scale values must be positive`);
+  }
+}
+
+function validateImagePath(operation, label, directories, extensions = IMAGE_EXTENSIONS) {
+  return validateProjectRelativePath(operation.path, label, directories, extensions);
+}
+
 function validateEmission(value, label) {
   if (value === undefined) return;
   if (!isPlainObject(value)) fail(`${label} must be an object`);
@@ -101,7 +153,7 @@ function jsonReceipt(operation, name = null) {
   return `print("HARNESS_JSON:" + json.dumps({"ok": True, "operation": ${operationLiteral}, "name": ${nameLiteral}}, separators=(",", ":")))`;
 }
 
-function script(body, imports = 'import bpy\nimport json\n') {
+function script(body, imports = 'import bpy\nimport json\nimport os\n') {
   return `${imports}\ntry:\n${body.split('\n').map((line) => `    ${line}`).join('\n')}\nexcept Exception as exc:\n    print("HARNESS_JSON:" + json.dumps({"ok": False, "error": str(exc)}, separators=(",", ":")))\n    raise\n`;
 }
 
@@ -220,6 +272,73 @@ function validateOperation(operation, allowedObjects) {
       validateAllowedName(operation.name, allowed);
       break;
     }
+    case 'import_asset':
+    case 'link_library': {
+      const keys = ['operation', 'name', 'path', 'location', 'rotation', 'scale', 'link'];
+      strictObject(operation, keys, kind);
+      requireKeys(operation, ['name', 'path'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateProjectRelativePath(operation.path, `${kind}.path`, ['assets/models', 'assets/external', 'scenes'], kind === 'link_library' ? new Set(['.blend']) : MODEL_EXTENSIONS);
+      validateOptionalTransform(operation, kind);
+      if (Object.hasOwn(operation, 'link')) validateBoolean(operation.link, `${kind}.link`);
+      if (kind === 'import_asset' && operation.link && !operation.path.toLowerCase().endsWith('.blend')) {
+        fail('import_asset.link requires a .blend path');
+      }
+      break;
+    }
+    case 'import_audio': {
+      strictObject(operation, ['operation', 'name', 'path', 'location', 'volume'], kind);
+      requireKeys(operation, ['name', 'path'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateProjectRelativePath(operation.path, `${kind}.path`, ['assets/audio', 'assets/external'], AUDIO_EXTENSIONS);
+      if (Object.hasOwn(operation, 'location')) validateVector(operation.location, `${kind}.location`, 3);
+      if (Object.hasOwn(operation, 'volume')) validateFiniteNumber(operation.volume, `${kind}.volume`, 0, 1);
+      break;
+    }
+    case 'image_reference': {
+      strictObject(operation, ['operation', 'name', 'path', 'location', 'rotation', 'scale'], kind);
+      requireKeys(operation, ['name', 'path'], kind);
+      validateAllowedName(operation.name, allowed);
+      validateImagePath(operation, `${kind}.path`, ['Documents/References', 'assets/textures', 'assets/hdri', 'assets/external']);
+      validateOptionalTransform(operation, kind);
+      break;
+    }
+    case 'image_texture': {
+      strictObject(operation, ['operation', 'name', 'objects', 'path', 'roughness', 'metallic', 'colorSpace', 'emission'], kind);
+      requireKeys(operation, ['name', 'objects', 'path', 'roughness', 'metallic'], kind);
+      validateString(operation.name, `${kind}.name`);
+      if (!Array.isArray(operation.objects) || operation.objects.length < 1 || operation.objects.length > 50) fail(`${kind}.objects must contain 1-50 object names`);
+      const objects = operation.objects.map((name, index) => validateString(name, `${kind}.objects[${index}]`));
+      if (new Set(objects).size !== objects.length) fail(`${kind}.objects must not contain duplicates`);
+      for (const name of objects) validateAllowedName(name, allowed, `${kind}.objects`);
+      validateImagePath(operation, `${kind}.path`, ['assets/textures', 'assets/hdri', 'assets/external']);
+      validateFiniteNumber(operation.roughness, `${kind}.roughness`, 0, 1);
+      validateFiniteNumber(operation.metallic, `${kind}.metallic`, 0, 1);
+      if (Object.hasOwn(operation, 'colorSpace') && !['sRGB', 'Non-Color'].includes(operation.colorSpace)) fail(`${kind}.colorSpace is invalid`);
+      validateEmission(operation.emission, `${kind}.emission`);
+      break;
+    }
+    case 'world_hdri': {
+      strictObject(operation, ['operation', 'path', 'strength', 'rotation'], kind);
+      requireKeys(operation, ['path'], kind);
+      validateImagePath(operation, `${kind}.path`, ['assets/hdri', 'assets/external'], HDRI_EXTENSIONS);
+      if (Object.hasOwn(operation, 'strength')) validateFiniteNumber(operation.strength, `${kind}.strength`, 0, 1000);
+      if (Object.hasOwn(operation, 'rotation')) validateFiniteNumber(operation.rotation, `${kind}.rotation`, -1e6, 1e6);
+      break;
+    }
+    case 'check_assets':
+    case 'pack_assets': {
+      strictObject(operation, ['operation'], kind);
+      break;
+    }
+    case 'export_scene': {
+      strictObject(operation, ['operation', 'format', 'path'], kind);
+      requireKeys(operation, ['format', 'path'], kind);
+      validateString(operation.format, `${kind}.format`);
+      if (!EXPORT_EXTENSIONS.has(operation.format)) fail(`${kind}.format is invalid`);
+      validateProjectRelativePath(operation.path, `${kind}.path`, ['exports'], new Set([EXPORT_EXTENSIONS.get(operation.format)]));
+      break;
+    }
     case 'render_settings': {
       strictObject(operation, ['operation', 'width', 'height', 'samples'], kind);
       requireKeys(operation, ['width', 'height', 'samples'], kind);
@@ -252,8 +371,95 @@ function createMeshCode(operation) {
   return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${primitive}\nmesh = bpy.data.meshes.new(${name} + "_Mesh")\nmesh.from_pydata(verts, [], faces)\nmesh.update()\nobj = bpy.data.objects.new(${name}, mesh)\nbpy.context.collection.objects.link(obj)\nobj.location = ${quote(operation.location)}\nobj.scale = ${quote(operation.scale)}\n${jsonReceipt('create_mesh', operation.name)}`;
 }
 
+function assetPathCode(path, { file = true } = {}) {
+  return `asset_path = os.path.abspath(bpy.path.abspath("//" + ${quote(path)}))\n${file ? 'if not os.path.isfile(asset_path):\n    raise RuntimeError("asset file not found")' : ''}\nnormalized_asset = asset_path.replace("\\\\", "/")\nif "/assets/external/" in normalized_asset:\n    search_dir = os.path.dirname(asset_path)\n    while search_dir and not (os.path.isfile(os.path.join(search_dir, "SOURCE.md")) and os.path.isfile(os.path.join(search_dir, "LICENSE.txt"))):\n        if os.path.basename(search_dir) == "external":\n            raise RuntimeError("external asset requires SOURCE.md and LICENSE.txt in its asset folder")\n        parent_dir = os.path.dirname(search_dir)\n        if parent_dir == search_dir:\n            raise RuntimeError("external asset requires SOURCE.md and LICENSE.txt in its asset folder")\n        search_dir = parent_dir`;
+}
+
+function transformCode(operation, target) {
+  const fields = [];
+  if (Object.hasOwn(operation, 'location')) fields.push(`${target}.location = ${quote(operation.location)}`);
+  if (Object.hasOwn(operation, 'rotation')) fields.push(`${target}.rotation_euler = ${quote(operation.rotation)}`);
+  if (Object.hasOwn(operation, 'scale')) fields.push(`${target}.scale = ${quote(operation.scale)}`);
+  return fields.join('\n');
+}
+
+function parentCode(name) {
+  return `creation_parent = bpy.data.objects.new(${quote(name)}, None)\ncreation_parent.empty_display_type = 'PLAIN_AXES'\nbpy.context.collection.objects.link(creation_parent)`;
+}
+
+function importAssetCode(operation, { libraryOnly = false } = {}) {
+  const link = libraryOnly ? operation.link !== false : Boolean(operation.link);
+  const loadLibrary = `with bpy.data.libraries.load(asset_path, link=${link ? 'True' : 'False'}) as (data_from, data_to):\n    data_to.objects = list(data_from.objects)\nimported = [obj for obj in data_to.objects if obj is not None]\nfor obj in imported:\n    bpy.context.collection.objects.link(obj)`;
+  const operators = `existing_objects = set(bpy.context.scene.objects)\nsuffix = os.path.splitext(asset_path)[1].lower()\nif suffix in ('.glb', '.gltf'):\n    if not hasattr(bpy.ops.import_scene, 'gltf'):\n        raise RuntimeError("glTF import is unavailable")\n    bpy.ops.import_scene.gltf(filepath=asset_path)\nelif suffix == '.fbx':\n    if not hasattr(bpy.ops.import_scene, 'fbx'):\n        raise RuntimeError("FBX import is unavailable")\n    bpy.ops.import_scene.fbx(filepath=asset_path)\nelif suffix == '.usd' or suffix == '.usdz':\n    if not hasattr(bpy.ops.wm, 'usd_import'):\n        raise RuntimeError("USD import is unavailable")\n    bpy.ops.wm.usd_import(filepath=asset_path)\nelif suffix == '.obj':\n    if hasattr(bpy.ops.wm, 'obj_import'):\n        bpy.ops.wm.obj_import(filepath=asset_path)\n    elif hasattr(bpy.ops.import_scene, 'obj'):\n        bpy.ops.import_scene.obj(filepath=asset_path)\n    else:\n        raise RuntimeError("OBJ import is unavailable")\nelse:\n    raise RuntimeError("unsupported asset extension")\nimported = [obj for obj in bpy.context.scene.objects if obj not in existing_objects]`;
+  const parentImported = `for obj in imported:\n    if obj.parent is None:\n        obj.parent = creation_parent\nif not imported:\n    raise RuntimeError("asset import produced no objects")`;
+  const body = libraryOnly
+    ? `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation.name)}\n${loadLibrary}\n${parentImported}`
+    : `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation.name)}\nfor obj in list(bpy.context.selected_objects):\n    obj.select_set(False)\nif os.path.splitext(asset_path)[1].lower() == '.blend':\n${loadLibrary.split('\n').map((line) => `    ${line}`).join('\n')}\nelse:\n${operators.split('\n').map((line) => `    ${line}`).join('\n')}\n${parentImported}`;
+  return `${body}\n${transformCode(operation, 'creation_parent')}\n${jsonReceipt(libraryOnly ? 'link_library' : 'import_asset', operation.name)}`;
+}
+
+function imageReferenceCode(operation) {
+  return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nreference = bpy.data.objects.new(${quote(operation.name)}, None)\nreference.empty_display_type = 'IMAGE'\nreference.empty_display_size = 1.0\nreference.data = image\nreference.show_in_front = True\nreference.hide_render = True\nbpy.context.collection.objects.link(reference)\n${transformCode(operation, 'reference')}\n${jsonReceipt('image_reference', operation.name)}`;
+}
+
+function imageTextureCode(operation) {
+  const colorSpace = operation.colorSpace ?? 'sRGB';
+  const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
+  const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type != 'MESH':\n    raise RuntimeError("image_texture requires mesh objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
+  return `${objectModeGuard()}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nimage.colorspace_settings.name = ${quote(colorSpace)}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nnodes = material.node_tree.nodes\nlinks = material.node_tree.links\nbsdf = next((node for node in nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\ntexture = nodes.new('ShaderNodeTexImage')\ntexture.image = image\ntexture.interpolation = 'Linear'\ncoordinates = nodes.new('ShaderNodeTexCoord')\nlinks.new(coordinates.outputs['Generated'], texture.inputs['Vector'])\nlinks.new(texture.outputs['Color'], bsdf.inputs['Base Color'])\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('image_texture')}`;
+}
+
+function worldHdriCode(operation) {
+  const strength = operation.strength ?? 1;
+  const rotation = operation.rotation ?? 0;
+  return `scene = bpy.context.scene\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nworld = scene.world\nif world is None:\n    world = bpy.data.worlds.new("World")\n    scene.world = world\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links\nnodes.clear()\noutput = nodes.new('ShaderNodeOutputWorld')\nbackground = nodes.new('ShaderNodeBackground')\nenvironment = nodes.new('ShaderNodeTexEnvironment')\nmapping = nodes.new('ShaderNodeMapping')\ncoordinates = nodes.new('ShaderNodeTexCoord')\nenvironment.image = image\nmapping.inputs['Rotation'].default_value = (0, 0, ${rotation})\nlinks.new(coordinates.outputs['Generated'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], environment.inputs['Vector'])\nlinks.new(environment.outputs['Color'], background.inputs['Color'])\nbackground.inputs['Strength'].default_value = ${strength}\nlinks.new(background.outputs['Background'], output.inputs['Surface'])\n${jsonReceipt('world_hdri')}`;
+}
+
+function checkAssetsCode() {
+  return `external = bpy.utils.blend_paths(absolute=True, packed=False, local=True)\nmissing = [path for path in external if not os.path.exists(path)]\npacked = [image.name for image in bpy.data.images if image.packed_file is not None]\nlibraries = [{"path": library.filepath, "packed": bool(getattr(library, "packed_file", None))} for library in bpy.data.libraries]\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "check_assets", "external": external, "missing": missing, "packed": packed, "libraries": libraries}, separators=(",", ":")))`;
+}
+
+function packAssetsCode() {
+  return `bpy.ops.file.pack_all()\npacked = [image.name for image in bpy.data.images if image.packed_file is not None]\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "pack_assets", "packed": packed}, separators=(",", ":")))`;
+}
+
+function exportSceneCode(operation) {
+  const format = operation.format;
+  const code = {
+    glb: `if not hasattr(bpy.ops.export_scene, 'gltf'):\n    raise RuntimeError("glTF export is unavailable")\nbpy.ops.export_scene.gltf(filepath=export_path, export_format='GLB', use_selection=False)`,
+    gltf: `if not hasattr(bpy.ops.export_scene, 'gltf'):\n    raise RuntimeError("glTF export is unavailable")\nbpy.ops.export_scene.gltf(filepath=export_path, export_format='GLTF_SEPARATE', use_selection=False)`,
+    fbx: `if not hasattr(bpy.ops.export_scene, 'fbx'):\n    raise RuntimeError("FBX export is unavailable")\nbpy.ops.export_scene.fbx(filepath=export_path, use_selection=False)`,
+    usd: `if not hasattr(bpy.ops.wm, 'usd_export'):\n    raise RuntimeError("USD export is unavailable")\nbpy.ops.wm.usd_export(filepath=export_path, selected_objects_only=False)`,
+    obj: `if hasattr(bpy.ops.wm, 'obj_export'):\n    bpy.ops.wm.obj_export(filepath=export_path, export_selected_objects=False)\nelif hasattr(bpy.ops.export_scene, 'obj'):\n    bpy.ops.export_scene.obj(filepath=export_path, use_selection=False)\nelse:\n    raise RuntimeError("OBJ export is unavailable")`,
+  }[format];
+  return `export_path = os.path.abspath(bpy.path.abspath("//" + ${quote(operation.path)}))\nos.makedirs(os.path.dirname(export_path), exist_ok=True)\n${code}\nif not os.path.exists(export_path):\n    raise RuntimeError("export produced no file")\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "export_scene", "format": ${quote(format)}, "filepath": export_path, "bytes": os.path.getsize(export_path)}, separators=(",", ":")))`;
+}
+
+function importAudioCode(operation) {
+  const volume = operation.volume ?? 1;
+  return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nsound = bpy.data.sounds.load(asset_path, check_existing=True)\nspeaker_data = bpy.data.speakers.new(${quote(operation.name)} + "_Speaker")\nspeaker_data.sound = sound\nspeaker_data.volume = ${volume}\nspeaker = bpy.data.objects.new(${quote(operation.name)}, speaker_data)\nbpy.context.collection.objects.link(speaker)\n${Object.hasOwn(operation, 'location') ? `speaker.location = ${quote(operation.location)}` : ''}\n${jsonReceipt('import_audio', operation.name)}`;
+}
+
 function operationBody(operation) {
   switch (operation.operation) {
+    case 'import_asset':
+      return importAssetCode(operation);
+    case 'link_library':
+      return importAssetCode(operation, { libraryOnly: true });
+    case 'import_audio':
+      return importAudioCode(operation);
+    case 'image_reference':
+      return imageReferenceCode(operation);
+    case 'image_texture':
+      return imageTextureCode(operation);
+    case 'world_hdri':
+      return worldHdriCode(operation);
+    case 'check_assets':
+      return checkAssetsCode();
+    case 'pack_assets':
+      return packAssetsCode();
+    case 'export_scene':
+      return exportSceneCode(operation);
     case 'create_mesh':
       return createMeshCode(operation);
     case 'transform': {

@@ -60,6 +60,8 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   const f = fixture(t), h = hooks(f);
   const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'capabilities', payload: '{}' }, { sessionID: f.session }));
   assert.ok(result.operations.includes('create_mesh'));
+  assert.ok(result.operations.includes('import_asset'));
+  assert.ok(result.operations.includes('export_scene'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
