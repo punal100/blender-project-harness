@@ -1248,6 +1248,9 @@ export class Harness {
       if (operation === 'seal' && c.operations === 0 && !recovery) deny('seal requires at least one apply operation; document-only changes commit without sealing');
       if (operation === 'seal' && !recovery && !c.readyToSeal) deny('finalize the declared milestone before sealing');
       if (operation === 'seal' && !recovery && (!c.wipLook || c.wipLook.operations !== c.operations)) deny('seal requires a WIP render and blender_look receipt from the current apply state');
+      const wipDue = c.operations > 0 && c.operations % 3 === 0 && (!c.wipRender || c.wipRender.operations !== c.operations);
+      const wipLookDue = c.wipRender?.operations === c.operations && (!c.wipLook || c.wipLook.operations !== c.operations);
+      if (operation === 'apply' && (wipDue || wipLookDue)) deny('apply blocked: WIP render and blender_look receipt required after every third apply; follow status.nextStep');
       if (!['apply', 'save', 'seal', 'wip'].includes(operation)) deny('unknown operation');
       const token = crypto.randomUUID();
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };
