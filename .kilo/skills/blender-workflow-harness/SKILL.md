@@ -49,8 +49,9 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 4. A change whose declared paths are all markdown is document-only: after editing, use `commit` and
    `checkpoint` without `apply`, `seal`, or review. Every scene change requires `finalize`, then
    `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
-   also requires a WIP check. Seal only after that look. `seal` writes immutable evidence, a final
-   PNG, and a manifest.
+   also requires a WIP check. The harness denies a new apply ticket until the due WIP render has a
+   `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a final PNG,
+   and a manifest.
 5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
    `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
@@ -69,8 +70,9 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. Completion needs a final
-   full-spec change before `goal_report`. After a complete report, stop Blender through the harness
-   unless it is intentionally left open for user inspection; report that choice.
+   full-spec change before `goal_report`; `goal-complete` marks `TASKSTRACKER.md` complete and commits
+   that tracker-only update. After a complete report, stop Blender through the harness unless it is
+   intentionally left open for user inspection; report that choice.
 10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
     then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
 

@@ -61,7 +61,8 @@ next call. `capabilities` is authoritative for actions, operations, document for
   review. The bootstrap save is not reviewable.
 - Every reviewable change MUST complete: apply tickets, a WIP render every three applies and before
   seal, `seal`, `blender_look` on the returned render, review, approval when required, one harness
-  commit per apply batch, the review commit, and `checkpoint`. A tooling/evidence `BLOCKED` retries
+  commit per apply batch, the review commit, and `checkpoint`. The harness denies further apply
+  tickets until the due WIP render has a `blender_look` receipt. A tooling/evidence `BLOCKED` retries
   the grader; it does not open a design revision.
 - Apply edits are worker-only. Issue one `apply` ticket containing one operation or an
   `{operations:[...]}` batch of up to 10, pass its token to `blender-worker`, and let the worker call
@@ -170,8 +171,10 @@ Blender production is complete only when all acceptance checks pass; the scene i
 review render exists and was inspected with `look`; requirements, workflow, and review records are
 current; every required review has an applicable `PASS` or recorded `Off` self-review; no genuine
 blocker or major remains; `checkpoint` is clean; and the goal prompt is recorded. Call
-`goal_report {status:"complete",reason:<evidence>}` only after that state. Then stop Blender through
-`blender_workflow` unless it is intentionally left open for user inspection; report that choice.
+`goal_report {status:"complete",reason:<evidence>}` only after that state. The harness's
+`goal-complete` marks `Documents/TASKSTRACKER.md` complete and commits that tracker-only update; verify
+the clean state before reporting. Then stop Blender through `blender_workflow` unless it is
+intentionally left open for user inspection; report that choice.
 
 Workspace maintenance requires the relevant format, tooling, and diff checks. Report checks that
 could not run; do not invent scene verification.
