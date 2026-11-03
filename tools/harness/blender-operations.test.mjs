@@ -165,6 +165,16 @@ test('camera DOF, light color/temperature, emission, shared materials, and dupli
   const shared = operationCode({ operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 1, 1, 1], roughness: 0.5, metallic: 0 }, allowed);
   assert.match(shared, /shared_material/);
   assert.match(shared, /bpy\.data\.materials\.new/);
+  const text = operationCode({ operation: 'text', name: 'Sign', body: 'Cozy Room', size: 0.5, extrude: 0.02, align_x: 'CENTER', align_y: 'CENTER', location: [0, 0, 1] }, [...allowed, 'Sign']);
+  assert.match(text, /bpy\.data\.curves\.new/);
+  assert.match(text, /text_data\.body = "Cozy Room"/);
+  const bevel = operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BEVEL', width: 0.02, segments: 2 }, allowed);
+  assert.match(bevel, /modifiers\.new/);
+  assert.match(bevel, /modifier\.width/);
+  const array = operationCode({ operation: 'modifier', name: 'Cube', modifier: 'ARRAY', count: 4, relative_offset: [1, 0, 0], apply: true }, allowed);
+  assert.match(array, /modifier\.count = 4/);
+  assert.match(array, /modifier_apply/);
+  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'WAVE' }, allowed), /invalid/);
   const duplicate = operationCode({ operation: 'duplicate', name: 'Cube', new_name: 'Copy', location: [1, 0, 0] }, [...allowed, 'Copy']);
   assert.match(duplicate, /duplicate\.data = obj\.data\.copy\(\)/);
   assert.match(duplicate, /duplicate\.location/);
@@ -234,6 +244,9 @@ test('asset, image, audio, validation, and export operations generate bounded co
   const checked = operationCode({ operation: 'check_assets' }, []);
   assert.match(checked, /blend_paths/);
   assert.match(checked, /missing/);
+  const strictChecked = operationCode({ operation: 'check_assets', strict: true }, []);
+  assert.match(strictChecked, /missing external files/);
+  assert.throws(() => operationCode({ operation: 'check_assets', strict: 'yes' }, []), /boolean/);
   const packed = operationCode({ operation: 'pack_assets' }, []);
   assert.match(packed, /pack_all/);
   const exported = operationCode({ operation: 'export_scene', format: 'glb', path: 'exports/room.glb' }, []);
@@ -272,6 +285,12 @@ test('preflight, save, and render code enforce explicit project paths', () => {
 test('every operation and lifecycle script compiles as Python without importing Blender', () => {
   const operations = [
     ...['cube', 'plane', 'uv_sphere', 'cylinder'].map(meshOperation),
+    { operation: 'text', name: 'Sign', body: 'Cozy Room', size: 0.5, extrude: 0.02, align_x: 'CENTER', align_y: 'CENTER' },
+    { operation: 'modifier', name: 'Cube', modifier: 'BEVEL', width: 0.02, segments: 2 },
+    { operation: 'modifier', name: 'Cube', modifier: 'SUBSURF', levels: 1, render_levels: 2 },
+    { operation: 'modifier', name: 'Cube', modifier: 'SOLIDIFY', thickness: 0.01, offset: -1 },
+    { operation: 'modifier', name: 'Cube', modifier: 'MIRROR', axis: 'X', use_clip: true },
+    { operation: 'modifier', name: 'Cube', modifier: 'ARRAY', count: 3, relative_offset: [1, 0, 0], apply: true },
     { operation: 'transform', name: 'Cube', location: [1, 2, 3], rotation: [0, 1, 2], scale: [1, 1, 1] },
     { operation: 'material', name: 'Cube', color: [1, 0, 0, 1], roughness: 0.5, metallic: 0, emission: { color: [1, 0.4, 0.2, 1], strength: 1 } },
     { operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 0, 0, 1], roughness: 0.5, metallic: 0 },
@@ -288,10 +307,11 @@ test('every operation and lifecycle script compiles as Python without importing 
     { operation: 'image_texture', name: 'Wood', objects: ['Cube'], path: 'assets/textures/wood.png', roughness: 0.5, metallic: 0 },
     { operation: 'world_hdri', path: 'assets/hdri/studio.exr', strength: 1.2 },
     { operation: 'check_assets' },
+    { operation: 'check_assets', strict: true },
     { operation: 'pack_assets' },
     { operation: 'export_scene', format: 'glb', path: 'exports/room.glb' },
   ];
-  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Imported', 'Linked', 'Rain', 'Reference']));
+  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Sign', 'Imported', 'Linked', 'Rain', 'Reference']));
   scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'));
   const count = runPython(`import json, sys
 scripts = json.load(sys.stdin)

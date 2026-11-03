@@ -13,6 +13,9 @@ import {
   planIntake,
 } from './intake.mjs';
 
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZQAAAABJRU5ErkJggg==', 'base64');
+const GLB = Buffer.concat([Buffer.from('glTF'), Buffer.from([2, 0, 0, 0]), Buffer.alloc(8)]);
+
 function workspace(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kilo-intake-'));
   t.after(() => fs.rmSync(root, { force: true, recursive: true }));
@@ -39,7 +42,7 @@ test('classifies only supported intake files', () => {
 
 test('plans generated references and copies them without treating them as assets', (t) => {
   const root = workspace(t);
-  const source = write(root, 'downloads/mood board.png', Buffer.from('png'));
+  const source = write(root, 'downloads/mood board.png', PNG_1X1);
   const projectRoot = path.join(root, 'project');
   const plan = planIntake({
     root,
@@ -50,6 +53,8 @@ test('plans generated references and copies them without treating them as assets
   assert.equal(plan.entries.length, 1);
   assert.equal(plan.entries[0].kind, 'reference');
   assert.equal(plan.entries[0].external, false);
+  assert.equal(plan.entries[0].mime, 'image/png');
+  assert.deepEqual([plan.entries[0].width, plan.entries[0].height], [1, 1]);
   assert.match(plan.entries[0].destination, /^Documents\/References\/mood-board-[a-f0-9]{8}\.png$/);
   const result = copyIntake({ projectRoot, plan, licenseText: plan.licenseText });
   assert.equal(result.copied.length, 1);
@@ -60,7 +65,7 @@ test('plans generated references and copies them without treating them as assets
 
 test('requires an explicit licence for external assets and writes its verbatim copy', (t) => {
   const root = workspace(t);
-  const source = write(root, 'downloads/chair.glb', Buffer.from('glb'));
+  const source = write(root, 'downloads/chair.glb', GLB);
   const projectRoot = path.join(root, 'project');
   const missingText = planIntake({
     root,
@@ -87,7 +92,7 @@ test('requires an explicit licence for external assets and writes its verbatim c
 
 test('deduplicates identical content and suffixes name collisions', (t) => {
   const root = workspace(t);
-  const source = write(root, 'downloads/ref.png', Buffer.from('same'));
+  const source = write(root, 'downloads/ref.png', PNG_1X1);
   const projectRoot = path.join(root, 'project');
   const plan = planIntake({ root, projectName: 'Project', files: [source], kind: 'reference' });
   const first = copyIntake({ projectRoot, plan, licenseText: plan.licenseText });
@@ -99,6 +104,14 @@ test('deduplicates identical content and suffixes name collisions', (t) => {
   const third = copyIntake({ projectRoot, plan, licenseText: plan.licenseText });
   assert.equal(third.copied.length, 1);
   assert.match(third.copied[0].stored, /-2\.png$/);
+});
+
+test('rejects files whose signature does not match the extension', (t) => {
+  const root = workspace(t);
+  const fake = write(root, 'downloads/fake.png', Buffer.from('not a png'));
+  const plan = planIntake({ root, projectName: 'Project', files: [fake] });
+  assert.equal(plan.entries.length, 0);
+  assert.match(plan.rejected[0].reason, /signature does not match PNG/);
 });
 
 test('rejects unsupported files and symlinks without copying', (t) => {
@@ -118,7 +131,7 @@ test('rejects unsupported files and symlinks without copying', (t) => {
 
 test('project-owned models bypass third-party metadata only when declared', (t) => {
   const root = workspace(t);
-  const model = write(root, 'downloads/chair.glb', Buffer.from('glb'));
+  const model = write(root, 'downloads/chair.glb', GLB);
   const projectOwned = planIntake({ root, projectName: 'Project', files: [model], kind: 'model', source: { external: false } });
   assert.equal(projectOwned.entries[0].destination, 'assets/models/chair.glb');
   const external = planIntake({ root, projectName: 'Project', files: [model], kind: 'model' });
@@ -128,7 +141,7 @@ test('project-owned models bypass third-party metadata only when declared', (t) 
 
 test('accepts images as textures and scripts only as source', (t) => {
   const root = workspace(t);
-  const image = write(root, 'downloads/wood.png', Buffer.from('png'));
+  const image = write(root, 'downloads/wood.png', PNG_1X1);
   const script = write(root, 'downloads/build.py', 'print("hello")\n');
   const texture = planIntake({ root, projectName: 'Project', files: [image], kind: 'texture' });
   assert.equal(texture.entries[0].kind, 'texture');

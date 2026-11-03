@@ -9,6 +9,8 @@ import { Harness, contained } from './engine.mjs';
 
 const tempRoot = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempRoot, { recursive: true });
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2ZQAAAABJRU5ErkJggg==', 'base64');
+const GLB = Buffer.concat([Buffer.from('glTF'), Buffer.from([2, 0, 0, 0]), Buffer.alloc(8)]);
 
 function git(root, args, { allowFailure = false } = {}) {
   const result = spawnSync('git', args, {
@@ -1926,7 +1928,7 @@ test('intake can scan a supplied file before registration', (t) => {
   fs.mkdirSync(sourceRoot, { recursive: true });
   t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
   const reference = path.join(sourceRoot, 'reference.png');
-  fs.writeFileSync(reference, Buffer.from('png'));
+  fs.writeFileSync(reference, PNG_1X1);
   const scan = f.harness.intake('orchestrator', { project: f.project, files: [reference], scan: true, generated: { tool: 'media-mcp', model: 'image-model', prompt: 'mood' } });
   assert.equal(scan.scan, true);
   assert.equal(scan.entries.length, 1);
@@ -1942,8 +1944,8 @@ test('intake copies references and external assets into the open change', (t) =>
   t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
   const reference = path.join(sourceRoot, 'mood board.png');
   const model = path.join(sourceRoot, 'chair.glb');
-  fs.writeFileSync(reference, Buffer.from('png-bytes'));
-  fs.writeFileSync(model, Buffer.from('glb-bytes'));
+  fs.writeFileSync(reference, PNG_1X1);
+  fs.writeFileSync(model, GLB);
 
   const queued = f.harness.intake('orchestrator', {
     project: f.project,
@@ -1973,9 +1975,12 @@ test('intake copies references and external assets into the open change', (t) =>
   assert.equal(scan.scan, true);
   assert.equal(scan.copied, undefined);
   assert.equal(scan.entries.length, 1);
-  const change = f.harness.command('orchestrator', 'status').change;
+  const status = f.harness.command('orchestrator', 'status');
+  const change = status.change;
   assert.ok(change.paths.includes(`${f.project}/${queued.copied[0].stored}`));
   assert.ok(change.paths.includes(`${f.project}/Documents/INTAKE.md`));
+  assert.equal(status.intake.copied, 1);
+  assert.ok(status.intake.paths.includes(asset.copied[0].stored));
 });
 
 test('reference-only intake closes as a non-scene change', (t) => {
@@ -1986,7 +1991,7 @@ test('reference-only intake closes as a non-scene change', (t) => {
   fs.mkdirSync(sourceRoot, { recursive: true });
   t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
   const reference = path.join(sourceRoot, 'mood.png');
-  fs.writeFileSync(reference, Buffer.from('png'));
+  fs.writeFileSync(reference, PNG_1X1);
   f.harness.intake('orchestrator', { project: f.project, files: [reference], generated: { tool: 'media-mcp', model: 'image-model', prompt: 'mood' } });
   const change = f.harness.command('orchestrator', 'status').change;
   assert.equal(change.documentOnly, false);
@@ -1994,6 +1999,21 @@ test('reference-only intake closes as a non-scene change', (t) => {
   f.harness.command('orchestrator', 'commit', { message: 'assets: add reference intake' });
   f.harness.command('orchestrator', 'checkpoint');
   assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'DOCUMENT');
+});
+
+test('only strict check_assets satisfies the asset receipt', (t) => {
+  const strict = useFixture(t);
+  activate(strict);
+  begin(strict, 'orchestrator', { final: false });
+  const strictIssue = issueAndConsume(strict, 'orchestrator', 'apply', { operation: 'check_assets', strict: true });
+  strict.harness.finish(strictIssue.token, { ok: true, completed: 1, operationResults: [{ index: 1, operation: 'check_assets', ok: true }] });
+  assert.equal(strict.harness.transaction((s) => s.projects[strict.project].change.assetChecked), true);
+  const loose = useFixture(t);
+  activate(loose);
+  begin(loose, 'orchestrator', { final: false });
+  const looseIssue = issueAndConsume(loose, 'orchestrator', 'apply', { operation: 'check_assets' });
+  loose.harness.finish(looseIssue.token, { ok: true, completed: 1, operationResults: [{ index: 1, operation: 'check_assets', ok: true }] });
+  assert.equal(loose.harness.transaction((s) => s.projects[loose.project].change.assetChecked), undefined);
 });
 
 test('completion requires check_assets after an asset operation', (t) => {
