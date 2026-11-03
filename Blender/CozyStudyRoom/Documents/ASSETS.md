@@ -5,7 +5,7 @@ has no source or licence, it is not ready to ship.
 
 | Asset ID | Asset | Type | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | SHA-256 | Preview | Used in | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| — | None yet | — | — | — | — | — | — | — | — | — | — | — |
+| — | None — all materials procedural | — | — | — | — | — | — | — | — | — | — | The delivered scene uses no external assets or third-party data. |
 
 ## Rules
 
@@ -30,6 +30,6 @@ has no source or licence, it is not ready to ship.
 
 ## Planned sources
 
-- Poly Haven CC0 textures for wood, fabric, wall and rug materials.
-- Poly Haven CC0 HDRI for low-level ambient fill if the window treatment needs it.
-- Every downloaded file is recorded here with source URL, licence and packaging before commit.
+- No external assets are used in the delivered scene; all materials are procedural.
+- The `.blend` contains no packed or embedded third-party data, so there is no redistribution obligation.
+- If the scene is extended later, record any CC0 Poly Haven texture or HDRI here with source, licence, and packaging before commit.

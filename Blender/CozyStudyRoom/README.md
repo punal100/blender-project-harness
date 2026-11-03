@@ -1,6 +1,6 @@
 # CozyStudyRoom
 
-Status: In progress
+Status: Complete
 Last updated: 2026-11-03
 
 ## Purpose
@@ -31,8 +31,8 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 ## Deliverables
 
-- Main Blender file: `cozystudyroom.blend` (planned at project root until first save)
-- Final renders: `renders/final/`
+- Main Blender file: `cozystudyroom.blend` (saved at project root)
+- Final review render: sealed 1920x1080 PNG evidence in `Documents/Reviews/`
 - Exports: `exports/`
 - Documentation: `Documents/`
 - External assets: `assets/external/`
@@ -104,7 +104,7 @@ CozyStudyRoom/
 See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md`](assets/external/README.md).
 
 - User files are brought in through `blender_workflow {action:"intake"}`; originals are never moved.
-- Planned: free CC0 Poly Haven wood, fabric and wall textures plus an HDRI or image-based lighting source; every asset registered before commit.
+- No external assets are used. All materials are procedural, so the scene has no missing-file dependencies and no third-party data to pack or license.
 
 ## Goals
 
@@ -125,6 +125,6 @@ Identify the active goal's actual path; use it for grading rather than assuming 
 ## Next steps
 
 - [x] Persist the exact confirmed requirements and workflow/review answers collected before scaffold.
-- [ ] Fill the active goal, register, launch, and build the scene.
-- [ ] Collect and register CC0 texture/HDRI assets.
-- [ ] Build the scene, save and inspect a review render, and complete grading and commits.
+- [x] Fill the active goal, register, launch, and build the scene.
+- [x] Confirm no external assets are required; all materials are procedural.
+- [x] Build the scene, save and inspect a review render, and complete grading and commits.
