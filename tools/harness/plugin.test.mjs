@@ -69,6 +69,7 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
+  assert.ok(result.bootstrapDocuments.includes('Documents/INTAKE.md'));
   assert.ok(result.documentFormats.some((format) => format.path === 'Documents/TASKSTRACKER.md'));
   assert.equal(result.bootstrapDocuments.includes('Documents/TASKS.md'), false);
   assert.equal(result.documentFormats.some((format) => format.path === 'Documents/TASKS.md'), false);

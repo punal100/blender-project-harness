@@ -24,6 +24,7 @@ const BOOTSTRAP_DOCUMENTS = [
   'Documents/REVIEW.md',
   'Documents/ASSETS.md',
   'Documents/DECISIONS.md',
+  'Documents/INTAKE.md',
   'Documents/TASKSTRACKER.md',
   'Documents/Tasks/README.md',
   'Documents/Goals/README.md',
