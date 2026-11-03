@@ -1,5 +1,11 @@
 const OPERATION_NAMES = new Set([
   'create_mesh',
+  'create_scene',
+  'switch_scene',
+  'delete_scene',
+  'duplicate_scene',
+  'set_scene_camera',
+  'scene_strip',
   'text',
   'modifier',
   'transform',
@@ -23,6 +29,8 @@ const OPERATION_NAMES = new Set([
 ]);
 
 const PRIMITIVES = new Set(['cube', 'uv_sphere', 'plane', 'cylinder']);
+const SCENE_MODES = new Set(['NEW', 'EMPTY', 'LINK_COPY', 'FULL_COPY']);
+const SCENE_OPERATIONS = new Set(['create_mesh', 'text', 'modifier', 'transform', 'material', 'shared_material', 'duplicate', 'create_light', 'create_camera', 'set_camera', 'render_settings', 'delete_object', 'import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'export_scene', 'set_scene_camera', 'scene_strip']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
 const MODIFIER_KINDS = new Set(['BEVEL', 'SUBSURF', 'SOLIDIFY', 'MIRROR', 'ARRAY']);
 const TEXT_ALIGN_X = new Set(['LEFT', 'CENTER', 'RIGHT', 'JUSTIFY', 'FLUSH']);
@@ -47,7 +55,7 @@ function isPlainObject(value) {
 
 function strictObject(value, keys, label) {
   if (!isPlainObject(value)) fail(`${label} must be an object`);
-  const allowed = new Set(keys);
+  const allowed = new Set([...keys, 'scene']);
   for (const key of Reflect.ownKeys(value)) {
     if (!allowed.has(key)) fail(`${label} has extra key: ${String(key)}`);
   }
@@ -169,6 +177,30 @@ function script(body, imports = 'import bpy\nimport json\nimport os\n') {
   return `${imports}\ntry:\n${body.split('\n').map((line) => `    ${line}`).join('\n')}\nexcept Exception as exc:\n    print("HARNESS_JSON:" + json.dumps({"ok": False, "error": str(exc)}, separators=(",", ":")))\n    raise\n`;
 }
 
+function hasScene(operation) {
+  return Object.hasOwn(operation, 'scene');
+}
+
+function sceneSetup(operation) {
+  if (!hasScene(operation)) return 'target_scene = bpy.context.scene';
+  return `target_scene = bpy.data.scenes.get(${quote(operation.scene)})\nif target_scene is None:\n    raise RuntimeError("scene not found")`;
+}
+
+function sceneLink(operation, variable) {
+  return hasScene(operation)
+    ? `target_scene.collection.objects.link(${variable})`
+    : `bpy.context.collection.objects.link(${variable})`;
+}
+
+function sceneObjectGuard(operation, variable = 'obj') {
+  if (!hasScene(operation)) return '';
+  return `${sceneSetup(operation)}\nif target_scene.objects.get(${variable}.name) is not ${variable}:\n    raise RuntimeError("object does not belong to the target scene")`;
+}
+
+function activeSceneExpression() {
+  return 'bpy.context.window.scene if bpy.context.window is not None else bpy.context.scene';
+}
+
 function objectLookup(name) {
   return `obj = bpy.data.objects.get(${quote(name)})\nif obj is None:\n    raise RuntimeError("object not found")`;
 }
@@ -189,6 +221,67 @@ function validateOperation(operation, allowedObjects) {
   if (!OPERATION_NAMES.has(kind)) fail(`unsupported operation: ${kind}`);
 
   switch (kind) {
+    case 'create_scene': {
+      strictObject(operation, ['operation', 'name', 'mode', 'source', 'activate'], kind);
+      requireKeys(operation, ['name', 'mode'], kind);
+      validateString(operation.name, `${kind}.name`);
+      validateString(operation.mode, `${kind}.mode`);
+      if (!SCENE_MODES.has(operation.mode)) fail(`${kind}.mode is invalid`);
+      if (operation.mode !== 'NEW') {
+        requireKeys(operation, ['source'], kind);
+        validateString(operation.source, `${kind}.source`);
+        if (operation.source === operation.name) fail(`${kind}.source and name must differ`);
+      } else if (Object.hasOwn(operation, 'source')) {
+        fail(`${kind}.source is not accepted with NEW`);
+      }
+      if (Object.hasOwn(operation, 'activate')) validateBoolean(operation.activate, `${kind}.activate`);
+      break;
+    }
+    case 'switch_scene': {
+      strictObject(operation, ['operation', 'name'], kind);
+      requireKeys(operation, ['name'], kind);
+      validateString(operation.name, `${kind}.name`);
+      break;
+    }
+    case 'delete_scene': {
+      strictObject(operation, ['operation', 'name'], kind);
+      requireKeys(operation, ['name'], kind);
+      validateString(operation.name, `${kind}.name`);
+      break;
+    }
+    case 'duplicate_scene': {
+      strictObject(operation, ['operation', 'source', 'name'], kind);
+      requireKeys(operation, ['source', 'name'], kind);
+      validateString(operation.source, `${kind}.source`);
+      validateString(operation.name, `${kind}.name`);
+      if (operation.source === operation.name) fail(`${kind}.source and name must differ`);
+      break;
+    }
+    case 'set_scene_camera': {
+      strictObject(operation, ['operation', 'scene', 'camera'], kind);
+      requireKeys(operation, ['scene', 'camera'], kind);
+      validateString(operation.scene, `${kind}.scene`);
+      validateString(operation.camera, `${kind}.camera`);
+      break;
+    }
+    case 'scene_strip': {
+      strictObject(operation, ['operation', 'scene', 'source', 'name', 'channel', 'frame_start', 'frame_end'], kind);
+      requireKeys(operation, ['scene', 'source'], kind);
+      validateString(operation.scene, `${kind}.scene`);
+      validateString(operation.source, `${kind}.source`);
+      if (operation.scene === operation.source) fail(`${kind}.scene and source must differ`);
+      if (Object.hasOwn(operation, 'name')) validateString(operation.name, `${kind}.name`);
+      if (!Number.isInteger(operation.channel)) fail(`${kind}.channel must be an integer`);
+      validateFiniteNumber(operation.channel, `${kind}.channel`, 1, 128);
+      if (!Number.isInteger(operation.frame_start)) fail(`${kind}.frame_start must be an integer`);
+      validateFiniteNumber(operation.frame_start, `${kind}.frame_start`, 0, 1e7);
+      if (Object.hasOwn(operation, 'frame_end')) {
+        if (!Number.isInteger(operation.frame_end)) fail(`${kind}.frame_end must be an integer`);
+        validateFiniteNumber(operation.frame_end, `${kind}.frame_end`, 1, 1e7);
+        if (operation.frame_end <= operation.frame_start) fail(`${kind}.frame_end must be after frame_start`);
+      }
+      break;
+    }
     case 'create_mesh': {
       strictObject(operation, ['operation', 'name', 'primitive', 'location', 'scale'], kind);
       requireKeys(operation, ['name', 'primitive', 'location', 'scale'], kind);
@@ -416,24 +509,76 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'render_settings': {
-      strictObject(operation, ['operation', 'width', 'height', 'samples'], kind);
+      strictObject(operation, ['operation', 'width', 'height', 'samples', 'frame_start', 'frame_end', 'fps', 'useSequencer'], kind);
       requireKeys(operation, ['width', 'height', 'samples'], kind);
-      for (const field of ['width', 'height', 'samples']) {
-        if (!Number.isInteger(operation[field])) fail(`${kind}.${field} must be an integer`);
+      for (const field of ['width', 'height', 'samples', 'frame_start', 'frame_end', 'fps']) {
+        if (Object.hasOwn(operation, field) && !Number.isInteger(operation[field])) fail(`${kind}.${field} must be an integer`);
       }
       validateFiniteNumber(operation.width, `${kind}.width`, 16, 4096);
       validateFiniteNumber(operation.height, `${kind}.height`, 16, 4096);
       validateFiniteNumber(operation.samples, `${kind}.samples`, 1, 1024);
+      if (Object.hasOwn(operation, 'frame_start')) validateFiniteNumber(operation.frame_start, `${kind}.frame_start`, 0, 1e7);
+      if (Object.hasOwn(operation, 'frame_end')) validateFiniteNumber(operation.frame_end, `${kind}.frame_end`, 1, 1e7);
+      if (Object.hasOwn(operation, 'frame_start') && Object.hasOwn(operation, 'frame_end') && operation.frame_end < operation.frame_start) fail(`${kind}.frame_end must not precede frame_start`);
+      if (Object.hasOwn(operation, 'fps')) validateFiniteNumber(operation.fps, `${kind}.fps`, 1, 240);
+      if (Object.hasOwn(operation, 'useSequencer')) validateBoolean(operation.useSequencer, `${kind}.useSequencer`);
       break;
     }
     default:
       fail(`unsupported operation: ${kind}`);
+  }
+  if (Object.hasOwn(operation, 'scene')) {
+    if (!SCENE_OPERATIONS.has(kind)) fail(`${kind}.scene is not supported`);
+    validateString(operation.scene, `${kind}.scene`);
   }
   return { kind, allowed };
 }
 
 function creationGuard(name) {
   return `if bpy.data.objects.get(${quote(name)}) is not None:\n    raise RuntimeError("object already exists")`;
+}
+
+function createSceneCode(operation) {
+  const previous = `previous_scene = ${activeSceneExpression()}`;
+  const source = operation.mode === 'NEW'
+    ? ''
+    : `source_scene = bpy.data.scenes.get(${quote(operation.source)})\nif source_scene is None:\n    raise RuntimeError("source scene not found")\nif bpy.context.window is None:\n    raise RuntimeError("scene creation requires a window context")\nbpy.context.window.scene = source_scene`;
+  const restore = operation.activate
+    ? `if bpy.context.window is None:\n    raise RuntimeError("scene activation requires a window context")\nbpy.context.window.scene = created_scene`
+    : `if bpy.context.window is not None:\n    bpy.context.window.scene = previous_scene`;
+  return `${objectModeGuard()}\n${previous}\n${source}\nbpy.ops.scene.new(type=${quote(operation.mode)})\ncreated_scene = bpy.context.scene\nif created_scene is None:\n    raise RuntimeError("scene creation produced no scene")\ncreated_scene.name = ${quote(operation.name)}\n${restore}\n${jsonReceipt('create_scene', operation.name)}`;
+}
+
+function switchSceneCode(operation) {
+  return `${objectModeGuard()}\ntarget_scene = bpy.data.scenes.get(${quote(operation.name)})\nif target_scene is None:\n    raise RuntimeError("scene not found")\nif bpy.context.window is None:\n    raise RuntimeError("scene switching requires a window context")\nbpy.context.window.scene = target_scene\n${jsonReceipt('switch_scene', operation.name)}`;
+}
+
+function deleteSceneCode(operation) {
+  return `${objectModeGuard()}\ntarget_scene = bpy.data.scenes.get(${quote(operation.name)})\nif target_scene is None:\n    raise RuntimeError("scene not found")\nif len(bpy.data.scenes) <= 1:\n    raise RuntimeError("cannot delete the last scene")\nif target_scene == bpy.context.scene:\n    raise RuntimeError("switch away from the scene before deleting it")\nfor other in bpy.data.scenes:\n    if other.sequence_editor is not None:\n        for strip in other.sequence_editor.sequences:\n            if getattr(strip, 'scene', None) == target_scene:\n                raise RuntimeError("scene is referenced by a Scene Strip")\nbpy.data.scenes.remove(target_scene, do_unlink=True)\n${jsonReceipt('delete_scene', operation.name)}`;
+}
+
+function duplicateSceneCode(operation) {
+  const previous = `previous_scene = ${activeSceneExpression()}`;
+  return `${objectModeGuard()}\n${previous}\nsource_scene = bpy.data.scenes.get(${quote(operation.source)})\nif source_scene is None:\n    raise RuntimeError("source scene not found")\nif bpy.context.window is None:\n    raise RuntimeError("scene duplication requires a window context")\nbpy.context.window.scene = source_scene\nbpy.ops.scene.new(type='FULL_COPY')\ncreated_scene = bpy.context.scene\nif created_scene is None:\n    raise RuntimeError("scene duplication produced no scene")\ncreated_scene.name = ${quote(operation.name)}\nbpy.context.window.scene = previous_scene\n${jsonReceipt('duplicate_scene', operation.name)}`;
+}
+
+function setSceneCameraCode(operation) {
+  return `${objectModeGuard()}\ntarget_scene = bpy.data.scenes.get(${quote(operation.scene)})\nif target_scene is None:\n    raise RuntimeError("scene not found")\ncamera = bpy.data.objects.get(${quote(operation.camera)})\nif camera is None:\n    raise RuntimeError("camera object not found")\nif camera.type != 'CAMERA':\n    raise RuntimeError("object is not a camera")\nif target_scene.objects.get(camera.name) is not camera:\n    raise RuntimeError("camera does not belong to the target scene")\ntarget_scene.camera = camera\n${jsonReceipt('set_scene_camera', operation.camera)}`;
+}
+
+function sceneStripCode(operation) {
+  const name = operation.name ?? operation.source;
+  const end = Object.hasOwn(operation, 'frame_end')
+    ? `strip.frame_final_end = ${operation.frame_end}`
+    : '';
+  return `${objectModeGuard()}\ntarget_scene = bpy.data.scenes.get(${quote(operation.scene)})\nif target_scene is None:\n    raise RuntimeError("scene not found")\nsource_scene = bpy.data.scenes.get(${quote(operation.source)})\nif source_scene is None:\n    raise RuntimeError("source scene not found")\nif target_scene.sequence_editor is None:\n    target_scene.sequence_editor_create()\nsequences = target_scene.sequence_editor.sequences\nstrip = sequences.new_scene(${quote(name)}, source_scene, ${operation.channel}, ${operation.frame_start})\n${end}\n${jsonReceipt('scene_strip', name)}`;
+}
+
+function sceneFactsCode(sceneName = null) {
+  const selection = sceneName === null
+    ? 'scenes = list(bpy.data.scenes)'
+    : `target_scene = bpy.data.scenes.get(${quote(sceneName)})\nif target_scene is None:\n    raise RuntimeError("scene not found")\nscenes = [target_scene]`;
+  return `import bpy\nimport json\n${selection}\npayload = []\nfor scene in scenes:\n    payload.append({\n        "name": scene.name,\n        "objects": [{"name": obj.name, "type": obj.type} for obj in list(scene.objects)[:1000]],\n        "collections": [collection.name for collection in list(scene.collection.children_recursive)[:500]],\n        "camera": scene.camera.name if scene.camera is not None else None,\n        "resolution": [scene.render.resolution_x, scene.render.resolution_y],\n        "engine": scene.render.engine,\n        "frame_start": scene.frame_start,\n        "frame_end": scene.frame_end,\n        "fps": scene.render.fps,\n        "use_sequencer": bool(getattr(scene.render, "use_sequencer", False)),\n        "strips": [{"name": strip.name, "type": strip.type, "scene": getattr(getattr(strip, "scene", None), "name", None), "frame_start": strip.frame_start, "frame_end": strip.frame_final_end} for strip in (list(scene.sequence_editor.sequences) if scene.sequence_editor is not None else [])][:500],\n    })\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scenes": payload}, separators=(",", ":")))`;
 }
 
 function createMeshCode(operation) {
@@ -444,7 +589,7 @@ function createMeshCode(operation) {
     uv_sphere: `from math import sin, cos, pi\nverts = [(0, 0, 1)]\nfaces = []\nsegments, rings = 16, 8\nfor ring in range(1, rings):\n    phi = pi * ring / rings\n    for segment in range(segments):\n        theta = 2 * pi * segment / segments\n        verts.append((sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi)))\nbottom = len(verts)\nverts.append((0, 0, -1))\nlast_ring = 1 + (rings - 2) * segments\nfor segment in range(segments):\n    next_segment = (segment + 1) % segments\n    faces.append((0, 1 + segment, 1 + next_segment))\n    faces.append((bottom, last_ring + next_segment, last_ring + segment))\nfor ring in range(rings - 2):\n    for segment in range(segments):\n        next_segment = (segment + 1) % segments\n        a = 1 + ring * segments + segment\n        b = 1 + ring * segments + next_segment\n        c = 1 + (ring + 1) * segments + next_segment\n        d = 1 + (ring + 1) * segments + segment\n        faces.append((a, d, c, b))`,
   }[operation.primitive];
   const name = quote(operation.name);
-  return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${primitive}\nmesh = bpy.data.meshes.new(${name} + "_Mesh")\nmesh.from_pydata(verts, [], faces)\nmesh.update()\nobj = bpy.data.objects.new(${name}, mesh)\nbpy.context.collection.objects.link(obj)\nobj.location = ${quote(operation.location)}\nobj.scale = ${quote(operation.scale)}\n${jsonReceipt('create_mesh', operation.name)}`;
+  return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\n${primitive}\nmesh = bpy.data.meshes.new(${name} + "_Mesh")\nmesh.from_pydata(verts, [], faces)\nmesh.update()\nobj = bpy.data.objects.new(${name}, mesh)\n${sceneLink(operation, 'obj')}\nobj.location = ${quote(operation.location)}\nobj.scale = ${quote(operation.scale)}\n${jsonReceipt('create_mesh', operation.name)}`;
 }
 
 function textCode(operation) {
@@ -452,7 +597,7 @@ function textCode(operation) {
   const extrude = operation.extrude ?? 0;
   const alignX = operation.align_x ?? 'CENTER';
   const alignY = operation.align_y ?? 'CENTER';
-  return `${objectModeGuard()}\n${creationGuard(operation.name)}\ntext_data = bpy.data.curves.new(${quote(operation.name)} + "_Text", type='FONT')\ntext_data.body = ${quote(operation.body)}\ntext_data.size = ${size}\ntext_data.extrude = ${extrude}\ntext_data.align_x = ${quote(alignX)}\ntext_data.align_y = ${quote(alignY)}\ntext = bpy.data.objects.new(${quote(operation.name)}, text_data)\nbpy.context.collection.objects.link(text)\n${transformCode(operation, 'text')}\n${jsonReceipt('text', operation.name)}`;
+  return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\ntext_data = bpy.data.curves.new(${quote(operation.name)} + "_Text", type='FONT')\ntext_data.body = ${quote(operation.body)}\ntext_data.size = ${size}\ntext_data.extrude = ${extrude}\ntext_data.align_x = ${quote(alignX)}\ntext_data.align_y = ${quote(alignY)}\ntext = bpy.data.objects.new(${quote(operation.name)}, text_data)\n${sceneLink(operation, 'text')}\n${transformCode(operation, 'text')}\n${jsonReceipt('text', operation.name)}`;
 }
 
 function modifierCode(operation) {
@@ -489,7 +634,7 @@ function modifierCode(operation) {
   const apply = operation.apply === true
     ? `bpy.context.view_layer.objects.active = obj\nobj.select_set(True)\nbpy.ops.object.modifier_apply(modifier=modifier.name)`
     : '';
-  return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'MESH':\n    raise RuntimeError("modifier requires a mesh object")\nmodifier = obj.modifiers.new(${quote(operation.name + ' ' + operation.modifier)}, ${quote(operation.modifier)})\n${settings.join('\n')}\n${apply}\n${jsonReceipt('modifier', operation.name)}`;
+  return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\nif obj.type != 'MESH':\n    raise RuntimeError("modifier requires a mesh object")\nmodifier = obj.modifiers.new(${quote(operation.name + ' ' + operation.modifier)}, ${quote(operation.modifier)})\n${settings.join('\n')}\n${apply}\n${jsonReceipt('modifier', operation.name)}`;
 }
 
 function assetPathCode(path, { file = true } = {}) {
@@ -504,36 +649,46 @@ function transformCode(operation, target) {
   return fields.join('\n');
 }
 
-function parentCode(name) {
-  return `creation_parent = bpy.data.objects.new(${quote(name)}, None)\ncreation_parent.empty_display_type = 'PLAIN_AXES'\nbpy.context.collection.objects.link(creation_parent)`;
+function parentCode(operation) {
+  return `creation_parent = bpy.data.objects.new(${quote(operation.name)}, None)\ncreation_parent.empty_display_type = 'PLAIN_AXES'\n${sceneLink(operation, 'creation_parent')}`;
 }
 
 function importAssetCode(operation, { libraryOnly = false } = {}) {
   const link = libraryOnly ? operation.link !== false : Boolean(operation.link);
-  const loadLibrary = `with bpy.data.libraries.load(asset_path, link=${link ? 'True' : 'False'}) as (data_from, data_to):\n    data_to.objects = list(data_from.objects)\nimported = [obj for obj in data_to.objects if obj is not None]\nfor obj in imported:\n    bpy.context.collection.objects.link(obj)`;
-  const operators = `existing_objects = set(bpy.context.scene.objects)\nsuffix = os.path.splitext(asset_path)[1].lower()\nif suffix in ('.glb', '.gltf'):\n    if not hasattr(bpy.ops.import_scene, 'gltf'):\n        raise RuntimeError("glTF import is unavailable")\n    bpy.ops.import_scene.gltf(filepath=asset_path)\nelif suffix == '.fbx':\n    if not hasattr(bpy.ops.import_scene, 'fbx'):\n        raise RuntimeError("FBX import is unavailable")\n    bpy.ops.import_scene.fbx(filepath=asset_path)\nelif suffix == '.usd' or suffix == '.usdz':\n    if not hasattr(bpy.ops.wm, 'usd_import'):\n        raise RuntimeError("USD import is unavailable")\n    bpy.ops.wm.usd_import(filepath=asset_path)\nelif suffix == '.obj':\n    if hasattr(bpy.ops.wm, 'obj_import'):\n        bpy.ops.wm.obj_import(filepath=asset_path)\n    elif hasattr(bpy.ops.import_scene, 'obj'):\n        bpy.ops.import_scene.obj(filepath=asset_path)\n    else:\n        raise RuntimeError("OBJ import is unavailable")\nelse:\n    raise RuntimeError("unsupported asset extension")\nimported = [obj for obj in bpy.context.scene.objects if obj not in existing_objects]`;
+  const targetScene = hasScene(operation) ? 'target_scene' : 'bpy.context.scene';
+  const targetCollection = hasScene(operation) ? 'target_scene.collection' : 'bpy.context.collection';
+  const loadLibrary = `with bpy.data.libraries.load(asset_path, link=${link ? 'True' : 'False'}) as (data_from, data_to):\n    data_to.objects = list(data_from.objects)\nimported = [obj for obj in data_to.objects if obj is not None]\nfor obj in imported:\n    ${targetCollection}.objects.link(obj)`;
+  const operators = `existing_objects = set(${targetScene}.objects)\nsuffix = os.path.splitext(asset_path)[1].lower()\nif suffix in ('.glb', '.gltf'):\n    if not hasattr(bpy.ops.import_scene, 'gltf'):\n        raise RuntimeError("glTF import is unavailable")\n    bpy.ops.import_scene.gltf(filepath=asset_path)\nelif suffix == '.fbx':\n    if not hasattr(bpy.ops.import_scene, 'fbx'):\n        raise RuntimeError("FBX import is unavailable")\n    bpy.ops.import_scene.fbx(filepath=asset_path)\nelif suffix == '.usd' or suffix == '.usdz':\n    if not hasattr(bpy.ops.wm, 'usd_import'):\n        raise RuntimeError("USD import is unavailable")\n    bpy.ops.wm.usd_import(filepath=asset_path)\nelif suffix == '.obj':\n    if hasattr(bpy.ops.wm, 'obj_import'):\n        bpy.ops.wm.obj_import(filepath=asset_path)\n    elif hasattr(bpy.ops.import_scene, 'obj'):\n        bpy.ops.import_scene.obj(filepath=asset_path)\n    else:\n        raise RuntimeError("OBJ import is unavailable")\nelse:\n    raise RuntimeError("unsupported asset extension")\nimported = [obj for obj in ${targetScene}.objects if obj not in existing_objects]`;
   const parentImported = `for obj in imported:\n    if obj.parent is None:\n        obj.parent = creation_parent\nif not imported:\n    raise RuntimeError("asset import produced no objects")`;
-  const body = libraryOnly
-    ? `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation.name)}\n${loadLibrary}\n${parentImported}`
-    : `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation.name)}\nfor obj in list(bpy.context.selected_objects):\n    obj.select_set(False)\nif os.path.splitext(asset_path)[1].lower() == '.blend':\n${loadLibrary.split('\n').map((line) => `    ${line}`).join('\n')}\nelse:\n${operators.split('\n').map((line) => `    ${line}`).join('\n')}\n${parentImported}`;
-  return `${body}\n${transformCode(operation, 'creation_parent')}\n${jsonReceipt(libraryOnly ? 'link_library' : 'import_asset', operation.name)}`;
+  const core = libraryOnly
+    ? `${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation)}\n${loadLibrary}\n${parentImported}`
+    : `${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\n${parentCode(operation)}\nfor obj in list(bpy.context.selected_objects):\n    obj.select_set(False)\nif os.path.splitext(asset_path)[1].lower() == '.blend':\n${loadLibrary.split('\n').map((line) => `    ${line}`).join('\n')}\nelse:\n${operators.split('\n').map((line) => `    ${line}`).join('\n')}\n${parentImported}`;
+  const prefix = hasScene(operation)
+    ? `${sceneSetup(operation)}\nprevious_scene = ${activeSceneExpression()}\nif bpy.context.window is None:\n    raise RuntimeError("scene-aware import requires a window context")\nbpy.context.window.scene = target_scene\n`
+    : '';
+  const restore = hasScene(operation)
+    ? `\nfinally:\n    bpy.context.window.scene = previous_scene`
+    : '';
+  const body = `${objectModeGuard()}\n${prefix}${hasScene(operation) ? 'try:\n' : ''}${core.split('\n').map((line) => `    ${line}`).join('\n')}${hasScene(operation) ? '\n' + transformCode(operation, 'creation_parent').split('\n').map((line) => `    ${line}`).join('\n') + '\n    ' + jsonReceipt(libraryOnly ? 'link_library' : 'import_asset', operation.name) + restore : '\n' + transformCode(operation, 'creation_parent') + '\n' + jsonReceipt(libraryOnly ? 'link_library' : 'import_asset', operation.name)}`;
+  return body;
 }
 
 function imageReferenceCode(operation) {
-  return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nreference = bpy.data.objects.new(${quote(operation.name)}, None)\nreference.empty_display_type = 'IMAGE'\nreference.empty_display_size = 1.0\nreference.data = image\nreference.show_in_front = True\nreference.hide_render = True\nbpy.context.collection.objects.link(reference)\n${transformCode(operation, 'reference')}\n${jsonReceipt('image_reference', operation.name)}`;
+  return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nreference = bpy.data.objects.new(${quote(operation.name)}, None)\nreference.empty_display_type = 'IMAGE'\nreference.empty_display_size = 1.0\nreference.data = image\nreference.show_in_front = True\nreference.hide_render = True\n${sceneLink(operation, 'reference')}\n${transformCode(operation, 'reference')}\n${jsonReceipt('image_reference', operation.name)}`;
 }
 
 function imageTextureCode(operation) {
   const colorSpace = operation.colorSpace ?? 'sRGB';
   const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-  const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type != 'MESH':\n    raise RuntimeError("image_texture requires mesh objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
+  const assign = operation.objects.map((name) => `${objectLookup(name)}\n${sceneObjectGuard(operation)}\nif obj.type != 'MESH':\n    raise RuntimeError("image_texture requires mesh objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
   return `${objectModeGuard()}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nimage.colorspace_settings.name = ${quote(colorSpace)}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nnodes = material.node_tree.nodes\nlinks = material.node_tree.links\nbsdf = next((node for node in nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\ntexture = nodes.new('ShaderNodeTexImage')\ntexture.image = image\ntexture.interpolation = 'Linear'\ncoordinates = nodes.new('ShaderNodeTexCoord')\nlinks.new(coordinates.outputs['Generated'], texture.inputs['Vector'])\nlinks.new(texture.outputs['Color'], bsdf.inputs['Base Color'])\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('image_texture')}`;
 }
 
 function worldHdriCode(operation) {
   const strength = operation.strength ?? 1;
   const rotation = operation.rotation ?? 0;
-  return `scene = bpy.context.scene\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nworld = scene.world\nif world is None:\n    world = bpy.data.worlds.new("World")\n    scene.world = world\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links\nnodes.clear()\noutput = nodes.new('ShaderNodeOutputWorld')\nbackground = nodes.new('ShaderNodeBackground')\nenvironment = nodes.new('ShaderNodeTexEnvironment')\nmapping = nodes.new('ShaderNodeMapping')\ncoordinates = nodes.new('ShaderNodeTexCoord')\nenvironment.image = image\nmapping.inputs['Rotation'].default_value = (0, 0, ${rotation})\nlinks.new(coordinates.outputs['Generated'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], environment.inputs['Vector'])\nlinks.new(environment.outputs['Color'], background.inputs['Color'])\nbackground.inputs['Strength'].default_value = ${strength}\nlinks.new(background.outputs['Background'], output.inputs['Surface'])\n${jsonReceipt('world_hdri')}`;
+  const scene = hasScene(operation) ? `${sceneSetup(operation)}\nscene = target_scene` : 'scene = bpy.context.scene';
+  return `${scene}\n${assetPathCode(operation.path)}\nimage = bpy.data.images.load(asset_path, check_existing=True)\nworld = scene.world\nif world is None:\n    world = bpy.data.worlds.new("World")\n    scene.world = world\nworld.use_nodes = True\nnodes = world.node_tree.nodes\nlinks = world.node_tree.links\nnodes.clear()\noutput = nodes.new('ShaderNodeOutputWorld')\nbackground = nodes.new('ShaderNodeBackground')\nenvironment = nodes.new('ShaderNodeTexEnvironment')\nmapping = nodes.new('ShaderNodeMapping')\ncoordinates = nodes.new('ShaderNodeTexCoord')\nenvironment.image = image\nmapping.inputs['Rotation'].default_value = (0, 0, ${rotation})\nlinks.new(coordinates.outputs['Generated'], mapping.inputs['Vector'])\nlinks.new(mapping.outputs['Vector'], environment.inputs['Vector'])\nlinks.new(environment.outputs['Color'], background.inputs['Color'])\nbackground.inputs['Strength'].default_value = ${strength}\nlinks.new(background.outputs['Background'], output.inputs['Surface'])\n${jsonReceipt('world_hdri')}`;
 }
 
 function checkAssetsCode(operation) {
@@ -554,16 +709,32 @@ function exportSceneCode(operation) {
     usd: `if not hasattr(bpy.ops.wm, 'usd_export'):\n    raise RuntimeError("USD export is unavailable")\nbpy.ops.wm.usd_export(filepath=export_path, selected_objects_only=False)`,
     obj: `if hasattr(bpy.ops.wm, 'obj_export'):\n    bpy.ops.wm.obj_export(filepath=export_path, export_selected_objects=False)\nelif hasattr(bpy.ops.export_scene, 'obj'):\n    bpy.ops.export_scene.obj(filepath=export_path, use_selection=False)\nelse:\n    raise RuntimeError("OBJ export is unavailable")`,
   }[format];
-  return `export_path = os.path.abspath(bpy.path.abspath("//" + ${quote(operation.path)}))\nos.makedirs(os.path.dirname(export_path), exist_ok=True)\n${code}\nif not os.path.exists(export_path):\n    raise RuntimeError("export produced no file")\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "export_scene", "format": ${quote(format)}, "filepath": export_path, "bytes": os.path.getsize(export_path)}, separators=(",", ":")))`;
+  const scene = hasScene(operation)
+    ? `${sceneSetup(operation)}\nprevious_scene = ${activeSceneExpression()}\nif bpy.context.window is None:\n    raise RuntimeError("scene-aware export requires a window context")\nbpy.context.window.scene = target_scene\nscene_name = target_scene.name`
+    : 'scene_name = bpy.context.scene.name';
+  const restore = hasScene(operation) ? '\nif bpy.context.window is not None:\n    bpy.context.window.scene = previous_scene' : '';
+  return `${scene}\nimport hashlib\nexport_path = os.path.abspath(bpy.path.abspath("//" + ${quote(operation.path)}))\nos.makedirs(os.path.dirname(export_path), exist_ok=True)\n${code}\nif not os.path.exists(export_path):\n    raise RuntimeError("export produced no file")\nwith open(export_path, 'rb') as export_file:\n    export_bytes = export_file.read()\n${restore}\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "operation": "export_scene", "format": ${quote(format)}, "filepath": export_path, "bytes": os.path.getsize(export_path), "sha256": hashlib.sha256(export_bytes).hexdigest(), "scene": scene_name}, separators=(",", ":")))`;
 }
 
 function importAudioCode(operation) {
   const volume = operation.volume ?? 1;
-  return `${objectModeGuard()}\n${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nsound = bpy.data.sounds.load(asset_path, check_existing=True)\nspeaker_data = bpy.data.speakers.new(${quote(operation.name)} + "_Speaker")\nspeaker_data.sound = sound\nspeaker_data.volume = ${volume}\nspeaker = bpy.data.objects.new(${quote(operation.name)}, speaker_data)\nbpy.context.collection.objects.link(speaker)\n${Object.hasOwn(operation, 'location') ? `speaker.location = ${quote(operation.location)}` : ''}\n${jsonReceipt('import_audio', operation.name)}`;
+  return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\n${assetPathCode(operation.path)}\nsound = bpy.data.sounds.load(asset_path, check_existing=True)\nspeaker_data = bpy.data.speakers.new(${quote(operation.name)} + "_Speaker")\nspeaker_data.sound = sound\nspeaker_data.volume = ${volume}\nspeaker = bpy.data.objects.new(${quote(operation.name)}, speaker_data)\n${sceneLink(operation, 'speaker')}\n${Object.hasOwn(operation, 'location') ? `speaker.location = ${quote(operation.location)}` : ''}\n${jsonReceipt('import_audio', operation.name)}`;
 }
 
 function operationBody(operation) {
   switch (operation.operation) {
+    case 'create_scene':
+      return createSceneCode(operation);
+    case 'switch_scene':
+      return switchSceneCode(operation);
+    case 'delete_scene':
+      return deleteSceneCode(operation);
+    case 'duplicate_scene':
+      return duplicateSceneCode(operation);
+    case 'set_scene_camera':
+      return setSceneCameraCode(operation);
+    case 'scene_strip':
+      return sceneStripCode(operation);
     case 'import_asset':
       return importAssetCode(operation);
     case 'link_library':
@@ -593,15 +764,15 @@ function operationBody(operation) {
       if (Object.hasOwn(operation, 'location')) fields.push(`obj.location = ${quote(operation.location)}`);
       if (Object.hasOwn(operation, 'rotation')) fields.push(`obj.rotation_euler = ${quote(operation.rotation)}`);
       if (Object.hasOwn(operation, 'scale')) fields.push(`obj.scale = ${quote(operation.scale)}`);
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${fields.join('\n')}\n${jsonReceipt('transform', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\n${fields.join('\n')}\n${jsonReceipt('transform', operation.name)}`;
     }
     case 'material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("material requires mesh, text, or curve object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("material requires mesh, text, or curve object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
     }
     case 'shared_material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-      const assign = operation.objects.map((name) => `${objectLookup(name)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("shared_material requires mesh, text, or curve objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
+      const assign = operation.objects.map((name) => `${objectLookup(name)}\n${sceneObjectGuard(operation)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("shared_material requires mesh, text, or curve objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
       return `${objectModeGuard()}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('shared_material', operation.name)}`;
     }
     case 'duplicate': {
@@ -609,23 +780,30 @@ function operationBody(operation) {
       if (Object.hasOwn(operation, 'location')) overrides.push(`duplicate.location = ${quote(operation.location)}`);
       if (Object.hasOwn(operation, 'rotation')) overrides.push(`duplicate.rotation_euler = ${quote(operation.rotation)}`);
       if (Object.hasOwn(operation, 'scale')) overrides.push(`duplicate.scale = ${quote(operation.scale)}`);
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${creationGuard(operation.new_name)}\nduplicate = obj.copy()\nduplicate.data = obj.data.copy()\nduplicate.name = ${quote(operation.new_name)}\nbpy.context.collection.objects.link(duplicate)\n${overrides.join('\n')}\n${jsonReceipt('duplicate', operation.new_name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\n${creationGuard(operation.new_name)}\nduplicate = obj.copy()\nduplicate.data = obj.data.copy()\nduplicate.name = ${quote(operation.new_name)}\n${sceneLink(operation, 'duplicate')}\n${overrides.join('\n')}\n${jsonReceipt('duplicate', operation.new_name)}`;
     }
     case 'create_light': {
       const color = Object.hasOwn(operation, 'color') ? `\nlight_data.color = ${quote(operation.color)}` : '';
       const temperature = Object.hasOwn(operation, 'temperature') ? `\nif not hasattr(light_data, 'temperature'):\n    raise RuntimeError("light temperature unavailable")\nlight_data.temperature = ${operation.temperature}\nif hasattr(light_data, 'use_temperature'):\n    light_data.use_temperature = True` : '';
-      return `${objectModeGuard()}\n${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}${color}${temperature}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\nbpy.context.collection.objects.link(light)\nlight.location = ${quote(operation.location)}\n${jsonReceipt('create_light', operation.name)}`;
+      return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}${color}${temperature}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\n${sceneLink(operation, 'light')}\nlight.location = ${quote(operation.location)}\n${jsonReceipt('create_light', operation.name)}`;
     }
     case 'create_camera': {
       const dof = operation.dof ? `\ncamera_data.dof.use_dof = True\ncamera_data.dof.aperture_fstop = ${operation.dof.aperture}\ncamera_data.dof.focus_distance = ${operation.dof.focus_distance}${Object.hasOwn(operation.dof, 'focus_object') ? `\nfocus_object = bpy.data.objects.get(${quote(operation.dof.focus_object)})\nif focus_object is None:\n    raise RuntimeError("DOF focus object not found")\ncamera_data.dof.focus_object = focus_object` : ''}` : '';
-      return `${objectModeGuard()}\n${creationGuard(operation.name)}\ncamera_data = bpy.data.cameras.new(${quote(operation.name)} + "_Camera")\ncamera_data.lens = ${operation.lens}\ncamera = bpy.data.objects.new(${quote(operation.name)}, camera_data)\nbpy.context.collection.objects.link(camera)\ncamera.location = ${quote(operation.location)}\ncamera.rotation_euler = ${quote(operation.rotation)}${dof}\n${jsonReceipt('create_camera', operation.name)}`;
+      return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\ncamera_data = bpy.data.cameras.new(${quote(operation.name)} + "_Camera")\ncamera_data.lens = ${operation.lens}\ncamera = bpy.data.objects.new(${quote(operation.name)}, camera_data)\n${sceneLink(operation, 'camera')}\ncamera.location = ${quote(operation.location)}\ncamera.rotation_euler = ${quote(operation.rotation)}${dof}\n${jsonReceipt('create_camera', operation.name)}`;
     }
     case 'set_camera':
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nif obj.type != 'CAMERA':\n    raise RuntimeError("set_camera requires camera object")\nbpy.context.scene.camera = obj\n${jsonReceipt('set_camera', operation.name)}`;
-    case 'render_settings':
-      return `scene = bpy.context.scene\nscene.render.resolution_x = ${operation.width}\nscene.render.resolution_y = ${operation.height}\nscene.render.resolution_percentage = 100\nif hasattr(scene, 'cycles') and hasattr(scene.cycles, 'samples'):\n    scene.cycles.samples = ${operation.samples}\nif hasattr(scene, 'eevee') and hasattr(scene.eevee, 'taa_render_samples'):\n    scene.eevee.taa_render_samples = ${operation.samples}\n${jsonReceipt('render_settings')}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\nif obj.type != 'CAMERA':\n    raise RuntimeError("set_camera requires camera object")\n${hasScene(operation) ? 'target_scene' : 'bpy.context.scene'}.camera = obj\n${jsonReceipt('set_camera', operation.name)}`;
+    case 'render_settings': {
+      const scene = hasScene(operation) ? `${sceneSetup(operation)}\nscene = target_scene` : 'scene = bpy.context.scene';
+      const extras = [];
+      if (Object.hasOwn(operation, 'frame_start')) extras.push(`scene.frame_start = ${operation.frame_start}`);
+      if (Object.hasOwn(operation, 'frame_end')) extras.push(`scene.frame_end = ${operation.frame_end}`);
+      if (Object.hasOwn(operation, 'fps')) extras.push(`scene.render.fps = ${operation.fps}`);
+      if (Object.hasOwn(operation, 'useSequencer')) extras.push(`scene.render.use_sequencer = ${operation.useSequencer ? 'True' : 'False'}`);
+      return `${scene}\nscene.render.resolution_x = ${operation.width}\nscene.render.resolution_y = ${operation.height}\nscene.render.resolution_percentage = 100\nif hasattr(scene, 'cycles') and hasattr(scene.cycles, 'samples'):\n    scene.cycles.samples = ${operation.samples}\nif hasattr(scene, 'eevee') and hasattr(scene.eevee, 'taa_render_samples'):\n    scene.eevee.taa_render_samples = ${operation.samples}\n${extras.join('\n')}\n${jsonReceipt('render_settings')}`;
+    }
     case 'delete_object':
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\nbpy.data.objects.remove(obj, do_unlink=True)\n${jsonReceipt('delete_object', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${hasScene(operation) ? `${sceneSetup(operation)}\nfor collection in [target_scene.collection, *target_scene.collection.children_recursive]:\n    if obj.name in collection.objects:\n        collection.objects.unlink(obj)\nif not obj.users_collection:\n    bpy.data.objects.remove(obj, do_unlink=True)` : 'bpy.data.objects.remove(obj, do_unlink=True)'}\n${jsonReceipt('delete_object', operation.name)}`;
     default:
       fail(`unsupported operation: ${operation.operation}`);
   }
@@ -677,17 +855,28 @@ function saveCode(scenePath) {
   return `import bpy\nimport json\nimport os\n\nexpected = ${pathLiteral}\ncurrent = bpy.data.filepath\nif current and os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("refusing mismatched existing scene filepath")\nbpy.ops.wm.save_as_mainfile(filepath=expected, check_existing=False)\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": bpy.data.filepath}, separators=(",", ":")))\n`;
 }
 
-function renderPreflightCode(scenePath) {
-  validateProjectPath(scenePath, 'scenePath');
-  return `import bpy\nimport json\nimport os\n\nexpected = ${quote(scenePath)}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\nscene = bpy.context.scene\ncamera = scene.camera\nif camera is None:\n    raise RuntimeError("scene camera is not set")\nif camera.type != 'CAMERA':\n    raise RuntimeError("scene camera is not a camera object")\nif not getattr(scene, 'render', None):\n    raise RuntimeError("scene render settings unavailable")\nif int(scene.render.resolution_x) < 16 or int(scene.render.resolution_y) < 16:\n    raise RuntimeError("render resolution is invalid")\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "camera": camera.name, "resolution": [scene.render.resolution_x, scene.render.resolution_y]}, separators=(",", ":")))\n`;
+function sceneSelectionCode(sceneName) {
+  if (!sceneName) return 'target_scene = bpy.context.scene';
+  return `target_scene = bpy.data.scenes.get(${quote(sceneName)})\nif target_scene is None:\n    raise RuntimeError("scene not found")`;
 }
 
-function renderCode(scenePath, renderPath) {
+function renderPreflightCode(scenePath, sceneName = null) {
+  validateProjectPath(scenePath, 'scenePath');
+  return `import bpy\nimport json\nimport os\n\nexpected = ${quote(scenePath)}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\n${sceneSelectionCode(sceneName)}\nif not getattr(target_scene, 'render', None):\n    raise RuntimeError("scene render settings unavailable")\nuse_sequencer = bool(getattr(target_scene.render, 'use_sequencer', False)) and target_scene.sequence_editor is not None\ncamera = target_scene.camera\nif camera is None and not use_sequencer:\n    raise RuntimeError("scene camera is not set")\nif camera is not None and camera.type != 'CAMERA':\n    raise RuntimeError("scene camera is not a camera object")\nif int(target_scene.render.resolution_x) < 16 or int(target_scene.render.resolution_y) < 16:\n    raise RuntimeError("render resolution is invalid")\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scene": getattr(target_scene, "name", None), "camera": camera.name if camera is not None else None, "use_sequencer": use_sequencer, "resolution": [target_scene.render.resolution_x, target_scene.render.resolution_y]}, separators=(",", ":")))\n`;
+}
+
+function renderCode(scenePath, renderPath, sceneName = null) {
   validateProjectPath(scenePath, 'scenePath');
   validateRenderPath(renderPath);
   const sceneLiteral = quote(scenePath);
   const renderLiteral = quote(renderPath);
-  return `import bpy\nimport json\nimport os\n\nexpected = ${sceneLiteral}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\nscene = bpy.context.scene\nimage_settings = scene.render.image_settings\n${enumValues('bpy.types.ImageFormatSettings', 'file_format')}\nif 'PNG' not in valid_values:\n    raise RuntimeError("PNG render format is unavailable")\nold_filepath = scene.render.filepath\nold_resolution_percentage = scene.render.resolution_percentage\nold_file_format = image_settings.file_format\nold_color_mode = image_settings.color_mode\nold_color_depth = image_settings.color_depth\nold_use_file_extension = scene.render.use_file_extension\ntry:\n    image_settings.file_format = 'PNG'\n    scene.render.use_file_extension = True\n    scene.render.filepath = ${renderLiteral}\n    scene.render.resolution_percentage = 100\n    bpy.ops.render.render(write_still=True)\nfinally:\n    image_settings.file_format = old_file_format\n    image_settings.color_mode = old_color_mode\n    image_settings.color_depth = old_color_depth\n    scene.render.use_file_extension = old_use_file_extension\n    scene.render.filepath = old_filepath\n    scene.render.resolution_percentage = old_resolution_percentage\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "filepath": ${renderLiteral}}, separators=(",", ":")))\n`;
+  const switchCode = sceneName
+    ? `previous_scene = ${activeSceneExpression()}\nif bpy.context.window is None:\n    raise RuntimeError("scene-aware render requires a window context")\nbpy.context.window.scene = target_scene`
+    : '';
+  const restore = sceneName
+    ? `\n    if bpy.context.window is not None:\n        bpy.context.window.scene = previous_scene`
+    : '';
+  return `import bpy\nimport json\nimport os\n\nexpected = ${sceneLiteral}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\n${sceneSelectionCode(sceneName)}\n${switchCode}\nimage_settings = target_scene.render.image_settings\n${enumValues('bpy.types.ImageFormatSettings', 'file_format')}\nif 'PNG' not in valid_values:\n    raise RuntimeError("PNG render format is unavailable")\nold_filepath = target_scene.render.filepath\nold_resolution_percentage = target_scene.render.resolution_percentage\nold_file_format = image_settings.file_format\nold_color_mode = image_settings.color_mode\nold_color_depth = image_settings.color_depth\nold_use_file_extension = target_scene.render.use_file_extension\ntry:\n    image_settings.file_format = 'PNG'\n    target_scene.render.use_file_extension = True\n    target_scene.render.filepath = ${renderLiteral}\n    target_scene.render.resolution_percentage = 100\n    bpy.ops.render.render(write_still=True)\nfinally:\n    image_settings.file_format = old_file_format\n    image_settings.color_mode = old_color_mode\n    image_settings.color_depth = old_color_depth\n    target_scene.render.use_file_extension = old_use_file_extension\n    target_scene.render.filepath = old_filepath\n    target_scene.render.resolution_percentage = old_resolution_percentage${restore}\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scene": getattr(target_scene, "name", None), "filepath": ${renderLiteral}}, separators=(",", ":")))\n`;
 }
 
-export { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode };
+export { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode, sceneFactsCode };

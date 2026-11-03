@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { MAX_BATCH, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode } from './blender-operations.mjs';
+import { MAX_BATCH, operationBatchCode, operationCode, preflightCode, renderCode, renderPreflightCode, saveCode, sceneFactsCode } from './blender-operations.mjs';
 
 const allowed = ['Cube', 'Camera', 'Lamp'];
 
@@ -140,6 +140,54 @@ test('render settings accepts empty allow-list', () => {
   const code = operationCode({ operation: 'render_settings', width: 1920, height: 1080, samples: 64 }, []);
   assert.match(code, /resolution_x = 1920/);
   assert.match(code, /HARNESS_JSON:/);
+  const ranged = operationCode({ operation: 'render_settings', scene: 'SC_001', width: 1920, height: 1080, samples: 64, frame_start: 1, frame_end: 120, fps: 24, useSequencer: true }, []);
+  assert.match(ranged, /bpy\.data\.scenes\.get\("SC_001"\)/);
+  assert.match(ranged, /scene\.frame_end = 120/);
+  assert.match(ranged, /scene\.render\.fps = 24/);
+  assert.match(ranged, /scene\.render\.use_sequencer = True/);
+});
+
+test('scene operations validate modes, names, and strip bounds', () => {
+  assert.doesNotThrow(() => operationCode({ operation: 'create_scene', name: 'SC_001', mode: 'NEW' }, []));
+  assert.doesNotThrow(() => operationCode({ operation: 'create_scene', name: 'SC_002', mode: 'EMPTY', source: 'SC_001' }, []));
+  assert.throws(() => operationCode({ operation: 'create_scene', name: 'SC_002', mode: 'EMPTY' }, []), /source is required/);
+  assert.throws(() => operationCode({ operation: 'create_scene', name: 'SC_002', mode: 'COPY' }, []), /mode is invalid/);
+  assert.throws(() => operationCode({ operation: 'create_scene', name: 'SC_001', mode: 'NEW', source: 'SC_001' }, []), /source is not accepted/);
+  assert.throws(() => operationCode({ operation: 'switch_scene', name: '' }, []), /non-blank/);
+  assert.doesNotThrow(() => operationCode({ operation: 'delete_scene', name: 'SC_001' }, []));
+  assert.doesNotThrow(() => operationCode({ operation: 'duplicate_scene', source: 'SC_001', name: 'SC_002' }, []));
+  assert.throws(() => operationCode({ operation: 'duplicate_scene', source: 'SC_001', name: 'SC_001' }, []), /must differ/);
+  assert.doesNotThrow(() => operationCode({ operation: 'set_scene_camera', scene: 'SC_001', camera: 'Camera' }, []));
+  assert.throws(() => operationCode({ operation: 'set_scene_camera', scene: 'SC_001' }, []), /camera is required/);
+  assert.doesNotThrow(() => operationCode({ operation: 'scene_strip', scene: 'SC_MASTER', source: 'SC_001', channel: 1, frame_start: 1, frame_end: 48 }, []));
+  assert.throws(() => operationCode({ operation: 'scene_strip', scene: 'SC_MASTER', source: 'SC_001', channel: 0, frame_start: 1 }, []), /out of bounds/);
+  assert.throws(() => operationCode({ operation: 'scene_strip', scene: 'SC_MASTER', source: 'SC_001', channel: 1, frame_start: 10, frame_end: 10 }, []), /after frame_start/);
+  assert.throws(() => operationCode({ operation: 'check_assets', scene: 'SC_001' }, []), /scene is not supported/);
+});
+
+test('scene-aware operations target named scenes and render evidence', () => {
+  const mesh = operationCode({ ...meshOperation(), scene: 'SC_001' }, allowed);
+  assert.match(mesh, /bpy\.data\.scenes\.get\("SC_001"\)/);
+  assert.match(mesh, /target_scene\.collection\.objects\.link/);
+  const text = operationCode({ operation: 'text', name: 'Sign', body: 'SC_001', scene: 'SC_001' }, [...allowed, 'Sign']);
+  assert.match(text, /target_scene\.collection\.objects\.link/);
+  const camera = operationCode({ operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 50, scene: 'SC_001' }, allowed);
+  assert.match(camera, /target_scene\.collection\.objects\.link/);
+  const setCamera = operationCode({ operation: 'set_camera', name: 'Camera', scene: 'SC_001' }, allowed);
+  assert.match(setCamera, /target_scene\.camera = obj/);
+  const duplicate = operationCode({ operation: 'duplicate', name: 'Cube', new_name: 'Copy', scene: 'SC_001' }, [...allowed, 'Copy']);
+  assert.match(duplicate, /object does not belong to the target scene/);
+  assert.match(duplicate, /target_scene\.collection\.objects\.link/);
+  const exported = operationCode({ operation: 'export_scene', format: 'glb', path: 'exports/room.glb', scene: 'SC_001' }, []);
+  assert.match(exported, /hashlib\.sha256/);
+  assert.match(exported, /"scene": scene_name/);
+  const render = renderCode('//project.blend', '//renders/SC_001.png', 'SC_001');
+  assert.match(render, /bpy\.data\.scenes\.get\("SC_001"\)/);
+  assert.match(render, /bpy\.context\.window\.scene = target_scene/);
+  const preflight = renderPreflightCode('//project.blend', 'SC_001');
+  assert.match(preflight, /bpy\.data\.scenes\.get\("SC_001"\)/);
+  assert.match(preflight, /use_sequencer/);
+  assert.match(sceneFactsCode('SC_001'), /scene-facts|"scenes"/);
 });
 
 test('batched apply validates one to ten operations', () => {
@@ -285,7 +333,14 @@ test('preflight, save, and render code enforce explicit project paths', () => {
 test('every operation and lifecycle script compiles as Python without importing Blender', () => {
   const operations = [
     ...['cube', 'plane', 'uv_sphere', 'cylinder'].map(meshOperation),
-    { operation: 'text', name: 'Sign', body: 'Cozy Room', size: 0.5, extrude: 0.02, align_x: 'CENTER', align_y: 'CENTER' },
+    { operation: 'create_scene', name: 'SC_001', mode: 'NEW' },
+    { operation: 'create_scene', name: 'SC_002', mode: 'EMPTY', source: 'SC_001' },
+    { operation: 'switch_scene', name: 'SC_001' },
+    { operation: 'duplicate_scene', source: 'SC_001', name: 'SC_003' },
+    { operation: 'delete_scene', name: 'SC_003' },
+    { operation: 'set_scene_camera', scene: 'SC_001', camera: 'Camera' },
+    { operation: 'scene_strip', scene: 'SC_MASTER', source: 'SC_001', channel: 1, frame_start: 1, frame_end: 48 },
+    { operation: 'text', name: 'Sign', body: 'Cozy Room', size: 0.5, extrude: 0.02, align_x: 'CENTER', align_y: 'CENTER', scene: 'SC_001' },
     { operation: 'modifier', name: 'Cube', modifier: 'BEVEL', width: 0.02, segments: 2 },
     { operation: 'modifier', name: 'Cube', modifier: 'SUBSURF', levels: 1, render_levels: 2 },
     { operation: 'modifier', name: 'Cube', modifier: 'SOLIDIFY', thickness: 0.01, offset: -1 },
@@ -312,7 +367,7 @@ test('every operation and lifecycle script compiles as Python without importing 
     { operation: 'export_scene', format: 'glb', path: 'exports/room.glb' },
   ];
   const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Sign', 'Imported', 'Linked', 'Rain', 'Reference']));
-  scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'));
+  scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'), renderPreflightCode('//project.blend', 'SC_001'), renderCode('//project.blend', '//renders/frame.png', 'SC_001'), sceneFactsCode('SC_001'));
   const count = runPython(`import json, sys
 scripts = json.load(sys.stdin)
 for code in scripts:
