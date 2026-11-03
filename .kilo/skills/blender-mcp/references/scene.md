@@ -21,24 +21,23 @@ MUST read [`blender-assets`](../../blender-assets/SKILL.md) before external asse
 the asset-type branches in `../SKILL.md`. Model size/support checks below do not apply to HDRI
 worlds or texture materials; those require lighting/material inspection instead.
 
-- **Generate** (`generate_3d`) is one option for approved hero objects or specific assets: "a rusted
-  steampunk diving helmet". One object per generation — never a whole scene, the ground, or parts
-  to assemble. Obtain spending authorization first; workers must not generate. Generate once and
-  duplicate (`obj.copy()`) for repeats.
+- **Import locally** with the harness `import_asset` operation after the file is registered under
+  `assets/external/<source>/<asset>/`; use `link_library` for `.blend` libraries. The raw
+  `blender_import_asset` and `blender_generate_3d` tools stay blocked.
 - **Poly Haven** (`search_assets(source="polyhaven")`): HDRIs, PBR textures for large surfaces
   (floors, walls, terrain), and generic realistic props. CC0.
 - **Sketchfab**: specific real-world things (a named car model, a landmark), and realistic props.
   Check the licence and face count in results.
 - **Poly Pizza**: stylised low-poly props, fast and light. Credit CC-BY creators.
-- **Script it** when procedural or authored geometry fits the confirmed design, scope, and budget.
+- **Script it** only through reviewed harness operations; arbitrary project Python is blocked.
 
 Match the confirmed style. Mixed low-poly and photoreal assets can be intentional; do not impose a
 style restriction that the user has not confirmed.
 
-## After every model import or generation
+## After every model import
 
-Imported and generated models arrive at arbitrary scale, rotation and origin. The import result
-gives `world_bounding_box`; use it:
+Imported models arrive at arbitrary scale, rotation and origin. The import result gives
+`world_bounding_box`; use it:
 
 - Scale to real size from the bounding box, not by eye.
 - Place it on its intended support surface. For an unparented object on world Z=0,

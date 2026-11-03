@@ -131,8 +131,11 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - Read `blender-mcp` before any Blender scene operation. Check Context7 and official Blender docs for
   uncertain APIs; verify against the live version through supported operations. NEVER invent API
   behavior or use raw Python as a diagnostic.
-- Use relative paths from the `.blend` (`//assets/...`). Before commit or delivery of a `.blend`,
-  inspect packed and embedded third-party data even when source binaries are ignored.
+- Use relative paths from the `.blend` (`//assets/...`). Local assets use `import_asset`,
+  `link_library`, `import_audio`, `image_texture`, `world_hdri`, `check_assets`, `pack_assets`, and
+  `export_scene`; external assets require `SOURCE.md` and `LICENSE.txt`. Remote asset-library import,
+  3D generation, and arbitrary project Python remain blocked. Before commit or delivery of a
+  `.blend`, inspect packed and embedded third-party data even when source binaries are ignored.
 - Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
 - Keep `README.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and other non-registration
   documents current inside the change that changes them. Registration documents are frozen; stop for

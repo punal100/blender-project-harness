@@ -28,7 +28,11 @@ assets/external/
   rule for that exact path so the harness commit can stage it, and keep the licence beside it.
   Force-add is unsupported; request reviewed tooling instead of using manual Git.
 - For large redistributable assets, use Git LFS rather than committing raw binaries.
-- Link or import with relative paths. Check for missing files before delivery.
+- Link or import with relative paths. Use the harness `import_asset` operation for local model files,
+  `link_library` for `.blend` libraries, `import_audio` for audio, and `image_texture`/`world_hdri`
+  for image assets. Check missing files with `check_assets` before delivery.
+- Search tools can find assets, but remote asset-library import is not implemented. Download the
+  file into this folder and complete its licence metadata before importing.
 - Packing or embedding external data into a tracked or delivered `.blend` redistributes those bytes.
   Verify the licence, attribution, and redistribution terms first, and record the packaging mode in
   `../../Documents/ASSETS.md` and `SOURCE.md`.

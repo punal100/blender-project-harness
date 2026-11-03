@@ -1,6 +1,6 @@
 ---
 name: blender-mcp
-description: Control a live Blender session through MCP for Blender. Use for modeling, scene edits, materials, lighting, animation, rendering, viewport checks, asset import, and 3D generation.
+description: Control a live Blender session through MCP for Blender. Use for modeling, scene edits, materials, lighting, animation, rendering, viewport checks, local asset import, reference images, and exports. Remote library import and 3D generation remain blocked.
 license: MIT
 ---
 
@@ -71,8 +71,16 @@ Every scene, material, lighting, or camera change MUST be inspected with `look` 
 ## Assets
 
 External asset work requires `blender-assets`: licence, attribution, registration, relative paths,
-packing, and delivery rights. Search does not authorize an import. Raw imports and generation stay blocked
-until reviewed tooling supports them.
+packing, and delivery rights. Use the reviewed harness operations for local files:
+
+- `import_asset` for GLB/glTF/FBX/OBJ/USD/`.blend`.
+- `link_library` for `.blend` link/append.
+- `import_audio`, `image_reference`, `image_texture`, `world_hdri`.
+- `check_assets`, `pack_assets`, and `export_scene`.
+
+The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary Python tools remain blocked.
+Library search does not authorize a remote import; download locally, register the source and licence,
+then use `import_asset`.
 
 ## API and documentation gaps
 
