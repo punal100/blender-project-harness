@@ -37,6 +37,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R02-20261103T023635Z | 20261103T023635Z | 6ab3c9ce00f9 | All milestone | visual, technical, spec | PASS | [R02-20261103T023635Z/REVIEW.md](R02-20261103T023635Z/REVIEW.md) |
 | R03-20261103T024652Z | 20261103T024652Z | bde07e4f987b | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R03-20261103T024652Z/REVIEW.md](R03-20261103T024652Z/REVIEW.md) |
 | R04-20261103T025718Z | 20261103T025718Z | d4e2b0abafe1 | All milestone | technical, visual, spec | PASS | [R04-20261103T025718Z/REVIEW.md](R04-20261103T025718Z/REVIEW.md) |
+| R05-20261103T031203Z | 20261103T031203Z | ccacfdf73ddf | All final | visual, technical, spec | PASS | [R05-20261103T031203Z/REVIEW.md](R05-20261103T031203Z/REVIEW.md) |
 
 ## Rules
 
@@ -57,3 +58,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R03-20261103T024652Z: Monitor, tower, keyboard, mouse, desk lamp, mug, notebook, pen cup, wall shelf, and books are present, grounded, and materially distinct on the desk; evidence 29f12a0caf6d28c9fe0452abaf79fe0e76c51766b8cdd3fcba9ea4a84ae0f2a3
 
 - R04-20261103T025718Z: Notebook sits flat on the desk clear of other objects, mousepad has thickness and a reseated mouse, mug clears the keyboard, pens fill the pen cup, the monitor screen reads amber, and the chair sits fully on the rug; evidence 11d9f5d5647d343fe6fb11890d2a2b96b4e6ee8deeb154d88877aeb945be7b3e
+
+- R05-20261103T031203Z: Final cozy room: plant, framed print, curtain rod and mullions, chair cushion, four-light evening setup, refined hero camera, and current README/decisions; saved scene and final render; evidence 6c928f3abe18123b90846f5ee6a637487f259406ac554837670e99144490f34a
