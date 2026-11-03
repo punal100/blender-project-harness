@@ -91,17 +91,19 @@ For every scene change, call `finalize`, then issue `wip`, and `blender_look` th
 `seal`; every third apply also requires a WIP check. A WIP render is not review evidence and stays
 out of commits.
 
-Call `seal` after the reviewable scene is ready. It saves the authoritative scene and captures:
+Call `seal` after the reviewable scene is ready. It saves the authoritative scene and captures every
+declared scene:
 
-- a final camera PNG;
-- `scene.txt` from `blender_get_scene_info`;
-- `manifest.json` with UTC time, goal, base commit, dirty state, scene hash, spec hashes, selected
-  graders, and evidence hashes.
+- a camera PNG per scene (and a master sequence still when applicable);
+- `scene.txt` and `scene-facts.json` per scene;
+- `manifest.json` with UTC time, goal, base commit, dirty state, primary scene, scene list, scene
+  requirement mapping, spec hashes, selected graders, and evidence hashes.
 
-Immediately call `blender_look` on the returned absolute render path. The runtime records the
-inspection receipt. NEVER substitute an image, rewrite sealed evidence, or change the manifest.
+Call `blender_look` on every returned scene render. The runtime records one inspection receipt per
+scene; review is blocked until every declared scene is inspected. NEVER substitute an image, rewrite
+sealed evidence, or change the manifest.
 
-The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied. The ticket prompt lists exact evidence files with hashes; the grader must read those exact paths, not an evidence folder, and may use only its assigned report. Read `operation_tasks` in the manifest and `Documents/TASKSTRACKER.md` with `Documents/Tasks/<id>/` as process evidence; `blender_document {action:"ledger"}` returns the structured rows. Never edit either.
+The harness creates `Documents/Reviews/R<NN>-<yyyyMMddTHHmmssZ>/`. `NN` is the next project-wide round number; never reuse or overwrite a round. `_evidence/` is ignored; reports, manifest, and the round index are tracked. Each grader writes only `<grader>/REPORT.md`, through `blender_document` `{action:"write"}`. Direct report edits are denied. The ticket prompt lists exact evidence files with hashes; the grader must read those exact paths, not an evidence folder, and may use only its assigned report. A multi-scene report must cite every declared scene name. Read `operation_tasks` in the manifest and `Documents/TASKSTRACKER.md` with `Documents/Tasks/<id>/` as process evidence; `blender_document {action:"ledger"}` returns the structured rows. Never edit either.
 
 ## Dispatch
 

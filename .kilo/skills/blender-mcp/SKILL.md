@@ -76,6 +76,12 @@ surface, solidify, mirror, and array. Modifiers are added through `modifier` and
 when the operation sets `apply:true`. Text objects can receive materials through `material` or
 `shared_material`.
 
+Scene operations are `create_scene` (`NEW`, `EMPTY`, `LINK_COPY`, `FULL_COPY`), `switch_scene`,
+`duplicate_scene`, `delete_scene`, `set_scene_camera`, and `scene_strip`. Existing operations accept
+an optional `scene`; when an object is linked into more than one scene, the scene is required.
+`switch_scene` is the only deliberate active-context change. A master Video Sequencer scene uses
+`scene_strip`; a long animation render is a separate render ticket.
+
 ## Assets
 
 External asset work requires `blender-assets`: licence, attribution, registration, relative paths,
@@ -91,6 +97,11 @@ then `intake`. Use the reviewed harness operations for local files:
 The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary Python tools remain blocked.
 Library search does not authorize a remote import. Scripts are source-only under `scripts/` and are
 never executed by the harness.
+
+Every `export_scene` returns a harness receipt with project-relative path, bytes, SHA-256, format,
+and source scene. Completion is denied for a missing or changed export. Export validation is
+separate from `check_assets`. External binaries under `assets/external/` are committed only when
+their sidecar explicitly allows redistribution.
 
 ## API and documentation gaps
 

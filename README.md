@@ -100,11 +100,13 @@ From there, the agent takes over:
 - creates the project, goal files, requirements, workflow, and review records;
 - launches and stops Blender through the guarded harness, tracking one instance per workspace;
 - copies user-supplied references, models, textures, HDRIs, audio, and source-only scripts through
-  the guarded `intake` action instead of asking you to make folders; `download` can stage an HTTPS
-  asset for the same intake flow when you provide a URL;
+  the guarded `intake` action instead of asking you to make folders; `download` can stage a public
+  HTTPS asset for the same intake flow when you provide a URL;
+- can build multiple authored scenes in one project, with a scene-specific camera and render
+  evidence for each, plus an optional master Video Sequencer scene;
 - builds and checks the scene through the guarded MCP workflow;
-- saves renders and review evidence, keeps the project documents current, and tells you about any
-  blockers or corrections.
+- saves per-scene renders and review evidence, verifies exports, keeps the project documents
+  current, and tells you about any blockers or corrections.
 
 The agent owns goals and project records end to end, so you can stay in plain language. You provide
 requirements, answers, feedback, and approvals through the conversation, and it creates and updates
@@ -124,7 +126,11 @@ goals as the work changes.
 - Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
 - Use relative paths inside Blender projects so scenes stay portable.
 - Let the harness copy user files through `intake`; do not create project folders or copy by hand.
-- Project Python under `scripts/` is source-only; arbitrary script execution is not supported.
+- Project Python under `scripts/` is source-only; arbitrary Blender Python execution is not
+  supported. Media generation uses the configured Media MCP only with your permission; generated
+  files go through `intake` with provenance.
+- External binaries are committed only when their source metadata allows redistribution; every
+  produced export has a verified receipt.
 - Check each project's `README.md` and `Documents/` for its own requirements and deliverables.
 
 ## Useful checks and fixes

@@ -87,6 +87,14 @@ next call. `capabilities` is authoritative for actions, operations, document for
   Close it with `commit` and `checkpoint`.
 - Inspect every sealed render with `look`. Code output, scene text, and viewport checks do not
   replace the sealed render inspection.
+- Multiple authored scenes are supported. Declare exact scene names in `begin`/`extend` or through
+  `create_scene`/`duplicate_scene`; `seal` captures every declared scene and `look` must inspect
+  each scene render. A single-scene project may omit scene names and keeps the existing behavior.
+- `create_scene` uses Blender modes `NEW`, `EMPTY` (Copy Settings), `LINK_COPY`, and `FULL_COPY`.
+  Scene-aware operations accept an optional `scene`; ambiguous objects linked into multiple scenes
+  require it. `switch_scene` is the only operation that changes the active context deliberately.
+- A master Video Sequencer scene may use `scene_strip`; a long animation render uses a separate
+  render ticket, never an apply ticket.
 - Use `blender_document` `{action:"read"}` for structured title, field, and section access. Direct
   full-file reads and edits are permitted but discouraged. Create pre-registration markdown with
   `bootstrap-document`; use `blender_document` `{action:"write"}` or `document` during a registered
@@ -143,12 +151,27 @@ next call. `capabilities` is authoritative for actions, operations, document for
   paths, hashes, source/licence sidecars, `Documents/INTAKE.md`, and the asset/reference registers.
 - `download` may fetch an HTTPS asset into ignored staging only. It does not import, register, or
   execute it; inspect the receipt, provide source/licence, then call `intake`.
+- Media generation belongs to the agent, not the harness. Use the configured Media MCP only with
+  explicit permission before spending credits; save the actual file, inspect it, pass its path to
+  `intake` with `generated` metadata, display it, and ask before using it as a texture or reference.
+  Never substitute a fake image or a hidden generator.
+- External downloads may also be obtained through the browser/provider or supplied by the user.
+  Ask for the local path and use `intake`; never ask the user to move files into the project. Direct
+  downloads are public HTTPS only, with no credentials, private hosts, authentication bypass, or
+  unlimited scope. Verify source and licence before use.
 - `.py` and `.pyw` files are accepted only under `scripts/` and are source-only. The harness never
-  executes project Python. If a task requires script execution, stop for a separately reviewed
-  isolation design.
+  executes project Python. Workspace automation scripts may run only through the existing shell
+  command approval path, with the exact command, working directory, script hash, reason, approval,
+  and outcome recorded. Any Blender Python execution requires a separately reviewed OS/VM isolation
+  design.
 - After any asset-using operation, completion requires a `check_assets` `{strict:true}` receipt on
   the final unchanged scene. Do not report complete with an unresolved missing-file report.
-- Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
+- Every produced export requires a harness-verified receipt with format, project-relative path,
+  bytes, SHA-256, source scene, and signature. Completion is denied for a missing or changed export.
+  Export validation is separate from `check_assets`.
+- External binaries under `assets/external/` are not committed unless the sidecar says
+  redistribution is allowed. A forced staged binary is rejected; commit sidecars and metadata, not
+  the binary. Keep logs, backups, caches, WIP renders, and non-redistributable assets out of commits.
 - Keep `README.md`, `Documents/ASSETS.md`, `Documents/DECISIONS.md`, and other non-registration
   documents current inside the change that changes them. Registration documents are frozen; stop for
   re-registration instead of editing them. Do not add a late documentation commit.

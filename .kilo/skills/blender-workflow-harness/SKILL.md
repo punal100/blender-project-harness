@@ -40,28 +40,34 @@ Use `intake` before asking the user to organize anything.
   sidecars and registers, and adds exact paths to the change. It never moves the originals.
 - `download {project?,url,filename?,maxBytes?}` fetches HTTPS bytes into ignored `.temp/Intake/...`
   staging only. It does not import or register; pass the result to `intake` with source and licence.
-- Generated references use `generated:{tool,model,prompt,seed,width,height,c2pa}`. They are recorded
-  as references, never as automatic textures or licensed third-party assets.
+- Media generation is agent-owned. Use the configured Media MCP only after explicit permission,
+  save the actual file, inspect it, then `intake` with
+  `generated:{tool,model,prompt,seed,width,height,c2pa}`. Generated references are never automatic
+  textures or licensed third-party assets.
 - `status` exposes the latest `intake` summary (copied, duplicates, rejected, paths) and the
   `assetUse`/`assetCheck` state.
 - External assets require `source.license` and `source.licenseText` or `source.licenseFile`; the
   action writes `SOURCE.md`, verbatim `LICENSE.txt`, and the register row.
 - Scripts may be copied only under `scripts/` and are source-only. The harness does not execute
-  project Python. If execution is required, stop for a separately reviewed isolation design.
+  project Python. Workspace automation scripts may run only through the audited shell approval path.
+  Any Blender Python execution requires a separately reviewed OS/VM isolation design.
 
 Ask the user to choose references, asset source, script handling, and deliverables before
 production. Do not generate paid images, download, or execute scripts without explicit consent.
+Direct downloads are public HTTPS only; browser/provider and user-assisted files return through
+`intake` with source and licence.
 
 ## Registered lifecycle
 
 1. `launch` `{}`. Verify `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
-2. `begin` `{outcome,objects,paths,milestone?,requirements?,final?,revision?}`. One bounded change;
-   exact object names and project-relative paths. Use `milestone` and the requirement IDs the change
-   advances for intermediate changes; use `final:true` only for the final full-spec change. Do not
-   pass full-deliverable IDs whose content is intentionally deferred. `extend` adds exact scope
-   while the change is open; `finalize` marks the change ready to seal.
-   `revision:true` requires the prior committed verdict.
+2. `begin` `{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,final?,revision?}`.
+   One bounded change; exact object names, project-relative paths, and optional exact scene names.
+   Use `milestone` and the requirement IDs the change advances for intermediate changes; use
+   `final:true` only for the final full-spec change. Do not pass full-deliverable IDs whose content is
+   intentionally deferred. `extend` adds exact objects, paths, scenes, or scene requirements while
+   the change is open; `finalize` marks the change ready to seal. `revision:true` requires the prior
+   committed verdict.
 3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
    up to 10 operations and executes sequentially under one token. Pass the token to one foreground
    `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
@@ -72,9 +78,11 @@ production. Do not generate paid images, download, or execute scripts without ex
    `apply`, `seal`, or review. Every scene change requires `finalize`, then
    `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
    also requires a WIP check. The harness denies a new apply ticket until the due WIP render has a
-   `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a final PNG,
-   and a manifest.
-5. Call `blender_look` on the returned absolute render path. A receipt requires a real image.
+   `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a primary
+   PNG, per-scene renders and facts, and a manifest. A single-scene project keeps the existing
+   primary render.
+5. Call `blender_look` on every returned scene render. A receipt requires a real image; review is
+   blocked until every declared scene is inspected.
 6. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
    `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
    lists exact evidence files; read those paths, not a folder. Non-final tickets grade only their
@@ -92,8 +100,10 @@ production. Do not generate paid images, download, or execute scripts without ex
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. After any asset-using operation,
-   run `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
-   without a matching strict receipt. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
+   run    `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
+   without a matching strict receipt. Every produced export needs a valid receipt; completion is
+   denied for a missing or changed export. External binaries are committed only when their sidecar
+   allows redistribution. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
    `TASKSTRACKER.md` complete and commits that tracker-only update. After a complete report, stop
    Blender through the harness unless it is intentionally left open for user inspection; report that
    choice.

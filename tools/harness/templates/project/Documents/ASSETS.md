@@ -3,9 +3,9 @@
 Register every third-party asset and derivative used by this project. One row per asset. If an asset
 has no source or licence, it is not ready to ship.
 
-| Asset | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | Notes |
-|---|---|---|---|---|---|---|---|
-| None yet | — | — | — | — | — | — | — |
+| Asset ID | Asset | Type | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | SHA-256 | Preview | Used in | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| — | None yet | — | — | — | — | — | — | — | — | — | — | — |
 
 ## Rules
 

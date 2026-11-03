@@ -29,8 +29,14 @@ The user does not need to create folders or copy files. Use `blender_workflow {a
   `Documents/References/README.md` as applicable, including MIME type, bytes, dimensions, and
   SHA-256. File signatures are checked against the extension.
 - Rejections, hashes, and duplicates are reported. The original files are never moved or deleted.
-- `download` fetches an HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does not
-  import or register it. Pass the returned path to `intake` with source and licence details.
+- `download` fetches a public HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does
+  not import or register it. Pass the returned path to `intake` with source and licence details.
+  No credentials, private hosts, authentication bypass, CAPTCHA bypass, or unlimited scope.
+- Browser/provider and user-assisted files return through `intake` with their actual local path.
+  Never ask the user to move a file into the project.
+- Media generation belongs to the agent. Use the configured Media MCP only after explicit permission,
+  save the actual file, inspect it, and pass its path to `intake` with `generated` metadata. Display
+  it and ask before using it as a texture or reference. Never substitute a fake image.
 - Project-owned models, textures, HDRIs, and audio use `source.external:false`; third-party files
   require `source.license` and verbatim `source.licenseText` or `source.licenseFile`.
 - Do not use shell copy, direct project writes, or manual Git for user files.
@@ -62,9 +68,8 @@ using `generated` metadata; they are not automatically scene assets.
 ## Git and delivery
 
 - External asset binaries are ignored by default.
-- Commit only assets whose licence permits redistribution. Remove the ignore rule for that exact
-  path so the harness commit can stage it. Force-add is unsupported; request reviewed tooling instead
-  of using manual Git.
+- Commit only assets whose `SOURCE.md` says `Redistribution allowed: yes`. The harness rejects a
+  tracked or force-staged external binary without that clearance.
 - Use Git LFS for large redistributable binaries.
 - NEVER commit non-redistributable assets, credentials, or paid asset packs.
 - A tracked `.blend` with packed or embedded third-party data is a redistribution. Verify licence,
@@ -79,10 +84,14 @@ using `generated` metadata; they are not automatically scene assets.
   final unchanged scene.
 - Keep paths project-relative; verify moving the project folder does not break the scene.
 - Run `pack_assets` only after licence review when packing is required.
-- Require an `ASSETS.md` row for every third-party asset and derivative.
+- Require an `ASSETS.md` row for every third-party asset and derivative, with asset ID, type,
+  local path, source, licence, SHA-256, packaging, preview path when available, scene use, and
+  redistribution status.
 - Require `SOURCE.md` and verbatim `LICENSE.txt` in every external asset folder.
 - Require a registered source, licence, and packaging decision for every linked, packed, or embedded
   third-party datablock.
+- Require a harness export receipt with format, path, bytes, SHA-256, source scene, and signature for
+  every produced export. A missing or changed export blocks completion.
 
 For delivery, pack external data only when its licence permits redistribution, or ship the documented
 asset folders. Re-run missing-file checks and inspect packed/embedded data before delivery.
