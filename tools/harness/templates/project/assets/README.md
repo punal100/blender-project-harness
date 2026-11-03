@@ -13,6 +13,12 @@ Store licensed third-party assets and their derivatives under `external/<source>
 an asset does not remove its source, licence, attribution, registration, or redistribution duties.
 Keep `SOURCE.md` and verbatim `LICENSE.txt` beside each external asset and register every derivative.
 
+Bring user files in with `blender_workflow {action:"intake"}`. Scan first, then copy inside an open
+change; it hashes, classifies, deduplicates, writes source/licence sidecars, and updates the registers.
+Use `download` only to fetch an HTTPS asset into ignored staging. Do not ask the user to create
+folders or copy files by hand.
+
 Supported reviewed operations: `import_asset` for local GLB/glTF/FBX/OBJ/USD/`.blend`, `link_library`
 for `.blend` link/append, `import_audio`, `image_texture`, `world_hdri`, `check_assets`,
-`pack_assets`, and `export_scene`. Remote asset-library downloads and 3D generation remain blocked.
+`pack_assets`, and `export_scene`. Remote asset-library import and 3D generation remain blocked;
+`download` and `intake` are the supported local staging path.

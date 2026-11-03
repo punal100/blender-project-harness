@@ -9,9 +9,12 @@ has no source or licence, it is not ready to ship.
 
 ## Rules
 
+- Use `blender_workflow {action:"intake"}` for user files. It copies accepted assets, writes the
+  `SOURCE.md`, `LICENSE.txt`, and this row, and records the SHA-256 in `INTAKE.md`.
 - Store each external asset and third-party derivative at `assets/external/<source>/<asset>/`.
   Modification does not remove source, licence, attribution, or redistribution duties.
-- Add a `SOURCE.md` beside the asset using `assets/external/SOURCE_TEMPLATE.md`.
+- Add a `SOURCE.md` beside the asset using `assets/external/SOURCE_TEMPLATE.md` when adding manually;
+  `intake` creates the harness version automatically.
 - Keep a verbatim copy of applicable licence terms named `LICENSE.txt` beside the asset; preserve
   original licence files too. Record the licence source URL and attribution exactly. Stop if terms
   are unavailable or incompatible with intended use. Verify `SOURCE.md` and `LICENSE.txt` are tracked

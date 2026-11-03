@@ -11,6 +11,7 @@ deliverable.
 | `Goals/` | Recorded design goal prompts. One file per goal; multiple goals per project. |
 | `Reviews/` | Timestamped grader rounds: manifests, verdicts, findings, ignored evidence. |
 | `ASSETS.md` | Register of external assets, sources, licences, and local paths. |
+| `INTAKE.md` | Harness-owned record of user-supplied files, hashes, provenance, and intake status. |
 | `DECISIONS.md` | Design decisions and the reason for each change. |
 | `TASKSTRACKER.md` | Harness-owned task tracker: links to per-task `TASK.md` and `SUMMARY.md` records. |
 | `Tasks/` | Harness-owned per-task records and summaries. |
@@ -44,6 +45,8 @@ deliverable.
   genuine unresolved blocker or major finding before completion; declining a genuine finding does
   not waive it.
 - A goal prompt is a design brief, not a coding plan. Do not create `PLAN/` or planning records.
+- Bring user files in with `blender_workflow {action:"intake"}`. It copies, hashes, registers,
+  writes `INTAKE.md`, and keeps the originals untouched.
 - Record every external asset and third-party derivative in `ASSETS.md` before or when it is added;
   keep `SOURCE.md` and verbatim `LICENSE.txt` in its external asset folder.
 - Use relative paths from the `.blend` file; never commit machine-specific absolute paths. Packed or

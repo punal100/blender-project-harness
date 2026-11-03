@@ -103,6 +103,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 
 See [`Documents/ASSETS.md`](Documents/ASSETS.md) and [`assets/external/README.md`](assets/external/README.md).
 
+- User files are brought in through `blender_workflow {action:"intake"}`; originals are never moved.
 - No external assets yet. Replace this line with a summary when assets are added.
 
 ## Goals
