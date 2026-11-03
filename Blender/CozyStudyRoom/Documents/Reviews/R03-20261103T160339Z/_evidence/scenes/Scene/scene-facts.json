@@ -1,0 +1,2222 @@
+{
+  "name": "Scene",
+  "objects": [
+    {
+      "name": "Floor",
+      "type": "MESH",
+      "location": [
+        0,
+        0,
+        -0.01
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        2,
+        1
+      ],
+      "dimensions": [
+        4,
+        4,
+        0
+      ],
+      "materials": [
+        "FloorWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 4,
+        "edges": 4,
+        "faces": 1,
+        "ngons": 0,
+        "non_manifold_edges": 4,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Ceiling",
+      "type": "MESH",
+      "location": [
+        0,
+        0,
+        2.72
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.05,
+        2.05,
+        0.04
+      ],
+      "dimensions": [
+        4.1,
+        4.1,
+        0.08
+      ],
+      "materials": [
+        "WallPlasterTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Wall_Back",
+      "type": "MESH",
+      "location": [
+        0,
+        2.05,
+        1.35
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.05,
+        0.05,
+        1.35
+      ],
+      "dimensions": [
+        4.1,
+        0.1,
+        2.7
+      ],
+      "materials": [
+        "Wall_Back_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Wall_Left",
+      "type": "MESH",
+      "location": [
+        -2.05,
+        0,
+        1.35
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.05,
+        2.05,
+        1.35
+      ],
+      "dimensions": [
+        0.1,
+        4.1,
+        2.7
+      ],
+      "materials": [
+        "Wall_Left_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Wall_Right",
+      "type": "MESH",
+      "location": [
+        2.05,
+        0,
+        1.35
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.05,
+        2.05,
+        1.35
+      ],
+      "dimensions": [
+        0.1,
+        4.1,
+        2.7
+      ],
+      "materials": [
+        "Wall_Right_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Wall_Front",
+      "type": "MESH",
+      "location": [
+        0,
+        -2.05,
+        1.35
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.05,
+        0.05,
+        1.35
+      ],
+      "dimensions": [
+        4.1,
+        0.1,
+        2.7
+      ],
+      "materials": [
+        "Wall_Front_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Baseboard_Back",
+      "type": "MESH",
+      "location": [
+        0,
+        1.99,
+        0.06
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2,
+        0.012,
+        0.06
+      ],
+      "dimensions": [
+        4,
+        0.024,
+        0.12
+      ],
+      "materials": [
+        "BaseboardPaint_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Baseboard_Left",
+      "type": "MESH",
+      "location": [
+        -1.99,
+        0,
+        0.06
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.012,
+        2,
+        0.06
+      ],
+      "dimensions": [
+        0.024,
+        4,
+        0.12
+      ],
+      "materials": [
+        "BaseboardPaint_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Baseboard_Right",
+      "type": "MESH",
+      "location": [
+        1.99,
+        0,
+        0.06
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.012,
+        2,
+        0.06
+      ],
+      "dimensions": [
+        0.024,
+        4,
+        0.12
+      ],
+      "materials": [
+        "BaseboardPaint_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Glass",
+      "type": "MESH",
+      "location": [
+        0.95,
+        1.99,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.008,
+        0.55
+      ],
+      "dimensions": [
+        0.9,
+        0.016,
+        1.1
+      ],
+      "materials": [
+        "Window_Glass_Material.003"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Frame_Top",
+      "type": "MESH",
+      "location": [
+        0.95,
+        1.975,
+        2.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.48,
+        0.02,
+        0.03
+      ],
+      "dimensions": [
+        0.96,
+        0.04,
+        0.06
+      ],
+      "materials": [
+        "WindowFrame_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Frame_Bottom",
+      "type": "MESH",
+      "location": [
+        0.95,
+        1.975,
+        1.07
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.48,
+        0.02,
+        0.03
+      ],
+      "dimensions": [
+        0.96,
+        0.04,
+        0.06
+      ],
+      "materials": [
+        "WindowFrame_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Frame_Left",
+      "type": "MESH",
+      "location": [
+        0.47,
+        1.975,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.02,
+        0.58
+      ],
+      "dimensions": [
+        0.06,
+        0.04,
+        1.16
+      ],
+      "materials": [
+        "WindowFrame_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Frame_Right",
+      "type": "MESH",
+      "location": [
+        1.43,
+        1.975,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.02,
+        0.58
+      ],
+      "dimensions": [
+        0.06,
+        0.04,
+        1.16
+      ],
+      "materials": [
+        "WindowFrame_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Window_Mullion",
+      "type": "MESH",
+      "location": [
+        0.95,
+        1.975,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.018,
+        0.02,
+        0.58
+      ],
+      "dimensions": [
+        0.036,
+        0.04,
+        1.16
+      ],
+      "materials": [
+        "WindowFrame_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Curtain_L",
+      "type": "MESH",
+      "location": [
+        0.36,
+        1.93,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.09,
+        0.035,
+        0.55
+      ],
+      "dimensions": [
+        0.18,
+        0.07,
+        1.1
+      ],
+      "materials": [
+        "Curtain_L_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Curtain_R",
+      "type": "MESH",
+      "location": [
+        1.28,
+        1.96,
+        1.65
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.04,
+        0.715
+      ],
+      "dimensions": [
+        0.36,
+        0.08,
+        1.43
+      ],
+      "materials": [
+        "Curtain_R_Material.001"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Wall_Art",
+      "type": "MESH",
+      "location": [
+        -1.45,
+        1.98,
+        1.78
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.26,
+        0.015,
+        0.34
+      ],
+      "dimensions": [
+        0.52,
+        0.03,
+        0.68
+      ],
+      "materials": [
+        "Wall_Art_Material.004"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Camera_Hero",
+      "type": "CAMERA",
+      "location": [
+        1.5,
+        -1.55,
+        1.45
+      ],
+      "rotation": [
+        1.448,
+        0,
+        0.581
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "dimensions": [
+        0,
+        0,
+        0
+      ],
+      "materials": [],
+      "modifiers": []
+    },
+    {
+      "name": "Desk_Top",
+      "type": "MESH",
+      "location": [
+        -0.5,
+        1.55,
+        0.75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.9,
+        0.35,
+        0.03
+      ],
+      "dimensions": [
+        1.8,
+        0.7,
+        0.06
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Leg_FL",
+      "type": "MESH",
+      "location": [
+        -1.36,
+        1.25,
+        0.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.03,
+        0.36
+      ],
+      "dimensions": [
+        0.06,
+        0.06,
+        0.72
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Leg_FR",
+      "type": "MESH",
+      "location": [
+        0.36,
+        1.25,
+        0.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.03,
+        0.36
+      ],
+      "dimensions": [
+        0.06,
+        0.06,
+        0.72
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Leg_BL",
+      "type": "MESH",
+      "location": [
+        -1.36,
+        1.85,
+        0.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.03,
+        0.36
+      ],
+      "dimensions": [
+        0.06,
+        0.06,
+        0.72
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Leg_BR",
+      "type": "MESH",
+      "location": [
+        0.36,
+        1.85,
+        0.36
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.03,
+        0.36
+      ],
+      "dimensions": [
+        0.06,
+        0.06,
+        0.72
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Drawer",
+      "type": "MESH",
+      "location": [
+        0.2,
+        1.55,
+        0.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.18,
+        0.3,
+        0.18
+      ],
+      "dimensions": [
+        0.36,
+        0.6,
+        0.36
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Monitor_Bezel",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.45,
+        1.16
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.275,
+        0.02,
+        0.2
+      ],
+      "dimensions": [
+        0.55,
+        0.04,
+        0.4
+      ],
+      "materials": [
+        "MonitorPlastic_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Monitor_Screen",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.427,
+        1.16
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.01,
+        0.17
+      ],
+      "dimensions": [
+        0.5,
+        0.02,
+        0.34
+      ],
+      "materials": [
+        "Monitor_Screen_Material.004"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Monitor_Stand",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.465,
+        0.95
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.03,
+        0.03,
+        0.16
+      ],
+      "dimensions": [
+        0.06,
+        0.06,
+        0.32
+      ],
+      "materials": [
+        "MonitorPlastic_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Monitor_Base",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.445,
+        0.786
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.14,
+        0.09,
+        0.012
+      ],
+      "dimensions": [
+        0.28,
+        0.18,
+        0.024
+      ],
+      "materials": [
+        "MonitorPlastic_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Keyboard",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.36,
+        0.803
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.075,
+        0.014
+      ],
+      "dimensions": [
+        0.48,
+        0.15,
+        0.028
+      ],
+      "materials": [
+        "KeyboardPad_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Mouse",
+      "type": "MESH",
+      "location": [
+        -0.24,
+        1.36,
+        0.812
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.032,
+        0.05,
+        0.022
+      ],
+      "dimensions": [
+        0.064,
+        0.1,
+        0.044
+      ],
+      "materials": [
+        "Mouse_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 114,
+        "edges": 240,
+        "faces": 128,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Mousepad",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        1.36,
+        0.7865
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.38,
+        0.19,
+        0.003
+      ],
+      "dimensions": [
+        0.76,
+        0.38,
+        0.006
+      ],
+      "materials": [
+        "KeyboardPad_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "PC_Tower",
+      "type": "MESH",
+      "location": [
+        0.32,
+        1.62,
+        0.985
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.18,
+        0.205
+      ],
+      "dimensions": [
+        0.2,
+        0.36,
+        0.41
+      ],
+      "materials": [
+        "PC_Tower_Material.001"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "PC_Tower_Front",
+      "type": "MESH",
+      "location": [
+        0.32,
+        1.435,
+        0.985
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.096,
+        0.006,
+        0.195
+      ],
+      "dimensions": [
+        0.192,
+        0.012,
+        0.39
+      ],
+      "materials": [
+        "PC_Tower_Front_Material.005"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Lamp_Base",
+      "type": "MESH",
+      "location": [
+        -1.28,
+        1.6,
+        0.792
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.08,
+        0.08,
+        0.012
+      ],
+      "dimensions": [
+        0.16,
+        0.16,
+        0.024
+      ],
+      "materials": [
+        "LampMetal_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Lamp_Stem",
+      "type": "MESH",
+      "location": [
+        -1.28,
+        1.6,
+        0.95
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.012,
+        0.012,
+        0.16
+      ],
+      "dimensions": [
+        0.024,
+        0.024,
+        0.32
+      ],
+      "materials": [
+        "LampMetal_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Desk_Lamp_Shade",
+      "type": "MESH",
+      "location": [
+        -1.28,
+        1.53,
+        1.14
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.11,
+        0.07
+      ],
+      "dimensions": [
+        0.22,
+        0.22,
+        0.14
+      ],
+      "materials": [
+        "Desk_Lamp_Shade_Material.004"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Seat",
+      "type": "MESH",
+      "location": [
+        -1.05,
+        1,
+        0.46
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.22,
+        0.035
+      ],
+      "dimensions": [
+        0.48,
+        0.44,
+        0.07
+      ],
+      "materials": [
+        "ChairFabricTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 96,
+        "edges": 192,
+        "faces": 98,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Back",
+      "type": "MESH",
+      "location": [
+        -1.05,
+        0.78,
+        0.75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.24,
+        0.035,
+        0.23
+      ],
+      "dimensions": [
+        0.48,
+        0.07,
+        0.46
+      ],
+      "materials": [
+        "ChairFabricTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 96,
+        "edges": 192,
+        "faces": 98,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Leg_FL",
+      "type": "MESH",
+      "location": [
+        -1.26,
+        0.82,
+        0.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.022,
+        0.022,
+        0.23
+      ],
+      "dimensions": [
+        0.044,
+        0.044,
+        0.46
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Leg_FR",
+      "type": "MESH",
+      "location": [
+        -0.84,
+        0.82,
+        0.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.022,
+        0.022,
+        0.23
+      ],
+      "dimensions": [
+        0.044,
+        0.044,
+        0.46
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Leg_BL",
+      "type": "MESH",
+      "location": [
+        -1.26,
+        1.18,
+        0.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.022,
+        0.022,
+        0.23
+      ],
+      "dimensions": [
+        0.044,
+        0.044,
+        0.46
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Chair_Leg_BR",
+      "type": "MESH",
+      "location": [
+        -0.84,
+        1.18,
+        0.23
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.022,
+        0.022,
+        0.23
+      ],
+      "dimensions": [
+        0.044,
+        0.044,
+        0.46
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Rug",
+      "type": "MESH",
+      "location": [
+        -0.55,
+        0.65,
+        0.012
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.15,
+        0.9,
+        0.012
+      ],
+      "dimensions": [
+        2.3,
+        1.8,
+        0.024
+      ],
+      "materials": [
+        "Rug_Material.005"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Shelf",
+      "type": "MESH",
+      "location": [
+        -1.85,
+        0.9,
+        1.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.15,
+        0.45,
+        0.025
+      ],
+      "dimensions": [
+        0.3,
+        0.9,
+        0.05
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Shelf_Bracket_L",
+      "type": "MESH",
+      "location": [
+        -1.9,
+        0.55,
+        1.42
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.05,
+        0.02,
+        0.055
+      ],
+      "dimensions": [
+        0.1,
+        0.04,
+        0.11
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Shelf_Bracket_R",
+      "type": "MESH",
+      "location": [
+        -1.9,
+        1.25,
+        1.42
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.05,
+        0.02,
+        0.055
+      ],
+      "dimensions": [
+        0.1,
+        0.04,
+        0.11
+      ],
+      "materials": [
+        "DeskWoodTexture_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Plant_Pot",
+      "type": "MESH",
+      "location": [
+        -1.85,
+        1.15,
+        1.58
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.06,
+        0.06,
+        0.055
+      ],
+      "dimensions": [
+        0.12,
+        0.12,
+        0.11
+      ],
+      "materials": [
+        "Plant_Pot_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 192,
+        "edges": 352,
+        "faces": 162,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Plant_Leaves",
+      "type": "MESH",
+      "location": [
+        -1.85,
+        1.15,
+        1.76
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.11,
+        0.13
+      ],
+      "dimensions": [
+        0.22,
+        0.22,
+        0.26
+      ],
+      "materials": [
+        "Plant_Leaves_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 114,
+        "edges": 240,
+        "faces": 128,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Mug",
+      "type": "MESH",
+      "location": [
+        -0.15,
+        1.42,
+        0.825
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.04,
+        0.04,
+        0.045
+      ],
+      "dimensions": [
+        0.08,
+        0.08,
+        0.09
+      ],
+      "materials": [
+        "Mug_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 192,
+        "edges": 352,
+        "faces": 162,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Notebook",
+      "type": "MESH",
+      "location": [
+        -1,
+        1.35,
+        0.79
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.11,
+        0.15,
+        0.008
+      ],
+      "dimensions": [
+        0.22,
+        0.3,
+        0.016
+      ],
+      "materials": [
+        "Notebook_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 56,
+        "edges": 108,
+        "faces": 54,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Art_Frame",
+      "type": "MESH",
+      "location": [
+        -1.45,
+        2.01,
+        1.78
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.29,
+        0.015,
+        0.37
+      ],
+      "dimensions": [
+        0.58,
+        0.03,
+        0.74
+      ],
+      "materials": [
+        "Art_Frame_Material"
+      ],
+      "modifiers": [
+        "BEVEL"
+      ],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Book_1",
+      "type": "MESH",
+      "location": [
+        -1.85,
+        0.7,
+        1.56
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.14,
+        0.025
+      ],
+      "dimensions": [
+        0.2,
+        0.28,
+        0.05
+      ],
+      "materials": [
+        "Book_1_Material"
+      ],
+      "modifiers": [
+        "BEVEL"
+      ],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Book_2",
+      "type": "MESH",
+      "location": [
+        -1.85,
+        0.98,
+        1.565
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.08,
+        0.12,
+        0.035
+      ],
+      "dimensions": [
+        0.16,
+        0.24,
+        0.07
+      ],
+      "materials": [
+        "Book_2_Material"
+      ],
+      "modifiers": [
+        "BEVEL"
+      ],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Blanket",
+      "type": "MESH",
+      "location": [
+        -1.05,
+        1,
+        0.515
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.22,
+        0.26,
+        0.025
+      ],
+      "dimensions": [
+        0.44,
+        0.52,
+        0.05
+      ],
+      "materials": [
+        "Blanket_Material.001"
+      ],
+      "modifiers": [
+        "BEVEL"
+      ],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Light_Lamp",
+      "type": "LIGHT",
+      "location": [
+        -1.28,
+        1.45,
+        1.3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "dimensions": [
+        0,
+        0,
+        0
+      ],
+      "materials": [],
+      "modifiers": []
+    },
+    {
+      "name": "Light_Fill",
+      "type": "LIGHT",
+      "location": [
+        -0.8,
+        0,
+        2.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "dimensions": [
+        0,
+        0,
+        0
+      ],
+      "materials": [],
+      "modifiers": []
+    },
+    {
+      "name": "Art_Accent",
+      "type": "MESH",
+      "location": [
+        -1.52,
+        1.955,
+        1.7
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.06,
+        0.005,
+        0.09
+      ],
+      "dimensions": [
+        0.12,
+        0.01,
+        0.18
+      ],
+      "materials": [
+        "Art_Accent_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Art_Accent_2",
+      "type": "MESH",
+      "location": [
+        -1.4,
+        1.95,
+        1.85
+      ],
+      "rotation": [
+        1.5708,
+        0,
+        0
+      ],
+      "scale": [
+        0.07,
+        0.07,
+        0.005
+      ],
+      "dimensions": [
+        0.14,
+        0.14,
+        0.01
+      ],
+      "materials": [
+        "Art_Accent_2_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 64,
+        "edges": 96,
+        "faces": 34,
+        "ngons": 2,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    },
+    {
+      "name": "Art_Accent_3",
+      "type": "MESH",
+      "location": [
+        -1.38,
+        1.955,
+        1.69
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.045,
+        0.005,
+        0.055
+      ],
+      "dimensions": [
+        0.09,
+        0.01,
+        0.11
+      ],
+      "materials": [
+        "Art_Accent_3_Material"
+      ],
+      "modifiers": [],
+      "mesh": {
+        "vertices": 8,
+        "edges": 12,
+        "faces": 6,
+        "ngons": 0,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0
+      }
+    }
+  ],
+  "collections": [
+    "Collection"
+  ],
+  "camera": "Camera_Hero",
+  "resolution": [
+    1920,
+    1080
+  ],
+  "engine": "BLENDER_EEVEE",
+  "frame_start": 1,
+  "frame_end": 250,
+  "fps": 24,
+  "film_transparent": false,
+  "color_management": {
+    "view_transform": "AgX",
+    "look": "None",
+    "exposure": 0,
+    "gamma": 1
+  },
+  "samples": 128,
+  "use_sequencer": true,
+  "strips": []
+}

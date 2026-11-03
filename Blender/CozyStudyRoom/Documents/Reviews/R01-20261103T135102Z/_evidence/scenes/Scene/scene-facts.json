@@ -1,0 +1,231 @@
+{
+  "name": "Scene",
+  "objects": [
+    {
+      "name": "Floor",
+      "type": "MESH"
+    },
+    {
+      "name": "Ceiling",
+      "type": "MESH"
+    },
+    {
+      "name": "Wall_Back",
+      "type": "MESH"
+    },
+    {
+      "name": "Wall_Left",
+      "type": "MESH"
+    },
+    {
+      "name": "Wall_Right",
+      "type": "MESH"
+    },
+    {
+      "name": "Wall_Front",
+      "type": "MESH"
+    },
+    {
+      "name": "Baseboard_Back",
+      "type": "MESH"
+    },
+    {
+      "name": "Baseboard_Left",
+      "type": "MESH"
+    },
+    {
+      "name": "Baseboard_Right",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Glass",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Frame_Top",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Frame_Bottom",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Frame_Left",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Frame_Right",
+      "type": "MESH"
+    },
+    {
+      "name": "Window_Mullion",
+      "type": "MESH"
+    },
+    {
+      "name": "Curtain_L",
+      "type": "MESH"
+    },
+    {
+      "name": "Curtain_R",
+      "type": "MESH"
+    },
+    {
+      "name": "Wall_Art",
+      "type": "MESH"
+    },
+    {
+      "name": "Camera_Hero",
+      "type": "CAMERA"
+    },
+    {
+      "name": "Desk_Top",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Leg_FL",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Leg_FR",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Leg_BL",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Leg_BR",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Drawer",
+      "type": "MESH"
+    },
+    {
+      "name": "Monitor_Bezel",
+      "type": "MESH"
+    },
+    {
+      "name": "Monitor_Screen",
+      "type": "MESH"
+    },
+    {
+      "name": "Monitor_Stand",
+      "type": "MESH"
+    },
+    {
+      "name": "Monitor_Base",
+      "type": "MESH"
+    },
+    {
+      "name": "Keyboard",
+      "type": "MESH"
+    },
+    {
+      "name": "Mouse",
+      "type": "MESH"
+    },
+    {
+      "name": "Mousepad",
+      "type": "MESH"
+    },
+    {
+      "name": "PC_Tower",
+      "type": "MESH"
+    },
+    {
+      "name": "PC_Tower_Front",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Lamp_Base",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Lamp_Stem",
+      "type": "MESH"
+    },
+    {
+      "name": "Desk_Lamp_Shade",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Seat",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Back",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Leg_FL",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Leg_FR",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Leg_BL",
+      "type": "MESH"
+    },
+    {
+      "name": "Chair_Leg_BR",
+      "type": "MESH"
+    },
+    {
+      "name": "Rug",
+      "type": "MESH"
+    },
+    {
+      "name": "Shelf",
+      "type": "MESH"
+    },
+    {
+      "name": "Shelf_Bracket_L",
+      "type": "MESH"
+    },
+    {
+      "name": "Shelf_Bracket_R",
+      "type": "MESH"
+    },
+    {
+      "name": "Plant_Pot",
+      "type": "MESH"
+    },
+    {
+      "name": "Plant_Leaves",
+      "type": "MESH"
+    },
+    {
+      "name": "Mug",
+      "type": "MESH"
+    },
+    {
+      "name": "Notebook",
+      "type": "MESH"
+    },
+    {
+      "name": "Light_Fill",
+      "type": "LIGHT"
+    },
+    {
+      "name": "Light_Lamp",
+      "type": "LIGHT"
+    }
+  ],
+  "collections": [
+    "Collection"
+  ],
+  "camera": "Camera_Hero",
+  "resolution": [
+    1920,
+    1080
+  ],
+  "engine": "BLENDER_EEVEE",
+  "frame_start": 1,
+  "frame_end": 250,
+  "fps": 24,
+  "use_sequencer": true,
+  "strips": []
+}
