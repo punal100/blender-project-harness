@@ -33,7 +33,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| R01-20261103T135102Z | 20261103T135102Z | ded80effe68b | All final | visual, technical, spec | BLOCKED | [R01-20261103T135102Z/REVIEW.md](R01-20261103T135102Z/REVIEW.md) |
 
 ## Rules
 
@@ -46,3 +46,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
   the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
   are blocked.
+
+- R01-20261103T135102Z: Final cozy room: chair, rug, wall shelf with plant, mug and notebook, dusk-blue window, warm art, a proper desk-lamp shade, cool fill light, and a re-framed hero camera deliver the lived-in evening study; evidence 0603e52da4e1ef6f21be0e476c214e981a4e37152279678348575befddc66748
