@@ -12,6 +12,23 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tif', '.ti
 const HDRI_EXTENSIONS = new Set(['.hdr', '.exr']);
 const AUDIO_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac']);
 const SCRIPT_EXTENSIONS = new Set(['.py', '.pyw']);
+const MIME_TYPES = new Map([
+  ['.glb', 'model/gltf-binary'], ['.gltf', 'model/gltf+json'], ['.fbx', 'application/octet-stream'],
+  ['.obj', 'model/obj'], ['.usd', 'model/vnd.usd'], ['.usdz', 'model/vnd.usdz+zip'],
+  ['.blend', 'application/x-blender'], ['.png', 'image/png'], ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'], ['.webp', 'image/webp'], ['.tif', 'image/tiff'],
+  ['.tiff', 'image/tiff'], ['.bmp', 'image/bmp'], ['.hdr', 'image/vnd.radiance'],
+  ['.exr', 'image/x-exr'], ['.wav', 'audio/wav'], ['.mp3', 'audio/mpeg'],
+  ['.ogg', 'audio/ogg'], ['.flac', 'audio/flac'], ['.py', 'text/x-python'], ['.pyw', 'text/x-python'],
+]);
+const SIGNATURE_MESSAGES = new Map([
+  ['.png', 'PNG'], ['.jpg', 'JPEG'], ['.jpeg', 'JPEG'], ['.webp', 'WebP'],
+  ['.tif', 'TIFF'], ['.tiff', 'TIFF'], ['.bmp', 'BMP'], ['.glb', 'GLB'],
+  ['.gltf', 'glTF JSON'], ['.fbx', 'FBX'], ['.obj', 'OBJ'], ['.usd', 'USD'],
+  ['.usdz', 'USDZ'], ['.blend', 'Blender'], ['.hdr', 'Radiance HDR'],
+  ['.exr', 'OpenEXR'], ['.wav', 'WAV'], ['.mp3', 'MP3'], ['.ogg', 'Ogg'],
+  ['.flac', 'FLAC'], ['.py', 'Python source'], ['.pyw', 'Python source'],
+]);
 const SKIP_DIRECTORIES = new Set(['.git', 'node_modules', '__pycache__', '.pytest_cache', '.cache', 'cache']);
 
 function fail(message) {
@@ -55,6 +72,89 @@ function hashFile(file) {
     fs.closeSync(fd);
   }
   return hash.digest('hex');
+}
+
+function readPrefix(file, length = 4096) {
+  const fd = fs.openSync(file, 'r');
+  try {
+    const buffer = Buffer.alloc(length);
+    const read = fs.readSync(fd, buffer, 0, length, 0);
+    return buffer.subarray(0, read);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function startsWith(buffer, bytes) {
+  return buffer.length >= bytes.length && bytes.every((byte, index) => buffer[index] === byte);
+}
+
+function textPrefix(buffer) {
+  return buffer.toString('utf8').replace(/^\uFEFF/, '').trimStart();
+}
+
+function imageDimensions(buffer, extension) {
+  if (extension === '.png' && buffer.length >= 24 && buffer.toString('ascii', 12, 16) === 'IHDR') {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+  if (['.jpg', '.jpeg'].includes(extension)) {
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+      if (buffer[offset] !== 0xff) { offset += 1; continue; }
+      const marker = buffer[offset + 1];
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+        return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+      }
+      if (offset + 3 >= buffer.length) break;
+      offset += 2 + buffer.readUInt16BE(offset + 2);
+    }
+  }
+  if (extension === '.webp' && buffer.length >= 30 && buffer.toString('ascii', 12, 16) === 'VP8X') {
+    return { width: buffer.readUIntLE(24, 3) + 1, height: buffer.readUIntLE(27, 3) + 1 };
+  }
+  return { width: null, height: null };
+}
+
+function signatureMatches(buffer, extension) {
+  switch (extension) {
+    case '.png': return startsWith(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    case '.jpg':
+    case '.jpeg': return startsWith(buffer, [0xff, 0xd8, 0xff]);
+    case '.webp': return buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
+    case '.tif':
+    case '.tiff': return startsWith(buffer, [0x49, 0x49, 0x2a, 0x00]) || startsWith(buffer, [0x4d, 0x4d, 0x00, 0x2a]);
+    case '.bmp': return startsWith(buffer, [0x42, 0x4d]);
+    case '.glb': return buffer.length >= 4 && buffer.toString('ascii', 0, 4) === 'glTF';
+    case '.gltf': return textPrefix(buffer).startsWith('{');
+    case '.fbx': return buffer.toString('ascii', 0, 21).startsWith('Kaydara FBX Binary') || textPrefix(buffer).startsWith('; FBX');
+    case '.obj': return !buffer.includes(0);
+    case '.usd': return buffer.length >= 8 && buffer.toString('ascii', 0, 8) === 'PXR-USDC' || textPrefix(buffer).startsWith('#usda');
+    case '.usdz': return startsWith(buffer, [0x50, 0x4b]);
+    case '.blend': return buffer.length >= 7 && buffer.toString('ascii', 0, 7) === 'BLENDER' || startsWith(buffer, [0x1f, 0x8b]);
+    case '.hdr': return /^#\?(?:RADIANCE|RGBE)/.test(textPrefix(buffer));
+    case '.exr': return startsWith(buffer, [0x76, 0x2f, 0x31, 0x01]);
+    case '.wav': return buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WAVE';
+    case '.mp3': return startsWith(buffer, [0x49, 0x44, 0x33]) || (buffer.length >= 2 && buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0);
+    case '.ogg': return buffer.length >= 4 && buffer.toString('ascii', 0, 4) === 'OggS';
+    case '.flac': return buffer.length >= 4 && buffer.toString('ascii', 0, 4) === 'fLaC';
+    case '.py':
+    case '.pyw': return !buffer.includes(0);
+    default: return false;
+  }
+}
+
+export function inspectIntakeFile(file, kind) {
+  const extension = path.extname(file).toLowerCase();
+  const buffer = readPrefix(file);
+  if (!signatureMatches(buffer, extension)) {
+    fail(`file signature does not match ${SIGNATURE_MESSAGES.get(extension) ?? extension}`);
+  }
+  const dimensions = kind === 'reference' || kind === 'hdri' ? imageDimensions(buffer, extension) : { width: null, height: null };
+  return {
+    mime: MIME_TYPES.get(extension) ?? 'application/octet-stream',
+    width: dimensions.width,
+    height: dimensions.height,
+  };
 }
 
 function assertNotState(file, home) {
@@ -131,6 +231,13 @@ function addFile(file, state, rejected) {
     rejected.push({ path: file, reason: 'unsupported file type' });
     return;
   }
+  let metadata;
+  try {
+    metadata = inspectIntakeFile(file, kind);
+  } catch (error) {
+    rejected.push({ path: file, reason: error.message });
+    return;
+  }
   state.files += 1;
   state.bytes += stat.size;
   state.entries.push({
@@ -139,6 +246,7 @@ function addFile(file, state, rejected) {
     kind,
     bytes: stat.size,
     sha256: hashFile(file),
+    ...metadata,
   });
 }
 
@@ -362,8 +470,9 @@ export function appendReferenceRow(content, row) {
 }
 
 export function appendIntakeRow(content, row) {
-  const header = '| Time | Kind | Stored | SHA-256 | Source | Licence | Status |';
-  const line = `| ${cell(row.time)} | ${cell(row.kind)} | ${cell(row.stored)} | ${cell(row.sha256)} | ${cell(row.source)} | ${cell(row.license)} | ${cell(row.status)} |`;
+  const header = '| Time | Kind | Original | Stored | Bytes | MIME | Dimensions | SHA-256 | Source | Licence | Status |';
+  const dimensions = row.width && row.height ? `${row.width}x${row.height}` : '';
+  const line = `| ${cell(row.time)} | ${cell(row.kind)} | ${cell(row.original)} | ${cell(row.stored)} | ${cell(row.bytes)} | ${cell(row.mime)} | ${cell(dimensions)} | ${cell(row.sha256)} | ${cell(row.source)} | ${cell(row.license)} | ${cell(row.status)} |`;
   if (content.includes(`| ${cell(row.stored)} |`)) return content;
   return insertTableRow(content, header, line, null);
 }
@@ -376,8 +485,8 @@ export function createIntakeDocument(projectName) {
     '',
     '## Intake',
     '',
-    '| Time | Kind | Stored | SHA-256 | Source | Licence | Status |',
-    '|---|---|---|---|---|---|---|',
+    '| Time | Kind | Original | Stored | Bytes | MIME | Dimensions | SHA-256 | Source | Licence | Status |',
+    '|---|---|---|---|---|---|---|---|---|---|---|',
     '',
   ].join('\n');
 }
@@ -397,6 +506,7 @@ export function sourceDocument({ entry, source = {}, license = '', generated = n
     '# Asset Source',
     '',
     `- Asset: ${source.name || entry.name}`,
+    `- Original filename: ${entry.name}`,
     `- Source URL: ${source.url || '—'}`,
     `- Author / vendor: ${source.author || source.vendor || '—'}`,
     `- Licence: ${source.license || license || '—'}`,
@@ -406,6 +516,9 @@ export function sourceDocument({ entry, source = {}, license = '', generated = n
     `- Redistribution allowed: ${source.redistributable === undefined ? '—' : source.redistributable ? 'yes' : 'no'}`,
     `- Packaging in .blend: ${source.packaging || 'none'}`,
     `- Local path: ${entry.stored}`,
+    `- Bytes: ${entry.bytes}`,
+    `- MIME type: ${entry.mime || '—'}`,
+    `- Dimensions: ${entry.width && entry.height ? `${entry.width} × ${entry.height}` : '—'}`,
     '- Imported into: —',
     '- Modifications: none',
     '- Original asset / derivative relationship: original',
@@ -421,7 +534,11 @@ export function referenceSourceDocument({ entry, source = {}, generated = null }
   return [
     `# Reference — ${source.name || entry.name}`,
     '',
+    `- Original filename: ${entry.name}`,
     `- Stored: ${entry.stored}`,
+    `- Bytes: ${entry.bytes}`,
+    `- MIME type: ${entry.mime || '—'}`,
+    `- Dimensions: ${entry.width && entry.height ? `${entry.width} × ${entry.height}` : '—'}`,
     `- Source: ${source.url || source.author || 'user-supplied'}`,
     `- Licence: ${source.license || 'project-owned or user-supplied'}`,
     `- Informs: ${source.notes || 'visual direction'}`,

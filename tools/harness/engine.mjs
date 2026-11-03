@@ -23,6 +23,10 @@ const CHECKPOINT_EVERY = 20;
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
 const nonScenePath = (name) => documentOnlyPath(name) || /(?:^|\/)(?:assets|Documents\/References)\//i.test(name);
+const checkAssetsStrict = (payload) => {
+  const operations = Array.isArray(payload?.operations) ? payload.operations : [payload];
+  return operations.some((operation) => operation?.operation === 'check_assets' && operation.strict === true);
+};
 const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
@@ -533,6 +537,13 @@ export class Harness {
       }
       const base = this.projectPath(args.project);
       const result = copyIntake({ projectRoot: base, plan, licenseText: plan.licenseText });
+      p.intake = {
+        at: new Date().toISOString(),
+        copied: result.copied.length,
+        duplicates: result.duplicates.length,
+        rejected: result.rejected.length,
+        paths: result.copied.map((entry) => entry.stored),
+      };
       const paths = new Set(c.paths);
       const addPath = (relative) => paths.add(`${p.project}/${relative}`);
       const addDocument = (relative, content, validate = false) => {
@@ -594,7 +605,12 @@ export class Harness {
         intake = appendIntakeRow(intake, {
           time: new Date().toISOString(),
           kind: entry.kind,
+          original: entry.name,
           stored: entry.stored,
+          bytes: entry.bytes,
+          mime: entry.mime,
+          width: entry.width,
+          height: entry.height,
           sha256: entry.sha256,
           source: plan.generated ? `generated: ${plan.generated.tool || 'image tool'}` : sourceName,
           license: plan.source?.license || (plan.generated ? 'generated' : ''),
@@ -605,7 +621,12 @@ export class Harness {
         intake = appendIntakeRow(intake, {
           time: new Date().toISOString(),
           kind: duplicate.kind,
+          original: duplicate.name,
           stored: duplicate.stored,
+          bytes: duplicate.bytes,
+          mime: duplicate.mime,
+          width: duplicate.width,
+          height: duplicate.height,
           sha256: duplicate.sha256,
           source: plan.generated ? `generated: ${plan.generated.tool || 'image tool'}` : (plan.source?.url || plan.source?.author || 'user-supplied'),
           license: plan.source?.license || (plan.generated ? 'generated' : ''),
@@ -812,7 +833,7 @@ export class Harness {
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1497,7 +1518,7 @@ export class Harness {
       if (t.operation === 'apply') {
         const operations = (result.operationResults ?? []).map((item) => item.operation);
         if (operations.some((name) => ASSET_USING_OPERATIONS.has(name))) p.assetUse = true;
-        if (operations.includes('check_assets')) c.assetChecked = true;
+        if (operations.includes('check_assets') && checkAssetsStrict(t.payload)) c.assetChecked = true;
       }
       if (t.operation === 'seal' && c.assetChecked) {
         p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString() };
