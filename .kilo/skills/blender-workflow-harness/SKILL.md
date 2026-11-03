@@ -100,7 +100,7 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
    Apply batches are already committed. NEVER use manual Git for project paths.
 9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. After any asset-using operation,
-   run    `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
+   run `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
    without a matching strict receipt. Every produced export needs a valid receipt; completion is
    denied for a missing or changed export. External binaries are committed only when their sidecar
    allows redistribution. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
