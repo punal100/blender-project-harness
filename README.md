@@ -1,144 +1,168 @@
-# Blender Project Workspace
+<h1 align="center">Blender Project Harness</h1>
 
-This workspace takes you from an idea to a finished, reviewed Blender project. Kilo and the MCP for
-Blender addon handle the building, inspection, grading, and records, while a guarded harness keeps
-edits bounded and the project history clean.
+<p align="center">
+  <strong>A guarded, evidence-driven Blender production workflow for Kilo.</strong><br>
+  Requirements, bounded scene changes, worker tickets, sealed evidence, independent graders, and clean project history.
+</p>
 
-Each project lives in its own folder under `Blender/<ProjectName>/`. The harness and checks live in
-`.kilo/blender-project-harness/tools/`, with configuration at
-`.kilo/blender-project-harness/config.json`. `AGENTS.md` contains the internal agent contract; this
-README is the human setup and usage guide.
+<p align="center">
+  <a href="https://github.com/punal100/blender-project-harness/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/punal100/blender-project-harness?display_name=tag&sort=semver"></a>
+  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.1-CB3837?logo=npm&logoColor=white"></a>
+  <a href="https://github.com/punal100/blender-project-harness/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/punal100/blender-project-harness"></a>
+  <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen">
+  <img alt="Blender" src="https://img.shields.io/badge/Blender-5.2-orange">
+  <img alt="MCP for Blender" src="https://img.shields.io/badge/MCP%20for%20Blender-2.2.6-blueviolet">
+  <a href="https://github.com/punal100/blender-project-harness/issues"><img alt="Issues" src="https://img.shields.io/github/issues/punal100/blender-project-harness"></a>
+  <a href="https://github.com/punal100/blender-project-harness/pulls"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen"></a>
+</p>
 
-## What the workspace provides
+<p align="center">
+  <a href="#why">Why</a> |
+  <a href="#features">Features</a> |
+  <a href="#install">Install</a> |
+  <a href="#quick-start">Quick start</a> |
+  <a href="#how-it-works">How it works</a> |
+  <a href="#safety-model">Safety</a> |
+  <a href="#tests">Tests</a> |
+  <a href="#star-history">Star history</a>
+</p>
 
-- Requirements confirmation, project registration, and an active production goal.
-- One guarded Blender instance per workspace and one writer at a time.
-- Bounded scene changes with exact object names, paths, and declared scenes.
-- Worker-executed apply tickets, WIP renders, and inspected review evidence.
-- Independent visual, technical, and spec graders with primary and backup models.
-- Scoped project commits, review records, checkpoints, and completion checks.
-- Guarded intake for references, models, textures, HDRIs, audio, and source-only scripts.
-- Strict asset checks, relative paths, licence records, and verified export receipts.
-- Optional multi-scene projects, master Video Sequencer scenes, and media generation through the
-  configured Media MCP when you approve the credits.
+---
 
-## Quick Start
+## Why
 
-1. **Git** — install from [git-scm.com/download/win](https://git-scm.com/download/win).
-2. **Blender** — install the current stable or LTS Windows build from
-   [blender.org/download](https://www.blender.org/download/), using the Windows installer. Blender
-   5.2 is the current tested baseline; the MCP addon requires Blender 3.0 or newer.
-3. **Node.js and npm** — install the current LTS Windows installer from
-   [nodejs.org/download](https://nodejs.org/en/download). This repository requires Node.js 22 or
-   newer; npm comes bundled with Node.js.
-4. **uv and uvx** — install them with the Windows package manager:
+Blender projects are easy to start and hard to keep honest. A scene can look right in the viewport while the geometry, topology, assets, exports, and project history are wrong. A long agent session can also lose track of what changed, what was reviewed, and what is safe to commit.
 
-   ```powershell
-   winget install --id=astral-sh.uv -e
-   ```
+Blender Project Harness makes the workflow explicit:
 
-   Close and reopen PowerShell afterwards, then check that everything is on your PATH:
+- requirements are confirmed before work starts;
+- scene edits are bounded by object names, paths, and declared scenes;
+- a worker executes one ticketed apply batch at a time;
+- visual evidence is inspected, not assumed;
+- the final scene, renders, facts, manifest, and evidence key are sealed;
+- independent graders review frozen evidence;
+- project commits and checkpoints are harness-owned;
+- assets, licences, and exports are verified before completion.
 
-   ```powershell
-   git --version
-   node --version
-   npm --version
-   uvx --version
-   ```
+The user stays in plain language. The harness handles the production contract.
 
-5. **Kilo** — pick whichever client you prefer:
+---
 
-   - Install [VS Code](https://code.visualstudio.com/download), then add the **Kilo Code**
-     extension from [kilo.ai/install](https://kilo.ai/install).
-   - Or install the CLI from PowerShell:
+## Features
 
-     ```powershell
-     npm install -g @kilocode/cli
-     kilo --version
-     ```
+| Area | What you get |
+|---|---|
+| Guarded lifecycle | Registration, goals, bounded changes, tickets, WIP renders, seals, reviews, and checkpoints |
+| Single writer | One Blender instance and one apply writer at a time; parallel read-only inspection is allowed |
+| Exact scope | Object names, project-relative paths, declared scenes, requirements, and milestones |
+| Evidence contract | Saved scene hash, per-scene renders, camera evidence, scene facts, manifest, and evidence key |
+| Geometry checks | Dimensions, transforms, materials, topology, non-manifold edges, boundary edges, and loose vertices |
+| Independent grading | Visual, technical, and spec graders with primary and backup models |
+| Review modes | Off, Single, and All |
+| Autonomy modes | Fully Autonomous and Partially Autonomous |
+| Asset governance | Intake, hashes, MIME, dimensions, source, licence, sidecars, and strict asset checks |
+| Multi-scene support | Declared scenes, duplicate/link semantics, per-scene evidence, and a master Video Sequencer scene |
+| Export receipts | Format, path, bytes, SHA-256, source scene, and signature verification |
+| Kilo integration | MCP routing, plugin permissions, goal state, skills, and subagent delegation |
+| Installer | Versioned install, config preservation, dependency install, and automatic backups |
+| Documentation | Setup guide, expected-flow reference, project templates, and contract tests |
 
-   Sign in or connect a model provider through Kilo. Keep provider credentials in Kilo's own user
-   configuration — never in this repository.
+---
 
-## Install with npm
+## Architecture
 
-In an existing Kilo workspace, install the harness without cloning this repository:
-
-```powershell
-npx @punal_manalan/blender-project-harness@latest install
+```mermaid
+flowchart LR
+  U[User] --> K[Kilo]
+  K --> H[Blender Project Harness]
+  H --> T[Apply ticket]
+  T --> W[Worker]
+  W --> B[Blender]
+  B --> S[Saved scene]
+  S --> E[Sealed evidence]
+  E --> G[Visual, technical, spec graders]
+  G --> R[Review verdict]
+  R --> C[Commit and checkpoint]
+  C --> D[Completion]
 ```
 
-The installer:
+The harness is the only writer of workflow state. Workers execute assigned tickets. Graders read sealed evidence and write only their own reports.
 
-- copies the harness into `.kilo/blender-project-harness/tools/`;
-- writes `VERSION`, `install.json`, `config.json`, and a copy of the package `AGENTS.md` in
-  `.kilo/blender-project-harness/`;
-- installs the harness dependencies with `npm ci`;
-- updates `.kilo/kilo.jsonc` and `.kilo/plugins/blender-workflow.js`;
-- adds missing workspace files such as `AGENTS.md`, `.kilo/skills/`, `.kilo/agent/`, and
-  `Blender/README.md`;
-- adds the local config and backups to `.gitignore`.
+---
 
-Run the same command to update. The previous installation is moved to
-`.temp/blender-project-harness-backups/<version>-<timestamp>/` before the new version is installed.
-Edit worker and grader models in `.kilo/blender-project-harness/config.json`. That config is
-preserved across updates; use `--reset-config` to replace it with the package example. The package's
-current `AGENTS.md` is always available at `.kilo/blender-project-harness/AGENTS.md`; the root
-`AGENTS.md` is only installed when missing and is never overwritten.
+## Install
 
-Useful installer commands:
+### Requirements
 
-```powershell
-npx @punal_manalan/blender-project-harness@latest status
-npx @punal_manalan/blender-project-harness@latest doctor
-npx @punal_manalan/blender-project-harness@latest install --dry-run
-npx @punal_manalan/blender-project-harness@latest install --skip-deps
-```
+| Requirement | Version / notes |
+|---|---|
+| Blender | 5.2 is the current tested baseline; the MCP addon requires 3.0+ |
+| MCP for Blender | Pinned `mcp-for-blender==2.2.6` |
+| Node.js | 22 or newer |
+| npm | Bundled with Node.js |
+| uv / uvx | Required for the Blender MCP addon |
+| Kilo | VS Code extension or CLI |
 
-Use `--root <path>` when the workspace root is not the current directory. The installer requires
-Node.js 22 or newer and npm. Blender, uvx, and the MCP addon are still installed separately.
-
-## Work from a clone
-
-The repository clone is the development source and the full workspace template. Clone it, open
-PowerShell in its root, and install the locked local Node dependencies:
-
-```powershell
-git clone <repository-url>
-Set-Location <repository-folder>
-npm ci --prefix .kilo/blender-project-harness/tools/harness
-npm run doctor --prefix .kilo/blender-project-harness/tools/harness
-```
-
-The doctor command checks Node.js, the npm-installed harness packages, Git, uvx, the workspace
-config, the pinned `mcp-for-blender==2.2.6`, and the running Blender instance state. It does not open
-Blender.
-
-## Add MCP for Blender to Blender
-
-Install the addon into Blender:
+Install the Blender addon:
 
 ```powershell
 uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon
 ```
 
-Open Blender and enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**
-(search for `MCP for Blender`). Restart Blender once it is enabled.
+Enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**, then restart Blender.
 
-This workspace routes MCP through `.kilo/kilo.jsonc`, which sets `BLENDER_PORT` (default `9877`).
-The harness and the addon both use that value, so you can change it to any free port as long as it
-stays in one place. Do not create a project-local Kilo config or run a second MCP server. If you
-installed `uvx` or the addon while Kilo was open, fully reload Kilo so it picks up the new PATH and
-workspace configuration.
+### From npm
 
-## Start building
+```powershell
+npx @punal_manalan/blender-project-harness@latest install
+```
 
-Open this repository in Kilo and reload the workspace after the dependencies are installed. Then
-describe what you want to make. The more you share up front — subject, style, key objects, camera and
-lighting preferences, dimensions, required deliverables, and whether external files or paid media
-generation are allowed — the fewer follow-up questions you will get.
+The 1.0.1 package is staged for npm approval. If the registry does not have it yet, use the release
+tarball or a source checkout below.
 
-For example:
+### From the release tarball
+
+```powershell
+npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.1/punal_manalan-blender-project-harness-1.0.1.tgz
+npx blender-project-harness install
+```
+
+### From source
+
+```powershell
+git clone https://github.com/punal100/blender-project-harness.git
+Set-Location blender-project-harness
+npm ci --prefix .kilo/blender-project-harness/tools/harness
+npm run doctor --prefix .kilo/blender-project-harness/tools/harness
+```
+
+### What the installer does
+
+- Copies the harness into `.kilo/blender-project-harness/tools/`.
+- Writes `VERSION`, `install.json`, `config.json`, and a copy of the package `AGENTS.md`.
+- Runs `npm ci` for the installed harness.
+- Updates `.kilo/kilo.jsonc` and `.kilo/plugins/blender-workflow.js`.
+- Adds missing `AGENTS.md`, `.kilo/skills/`, `.kilo/agent/`, and `Blender/README.md`.
+- Adds the local config and backups to `.gitignore`.
+
+Run the same command to update. The previous installation is moved to:
+
+```text
+.temp/blender-project-harness-backups/<version>-<timestamp>/
+```
+
+The old copy is preserved, not deleted. The new version keeps `config.json` unless you pass
+`--reset-config`. The package `AGENTS.md` is always available at
+`.kilo/blender-project-harness/AGENTS.md`; the root `AGENTS.md` is only installed when missing and is
+never overwritten.
+
+---
+
+## Quick start
+
+Open the workspace in Kilo and describe the project. Include the subject, style, key objects, camera
+and lighting preferences, dimensions, deliverables, and whether external files or paid media
+generation are allowed.
 
 ```text
 Create a small cozy retro computer room. Use warm lamp light, a cool window accent, a desk with a
@@ -146,7 +170,7 @@ CRT monitor, keyboard, mug, chair, rug, and wall decor. Make one hero camera vie
 inside a new Blender project.
 ```
 
-The agent then follows the harness flow:
+The agent then:
 
 1. Confirms requirements and asks for the workflow mode: **Fully Autonomous** or **Partially
    Autonomous**.
@@ -158,89 +182,130 @@ The agent then follows the harness flow:
 7. Dispatches the configured graders and aggregates their reports.
 8. Commits the scoped change, checkpoints the project, and reports the result.
 
-The agent owns goals and project records end to end, so you can stay in plain language. You provide
-requirements, answers, feedback, and approvals through the conversation.
+---
 
-## Files, assets, and media
+## How it works
 
-- Put user-supplied files wherever you like and give the agent their paths. The harness
-  `intake` action copies them into canonical project paths without moving or deleting the originals.
-  You do not need to create project folders or rename files.
-- `download` can stage a public HTTPS asset into ignored staging. The agent still has to inspect it,
-  provide source and licence metadata, and run `intake` before using it.
-- Generated references and images go through the configured Media MCP only with your permission.
-  The agent saves the actual file, records provenance, shows it to you, and asks before using it as a
-  texture or reference.
-- External assets require `SOURCE.md` and `LICENSE.txt` beside them. Non-redistributable binaries
-  stay out of Git; their metadata and acquisition details are recorded instead.
-- Project scripts under `scripts/` are source-only. The harness never executes project Python.
-- Every produced export needs a verified receipt with format, path, bytes, SHA-256, source scene, and
-  signature. A missing or changed export blocks completion.
+```text
+status and capabilities
+  -> requirements confirmation
+  -> workflow and review mode selection
+  -> scaffold, documents, registration, and goal
+  -> bounded scene change
+  -> apply ticket and worker execution
+  -> save and WIP render
+  -> finalize and seal
+  -> independent graders
+  -> review verdict
+  -> scoped commit and checkpoint
+  -> completion
+```
 
-## Review and completion
+### Bounded changes
 
-- **Off** uses self-review only. **Single** uses one configured grader. **All** uses every configured
-  grader, up to `max_parallel`.
-- **Fully Autonomous** proceeds through reviewable changes; **Partially Autonomous** requires your
-  approval before each reviewable change commits.
-- Every worker and grader has a primary model and a backup model with a reasoning variant. A missing
-  or disabled grader is a tooling failure, not a silent pass.
-- A review round seals the saved scene, per-scene renders, camera evidence, scene facts, manifest,
-  evidence key, and review folder. The sealed render must be inspected before review.
-- Technical evidence includes object dimensions and topology, not just names and types.
-- When assets are used, a strict `check_assets` run must leave a receipt on the final unchanged
-  scene, and the sealed manifest must include it.
-- A design review can end in `PASS` or `CHANGES_REQUIRED`; missing evidence or tooling problems end
-  in `BLOCKED`. A blocked round is preserved and checkpointed, never downgraded to a pass.
-- Completion requires the final full-spec pass, a clean checkpoint, current documents, a complete
-  goal, and a completed task tracker. Blender is stopped unless you ask to leave it open for
-  inspection.
+- One observable outcome per change.
+- Exact object names and project-relative paths.
+- Declared scenes for multi-scene work.
+- Requirement and milestone scoping.
+- One open change per project.
+- Apply batches up to ten operations.
+- Ticket expiry and change-window recovery.
+- Worker-only apply execution.
 
-## House rules
+### Sealed evidence
 
-- Keep every Blender project under `Blender/<ProjectName>/`.
-- Let the agent launch and stop Blender through `blender_workflow`; do not run `blender.exe` or any
-  legacy script directly for workspace work.
-- Project documents and project commits go through the harness; manual project Git commits are
-  blocked.
-- Requirements, workflow, review, and goal records are frozen after registration. Changing them
-  requires an explicit re-registration, not a normal edit.
-- Read-only shell inspection is allowed. Other non-project shell commands require a reasoned,
-  two-step approval committed under the project's `Documents/Commands/` or the root `Commands/`.
-- Run only one Blender instance from this workspace at a time.
-- Keep credentials, local model settings, logs, caches, backups, and temporary renders out of Git.
-- Use relative paths inside Blender projects so scenes stay portable.
-- Do not edit the harness-owned task tracker or task records by hand.
-- Check each project's `README.md` and `Documents/` for its own requirements and deliverables.
+A sealed round captures:
 
-## Useful checks and fixes
+- the saved `.blend` hash;
+- per-scene renders;
+- camera evidence;
+- scene facts including dimensions and topology;
+- a manifest with every evidence hash;
+- a reproducible evidence key;
+- a review round folder;
+- the strict asset-check receipt when assets were used.
 
-Run these from the workspace root when something looks off, or when you are contributing to the
-tooling:
+Graders must cite the same scene hash and evidence key. Missing evidence or tooling problems produce
+`BLOCKED`, not a pass.
+
+### Review modes
+
+| Mode | Behavior |
+|---|---|
+| Off | Self-review only |
+| Single | One configured grader |
+| All | Every configured grader, up to `max_parallel` |
+
+Every worker and grader has a primary and backup provider/model/reasoning variant. A missing or
+disabled grader is a tooling failure, not a silent pass.
+
+### Assets and exports
+
+- User-supplied files enter through guarded `intake`.
+- Downloads stage public HTTPS assets only; they do not import or register automatically.
+- Generated media is agent-owned and requires permission before credits are spent.
+- External assets require `SOURCE.md` and `LICENSE.txt`.
+- Non-redistributable binaries stay out of Git.
+- Strict `check_assets` must pass on the final unchanged scene.
+- Exports receive a verified receipt with format, path, bytes, SHA-256, source scene, and signature.
+
+---
+
+## Safety model
+
+| Guarantee | Behavior |
+|---|---|
+| One Blender instance | The workspace runs one guarded instance at a time |
+| One writer | Apply operations execute through one worker at a time |
+| Bounded edits | Every scene change has exact names, paths, and declared scenes |
+| No raw Python | Arbitrary Blender Python and project Python execution are blocked |
+| No manual project Git | Project commits go through the harness |
+| No silent pass | Missing evidence and grader failures produce `BLOCKED` |
+| No fake assets | Generated or downloaded files must be inspected, registered, and licensed |
+| No hidden exports | Every export needs a verified receipt |
+| No frozen-record edits | Registration changes require explicit re-registration |
+
+---
+
+## Configuration
+
+Worker and grader configuration lives at:
+
+```text
+.kilo/blender-project-harness/config.json
+```
+
+The tracked template is:
+
+```text
+.kilo/blender-project-harness/config.example.json
+```
+
+Review and autonomy modes are frozen at registration. Changing them requires explicit
+re-registration, not an in-place edit.
+
+---
+
+## Tests
 
 ```powershell
-npx @punal_manalan/blender-project-harness@latest status
-npx @punal_manalan/blender-project-harness@latest doctor
 npm run test:installer
 npm test --prefix .kilo/blender-project-harness/tools/harness
 python -B -m unittest discover -s .kilo/blender-project-harness/tools -p "test_*.py" -v
 ```
 
-The Node suite is comprehensive and can take several minutes on Windows. Use `npm run pack:check`
-to inspect the npm package contents without publishing.
+The Node suite is comprehensive and can take several minutes on Windows. Use `npm run pack:check` to
+inspect the npm package contents without publishing.
 
-Common fixes:
+Current release checks:
 
-- **`uvx` not found:** reopen PowerShell after installing uv, then reload Kilo.
-- **Harness dependency missing:** rerun `npx @punal_manalan/blender-project-harness@latest install --force`, or run
-  `npm ci` in `.kilo/blender-project-harness/tools/harness`.
-- **Addon or port error:** reinstall with
-  `uvx --from mcp-for-blender==2.2.6 mcp-for-blender install-addon`, restart Blender, and reload
-  Kilo. Keep `BLENDER_PORT` in `.kilo/kilo.jsonc`; the harness reads it for launch and addon startup.
-- **Blender not found:** point `BLENDER_EXE` at your installed Blender executable, then relaunch
-  with `blender_workflow`.
-- **Stale or conflicting instance:** stop the running instance through the harness before launching
-  another project.
+- Installer tests: `6/6` passing.
+- Python harness contract tests: `21` passing with `112` subtests.
+- Targeted engine, plugin, shell-policy, and workspace tests: passing.
+- Doctor: passing.
+- npm package: `91` files, no `node_modules`, no local `config.json`.
+
+---
 
 ## What's in the repo
 
@@ -268,8 +333,23 @@ Commands/                 Approved non-project shell-command records
 [`Blender/README.md`](Blender/README.md) covers the project-collection conventions. The generic
 harness lifecycle and evidence contract are documented in
 [`.kilo/blender-project-harness/tools/harness/EXPECTED_FLOW.md`](.kilo/blender-project-harness/tools/harness/EXPECTED_FLOW.md).
-Licensing lives in
-[`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Licensing lives in [`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+---
+
+## Star history
+
+<a href="https://www.star-history.com/#punal100/blender-project-harness&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=punal100/blender-project-harness&type=Date&theme=dark">
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=punal100/blender-project-harness&type=Date">
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=punal100/blender-project-harness&type=Date">
+  </picture>
+</a>
+
+Star history is provided by [star-history.com](https://www.star-history.com/).
+
+---
 
 ## Known limits
 
@@ -280,3 +360,10 @@ Licensing lives in
 - Multi-scene, media-generation, and export paths are implemented, but the current live acceptance
   run is a single scene. Verify those paths in the project where they are used.
 - One live Blender instance and one writer at a time; parallel read-only inspection is allowed.
+- Windows is the primary documented setup environment.
+
+---
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
