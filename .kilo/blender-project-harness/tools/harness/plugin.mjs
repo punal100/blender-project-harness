@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, modelRole, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelRole, normalizeGoal, stable } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -12,7 +12,8 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
@@ -48,22 +49,35 @@ const capabilities = () => ({
     { name: 'status', actor: 'orchestrator', phase: 'any', payload: '{project?:string}' },
     { name: 'bootstrap-document', actor: 'orchestrator', phase: 'before registration', payload: '{project,path,content}' },
     { name: 'bootstrap-commit', actor: 'orchestrator', phase: 'before registration', payload: '{project,message}' },
-    { name: 'intake', actor: 'orchestrator', phase: 'scan or open change', payload: '{project,files?,folders?,kind?,source?,generated?,scan?}' },
+    { name: 'intake', actor: 'orchestrator', phase: 'scan or open change', payload: '{project,files?,folders?,kind?,source?,generated?,scan?,media?}' },
     { name: 'download', actor: 'orchestrator', phase: 'before or during production', payload: '{project?,url,filename?,maxBytes?}' },
+    { name: 'media-request', actor: 'orchestrator', phase: 'open post-registration change', payload: '{purpose,kind?,tool,model?,prompt,seed?,creditEstimate?}' },
+    { name: 'media-complete', actor: 'orchestrator', phase: 'open media request', payload: '{id,path,creditActual?}' },
+    { name: 'media-fail', actor: 'orchestrator', phase: 'open media request', payload: '{id,error,cancel?}' },
     { name: 'prepare', actor: 'orchestrator', phase: 'before registration', payload: '{project,goal,scene}' },
     { name: 'reregister', actor: 'orchestrator', phase: 'paused project', payload: '{reason}' },
     { name: 'launch|stop', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
-    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,revision?}' },
+    { name: 'begin', actor: 'orchestrator', phase: 'active goal', payload: '{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,revision?,media?,final?}' },
     { name: 'extend', actor: 'orchestrator', phase: 'open change', payload: '{objects?,paths,scenes?,sceneRequirements?}' },
     { name: 'finalize', actor: 'orchestrator', phase: 'open change', payload: '{}' },
     { name: 'ticket', actor: 'orchestrator', phase: 'open change', payload: '{operation:apply|save|seal|wip,payload}' },
     { name: 'document', actor: 'orchestrator', phase: 'open change', payload: '{path,content}' },
-    { name: 'self-review|review|grader-ticket|grader-fail', actor: 'orchestrator', phase: 'sealed change', payload: 'see docs' },
-    { name: 'commit|checkpoint|approval', actor: 'orchestrator', phase: 'reviewed change', payload: 'see docs' },
-    { name: 'recover|escalate|pause|reclaim|preserve', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?}, escalation fields, {reason}, {project,reason}, or {reason} for a sealed tooling block' },
+    { name: 'self-review', actor: 'orchestrator', phase: 'sealed change (review Off)', payload: '{notes}' },
+    { name: 'grader-ticket', actor: 'orchestrator', phase: 'sealed change', payload: '{name}' },
+    { name: 'grader-fail', actor: 'orchestrator', phase: 'sealed change', payload: '{name,reason}' },
+    { name: 'review', actor: 'orchestrator', phase: 'sealed change (all graders done)', payload: '{notes,reason,dispositions}' },
+    { name: 'commit', actor: 'orchestrator', phase: 'reviewed change', payload: '{message} or {message,mode:"wip"} for failed/expired' },
+    { name: 'approval', actor: 'orchestrator', phase: 'reviewed change (Partially Autonomous)', payload: '{}' },
+    { name: 'checkpoint', actor: 'orchestrator', phase: 'committed change', payload: '{}' },
+    { name: 'recover', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?:true}' },
+    { name: 'escalate', actor: 'orchestrator', phase: 'capped review', payload: '{reason,max_rounds?:1-4}' },
+    { name: 'pause', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
+    { name: 'reclaim', actor: 'orchestrator', phase: 'recovery', payload: '{project,reason}' },
+    { name: 'preserve', actor: 'orchestrator', phase: 'sealed tooling-blocked change', payload: '{reason}' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
   commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A non-scene change containing only documentation, source-only scripts, references, or assets commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; a sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
+  mediaPolicy: 'Media generation is blocked until the project is registered, the initial scene is saved and checkpointed, a post-registration bounded change is open, and media-request has recorded the purpose, tool, model, prompt, seed, and credit estimate. Image, texture, and HDRI requests use the configured Media MCP image tools; video, audio, and model generation are not enabled yet. One generation call is allowed per request. Generated files stay under .temp. Call media-complete with the returned path, then intake with the media id and generated metadata. Scene work is blocked while the request is requested, generating, or generated. Retry at most twice with media-fail; a recorded failure can close with commit. Generated media is reference or asset input, never an automatic texture or licensed third-party asset.',
   shellPolicy: 'Read-only and trusted harness commands run directly. Any other non-project shell command requires a warning acknowledgement: repeat the exact command with description "Reason: ... [HARNESS_SHELL:<id>]". The command and reason are committed atomically under <project>/Documents/Commands/ or root Commands/; command output is never captured or committed. Blender launches, project mutations, and command substitution stay blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
   documentTool: { actions: ['read', 'write', 'ledger'], read: '{project?,path,section?}', write: '{project?,path,content}', ledger: '{project?}' },
@@ -271,7 +285,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -348,6 +362,19 @@ export function createHooks(harness, client) {
       const session = await identity(input.sessionID);
       if (!session.parentID) reconcileGoal(harness, input.sessionID, session);
       const p = stateFor(input.sessionID);
+      if (tool.startsWith('mediamcp_')) {
+        if (session.parentID) deny('media tools belong to the root orchestrator');
+        if (MEDIA_GENERATION_TOOLS.has(tool)) {
+          if (!p) deny('media generation requires a registered project, a checkpointed initial scene, an open bounded change, and a media-request');
+          const request = p.media?.requests?.find((item) => item.status === 'requested');
+          if (!request) deny('media generation requires an open media-request; call blender_workflow media-request first');
+          if (request.tool !== tool) deny(`open media request ${request.id} requires ${request.tool}`);
+          harness.mediaStart(input.sessionID, request.id);
+          return;
+        }
+        if (MEDIA_READ.has(tool)) return;
+        deny('unknown Media MCP tool');
+      }
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
         const child = await childAssignment(input.sessionID);
         if (child?.worker) {
@@ -469,6 +496,7 @@ export function createHooks(harness, client) {
         const allowed = new Set(c.paths);
         if (names.some((f) => Object.hasOwn(p.records.specs, f) || f === `${p.project}/Documents/REVIEW.md`)) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
         if (names.some((f) => f === `${p.project}/Documents/TASKSTRACKER.md` || f.startsWith(`${p.project}/Documents/Tasks/`))) deny('the task tracker is harness-owned; ticket issue and completion update it');
+        if (names.some((f) => f === `${p.project}/Documents/MEDIA.md`)) deny('the media ledger is harness-owned; use media-request, media-complete, media-fail, or intake');
         if (names.some((f) => f.startsWith(`${p.project}/Documents/Reviews/`))) deny('review artifacts are harness-owned; use review, self-review, or grader tools');
         if (names.some((f) => !allowed.has(f) || /\.blend$|\/manifest\.json$|\/_evidence\/|\/REPORT\.md$|\.(png|jpg|exr)$/i.test(f))) deny('write outside the declared change scope or targets runtime-owned evidence/report paths; add the exact path to blender_workflow begin paths, or stop writing it');
         if (names.some((f) => f.startsWith(`${p.project}/`) && /\.md$/i.test(f) && !fs.existsSync(path.resolve(harness.root, f)))) deny('new documents require blender_document write or blender_workflow document after declaring the exact path');
