@@ -1,6 +1,6 @@
 # External Assets — CozyComputerRoom
 
-No third-party assets are used. All geometry and materials are authored procedurally in Blender.
+Final check: no third-party assets are used. All geometry and materials are authored procedurally in Blender. The register remains empty; no external files are linked, packed, or embedded, and no downloads or generated media were used.
 
 Register every third-party asset and derivative used by this project. One row per asset. If an asset has no source or licence, it is not ready to ship.
 
