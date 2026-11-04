@@ -39,6 +39,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R04-20261104T220345Z | 20261104T220345Z | a50c2b4045c3 | All milestone | visual, technical, spec | PASS | [R04-20261104T220345Z/REVIEW.md](R04-20261104T220345Z/REVIEW.md) |
 | R05-20261104T223723Z | 20261104T223723Z | 67cb24fa192a | All final | visual, technical, spec | CHANGES_REQUIRED | [R05-20261104T223723Z/REVIEW.md](R05-20261104T223723Z/REVIEW.md) |
 | R06-20261104T230000Z | 20261104T230000Z | 477427fee5cc | All final | visual, technical, spec | BLOCKED | [R06-20261104T230000Z/REVIEW.md](R06-20261104T230000Z/REVIEW.md) |
+| R07-20261104T231659Z | 20261104T231659Z | 29b2efb1110b | All final | visual, technical, spec | PASS | [R07-20261104T231659Z/REVIEW.md](R07-20261104T231659Z/REVIEW.md) |
 
 ## Rules
 
@@ -63,3 +64,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R05-20261104T223723Z: Complete the final evening lighting with warm practical fixtures and a deep dusk window, fix curtain and door contacts, refine the hero camera, add final trim, and update the project delivery documents; evidence a917b013f986323fde75a285b1fbc84d827e7084ac0447109053e11ff3cbbcf7
 
 - R06-20261104T230000Z: Replace the crisp point practicals with soft area lights, lift the dark chair and tower, material the pendant cord, and deliver a soft-shadow final render; evidence 6793a860dfc10242a0aff151e84f4d1354df5fd18b762194684069be9ea0e8ae
+
+- R07-20261104T231659Z: Deepen the dusk window and warm the monitor screen for a cleaner final evening look; evidence 512cbad99598676cc6009cd916e53b410b06d18147aaa7f6e9cf5aea7ff6ed26
