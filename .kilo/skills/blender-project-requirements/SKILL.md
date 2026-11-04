@@ -20,15 +20,19 @@ necessary question during production, follow `blender-project-goal` for the requ
 4. Challenge vague terms. Convert abstract ideas into observable outcomes. Put future work under
    `Deferred` and explicit exclusions under `Out of scope`.
 5. Cover purpose, audience, visual outcome, deliverables, acceptance, constraints, external assets,
-   and exclusions. Do not walk a generic checklist.
+   reference images or links, and exclusions. Ask the reference question even when the user says
+   "fully modeled, no external assets": assets answer sourcing, not visual reference. Require an
+   explicit answer, including "none". Do not walk a generic checklist.
 6. Reflect a concise draft back to the user. Ask `Confirm requirements`, `Keep discussing`, or
    `Change something`.
 7. Loop until the user explicitly confirms. Silence, a new topic, or an unrelated `ok` is not
    confirmation.
 8. On confirmation, record the exact user words and scope. Create or update
    `Documents/REQUIREMENTS.md` with `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
-   `Confirmation: <exact response and scope>`, and a change-log row. Use `bootstrap-document` before
-   registration. After registration, requirements are frozen; do not use `document` for them.
+   `Confirmation: <exact response and scope>`, and a change-log row. Record the reference answer under
+   `Constraints` (`Reference images / links:`) and in `Documents/References/README.md` (paths, links,
+   or `none`). Use `bootstrap-document` before registration. After registration, requirements are
+   frozen; do not use `document` for them.
 9. New project: collect workflow mode with `blender-project-workflow` and review mode with
    `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
    `prepare` and start the goal.
@@ -36,6 +40,16 @@ necessary question during production, follow `blender-project-goal` for the requ
     requirements change, stop and report the need for explicit re-registration. Do not edit
     `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, or the active goal
     inside a bounded change.
+
+## Capability check
+
+Before confirming requirements, read `blender_workflow {action:"capabilities"}` and map each visual
+requirement to a supported operation. Known gaps in the current tooling: `material` exposes only base
+color, roughness, metallic, and emission (no transmission/glass, bump, or procedural noise); lights
+have no rotation or size field (use a second `transform` operation); there is no boolean modifier for
+openings and no displacement modifier; world haze/volume is unsupported. If a requirement needs an
+unsupported operation, ask the user to drop it, approximate it with a supported operation, or mark it
+`Deferred`. Never confirm a requirement the harness cannot express.
 
 ## Research
 

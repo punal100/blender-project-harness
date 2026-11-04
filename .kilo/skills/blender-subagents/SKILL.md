@@ -69,7 +69,9 @@ Example graders config:
 - `max_parallel` for workers must be 1. `max_steps` must fit the agent ceiling. Budgets must be
   positive. `max_rounds` is 1-4.
 - Every worker and grader must have a complete backup provider/model/variant. A partial backup is
-  invalid, not absent. Runtime model metadata must match the primary or backup exactly.
+  invalid, not absent. Runtime matching is case-insensitive and ignores provider prefixes on the model
+  id; variants `xhigh` and `extra-high` are aliases. A missing runtime variant matches on provider and
+  model. The denial prints observed and expected values.
 - Missing, invalid, disabled, or mismatched config stops delegation. Never substitute, borrow, or
   invent a model, provider, variant, or budget.
 - Resolve models with `agent_manager_models`. Per-task overrides require explicit user request. On a
@@ -92,6 +94,11 @@ Stop at the first of: `max_minutes` or `max_steps`; `max_failed_attempts` at the
 more than two); the same tool/API error twice; a needed design/scope/asset/licence/acceptance
 decision; a required file or object outside the allowed set; an acceptance check that cannot run.
 On stop, leave the scene unchanged and return `PARTIAL` or `BLOCKED`.
+
+A worker whose runtime model is not the configured primary or backup may still read the scene, but
+`blender_harness_execute` denies apply and prints observed versus expected. Stop that worker and
+dispatch a fresh one; if the failed child never executed, the ticket is still `issued` and rebinds.
+Read-only preflight is never blocked by the model gate.
 
 ## Grader
 

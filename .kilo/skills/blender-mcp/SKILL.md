@@ -74,6 +74,12 @@ surface, solidify, mirror, and array. Modifiers are added through `modifier` and
 operation sets `apply:true`. Text objects can receive materials through `material` or
 `shared_material`.
 
+Primitive sizing is not documented by the tool. A live test measured the `create_mesh` cube at
+2×1×1 units and `scale` as half-extents. Verify every created object with `get_scene_info` and correct
+it with `transform` rather than assuming unit dimensions. `material` exposes base color, roughness,
+metallic, and emission only; glass, bump/noise, displacement, boolean openings, and world volume are
+unsupported.
+
 Scene operations are `create_scene` (`NEW`, `EMPTY`, `LINK_COPY`, `FULL_COPY`), `switch_scene`,
 `duplicate_scene`, `delete_scene`, `set_scene_camera`, and `scene_strip`. Existing operations accept
 an optional `scene`; when an object is linked into more than one scene, the scene is required.

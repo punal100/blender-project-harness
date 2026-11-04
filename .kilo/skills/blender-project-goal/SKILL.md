@@ -21,11 +21,13 @@ starts. Kilo removes `question` during an active goal.
 
 1. Confirm requirements with `blender-project-requirements`.
 2. Ask the optional-workflow intake questions: generated media after registration versus supplied,
-   downloaded, browser/provider, or user-assisted assets; scripts as none or source-only; required
-   deliverable formats. Use `intake {scan:true}` for supplied paths; it does not write the project.
-   Do not generate paid media during discovery.
+   downloaded, browser/provider, or user-assisted assets; reference images or links, including an
+   explicit "none"; scripts as none or source-only; required deliverable formats. Use
+   `intake {scan:true}` for supplied paths; it does not write the project. Do not generate paid media
+   during discovery.
 3. Collect workflow mode with `blender-project-workflow` and review mode with
-   `blender-project-grading`.
+   `blender-project-grading`. Check `capabilities` against the confirmed visual requirements before
+   scaffolding; drop, approximate, or defer anything the operations cannot express.
 4. Scaffold with `blender-project-scaffold`.
 5. Create or update README, requirements, workflow, review, assets, decisions, and the filled goal
    with `bootstrap-document`; use `capabilities.documentFormats`.
