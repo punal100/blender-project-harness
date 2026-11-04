@@ -36,6 +36,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R01-20261104T212554Z | 20261104T212554Z | b4eb973417bc | All milestone | visual, technical, spec | PASS | [R01-20261104T212554Z/REVIEW.md](R01-20261104T212554Z/REVIEW.md) |
 | R02-20261104T213739Z | 20261104T213739Z | 6b65269f21c4 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R02-20261104T213739Z/REVIEW.md](R02-20261104T213739Z/REVIEW.md) |
 | R03-20261104T214814Z | 20261104T214814Z | 39007a16f460 | All milestone | visual, technical, spec | PASS | [R03-20261104T214814Z/REVIEW.md](R03-20261104T214814Z/REVIEW.md) |
+| R04-20261104T220345Z | 20261104T220345Z | a50c2b4045c3 | All milestone | visual, technical, spec | PASS | [R04-20261104T220345Z/REVIEW.md](R04-20261104T220345Z/REVIEW.md) |
 
 ## Rules
 
@@ -54,3 +55,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R02-20261104T213739Z: Build the desk workstation with monitor, tower, keyboard, mouse, mug, warm desk lamp, and office chair at believable scale; evidence fb124fecf06996afdcf5a6e6b0fb6c7f7ad8d59f0ddc63378cce7ebabc20f11c
 
 - R03-20261104T214814Z: Seat the chair base on the floor, connect the chair post, and lift the mouse onto the mouse pad; evidence 67bfdae726ae3f6024fca6221f2423db2a12889913a41bf58cc5f2ee0bbb5bbf
+
+- R04-20261104T220345Z: Furnish the room with a low bed and bedding, an open wall bookshelf with books, a rug, a potted plant, and framed wall art; seat the chair back on its seat; evidence 84b000231f251adf4b4d96fad7511381490cb4c5a2864edf5d307fc16db691cc
