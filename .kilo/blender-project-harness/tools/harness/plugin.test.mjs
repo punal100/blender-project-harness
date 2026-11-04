@@ -25,7 +25,7 @@ async function approveShell(h, session, command, reason = 'Inspect the workspace
 test('plugin denies raw code and unsupported production escape routes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'use_mcp_tool']) {
-    await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified/);
+    await assert.rejects(before(h, f.session, tool, {}), /disabled|unclassified|media-request/);
   }
   await assert.doesNotReject(before(h, f.session, 'agent_manager', { mode: 'local', versions: false, tasks: [], action: null }));
   await assert.doesNotReject(before(h, f.session, 'background_process', { command: 'node .kilo/blender-project-harness/tools/harness/cli.mjs doctor' }));
@@ -57,6 +57,30 @@ test('unregistered tooling commit messages may mention the engine name', async (
   }), /bootstrap-commit/);
 });
 
+test('media generation requires a registered project and an open media request', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  await assert.rejects(before(h, f.session, 'mediamcp_generate_image', {}), /media-request|registered project/);
+  f.begin();
+  await assert.rejects(before(h, f.session, 'mediamcp_generate_image', {}), /media-request/);
+  await assert.doesNotReject(before(h, f.session, 'mediamcp_list_models', {}));
+  const requested = JSON.parse(await h.tool.blender_workflow.execute({
+    action: 'media-request',
+    payload: {
+      purpose: 'Generated concept reference',
+      kind: 'image',
+      tool: 'mediamcp_generate_image',
+      model: 'test-model',
+      prompt: 'A warm reading corner',
+      seed: 7,
+    },
+  }, { sessionID: f.session }));
+  assert.equal(requested.media.open.status, 'requested');
+  await assert.doesNotReject(before(h, f.session, 'mediamcp_generate_image', {}));
+  await assert.rejects(before(h, f.session, 'mediamcp_generate_image', {}), /media-request|requires/);
+  await assert.rejects(before(h, f.session, 'mediamcp_generate_video', {}), /requires/);
+  await assert.doesNotReject(before(h, f.session, 'mediamcp_check_config', {}));
+});
+
 test('capabilities expose the harness-owned operation and bootstrap lists', async (t) => {
   const f = fixture(t), h = hooks(f);
   const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'capabilities', payload: '{}' }, { sessionID: f.session }));
@@ -66,6 +90,8 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.deepEqual([...result.operations].sort(), [...OPERATION_NAMES].sort());
   assert.ok(result.actions.some((action) => action.name === 'intake'));
   assert.ok(result.actions.some((action) => action.name === 'download'));
+  assert.ok(result.actions.some((action) => action.name === 'media-request'));
+  assert.match(result.mediaPolicy, /media-request/);
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));

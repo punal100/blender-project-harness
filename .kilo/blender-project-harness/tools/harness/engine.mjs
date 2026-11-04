@@ -11,6 +11,8 @@ import {
   appendReferenceRow,
   copyIntake,
   createIntakeDocument,
+  inspectIntakeFile,
+  MAX_INTAKE_FILE_BYTES,
   planIntake,
   referenceSourceDocument,
   sourceDocument,
@@ -33,6 +35,15 @@ const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
 const MAX_CHANGE_SCENES = 32;
 const MAX_DOWNLOADS_PER_PROJECT = 20;
+const MAX_MEDIA_REQUESTS = 20;
+const MAX_MEDIA_ATTEMPTS = 2;
+export const MEDIA_GENERATION_TOOLS = new Set(['mediamcp_generate_image', 'mediamcp_edit_image', 'mediamcp_generate_video']);
+export const MEDIA_OPEN_STATUSES = new Set(['requested', 'generating', 'generated', 'intaken']);
+const MEDIA_KIND_TO_INTAKE = new Map([
+  ['image', 'reference'],
+  ['texture', 'texture'],
+  ['hdri', 'hdri'],
+]);
 const TASKSTRACKER_DOCUMENT = 'Documents/TASKSTRACKER.md';
 const validSceneName = (name) => typeof name === 'string' && /^[\x20-\x7e]{1,100}$/.test(name) && name.trim().length > 0;
 const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -395,6 +406,7 @@ export class Harness {
       return {
         project: p.project, path: this.taskDocument(p), status: p.complete ? 'Complete' : 'Active',
         tasks: (p.tasks ?? []).map(({ token: _token, ...task }) => task),
+        media: this.mediaState(p).requests.map((request) => this.mediaView(request)),
       };
     });
   }
@@ -547,10 +559,11 @@ export class Harness {
   }
   intake(session, args) {
     return this.transaction((s) => {
-      const allowed = ['project', 'files', 'folders', 'kind', 'source', 'generated', 'scan'];
-      if (Object.keys(args).some((key) => !allowed.includes(key))) deny('intake accepts project, files, folders, kind, source, generated and scan only');
+      const allowed = ['project', 'files', 'folders', 'kind', 'source', 'generated', 'scan', 'media'];
+      if (Object.keys(args).some((key) => !allowed.includes(key))) deny('intake accepts project, files, folders, kind, source, generated, scan and media only');
       if (typeof args.project !== 'string' || !/^Blender\/[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(args.project)) deny('intake project must be Blender/<Name>');
       if (args.scan !== undefined && typeof args.scan !== 'boolean') deny('intake scan must be a boolean');
+      if (args.media !== undefined && (typeof args.media !== 'string' || !args.media.trim())) deny('intake media must be a media request id');
       if (args.files !== undefined && (!Array.isArray(args.files) || args.files.length > 100 || args.files.some((item) => typeof item !== 'string'))) {
         deny('intake files must be an array of paths');
       }
@@ -564,14 +577,48 @@ export class Harness {
       if (args.scan !== true && !p) deny('intake copy requires a registered project; scan first, then register and begin a change');
       if (args.scan !== true && !c) deny('intake copy requires an open bounded change; call begin with the intake document path first');
       if (args.scan !== true && (c.bootstrap || c.sealed || c.pending || c.readyToSeal)) deny('intake copy requires an unsealed, unfinished, non-bootstrap scene change with no pending operation');
+      let linked = null;
+      if (args.media !== undefined) {
+        if (!p) deny('media intake requires a registered project');
+        if (!c) deny('media intake requires an open bounded change');
+        linked = this.mediaForChange(p, c.id).find((item) => item.id === args.media);
+        if (!linked) deny('media request does not belong to the open change');
+        if (linked.status !== 'generated') deny(`media request is ${linked.status}; only a generated media item can be intaken`);
+      }
+      let files = args.files ?? [];
+      let folders = args.folders ?? [];
+      if (args.scan !== true && c) {
+        const generatedRequests = this.mediaForChange(p, c.id).filter((item) => item.status === 'generated');
+        if (!linked) {
+          const matches = generatedRequests.filter((item) => files.some((file) => path.resolve(this.root, file) === path.resolve(this.root, item.stagedPath)));
+          if (matches.length === 1) linked = matches[0];
+          else if (matches.length > 1) deny('multiple generated media match the intake files; pass media id');
+          else if (generatedRequests.length === 1 && !files.length && !folders.length) linked = generatedRequests[0];
+        }
+        if (linked && !files.length && !folders.length) files = [linked.stagedPath];
+        if (linked && !files.some((file) => path.resolve(this.root, file) === path.resolve(this.root, linked.stagedPath))) {
+          deny('media intake must include the staged generated file');
+        }
+      }
+      const generated = args.generated ?? linked?.generated;
+      if (args.generated && linked) {
+        for (const key of ['tool', 'model', 'prompt', 'seed']) {
+          if (args.generated[key] !== undefined && linked.generated[key] !== undefined && stable(args.generated[key]) !== stable(linked.generated[key])) {
+            deny(`intake generated.${key} does not match the media request`);
+          }
+        }
+      }
+      const source = args.source ?? (linked ? { notes: linked.purpose } : undefined);
+      const kind = args.kind ?? (linked ? MEDIA_KIND_TO_INTAKE.get(linked.kind) : 'auto');
+      if (linked && args.kind !== undefined && args.kind !== MEDIA_KIND_TO_INTAKE.get(linked.kind)) deny('intake kind does not match the media request');
       const plan = planIntake({
         root: this.root,
         projectName,
-        files: args.files ?? [],
-        folders: args.folders ?? [],
-        kind: args.kind ?? 'auto',
-        source: args.source,
-        generated: args.generated,
+        files,
+        folders,
+        kind,
+        source,
+        generated,
         home: this.home,
       });
       if (args.scan === true || !c) {
@@ -599,6 +646,21 @@ export class Harness {
       };
       const paths = new Set(c.paths);
       const addPath = (relative) => paths.add(`${p.project}/${relative}`);
+      let linkedStored = null;
+      if (linked) {
+        const sourceFull = path.resolve(this.root, linked.stagedPath);
+        linkedStored = result.copied.find((entry) => path.resolve(entry.sourcePath) === sourceFull)?.stored
+          ?? result.duplicates.find((entry) => path.resolve(entry.sourcePath) === sourceFull)?.stored
+          ?? null;
+        if (!linkedStored) deny('generated media was not copied by intake; inspect rejected files');
+        addPath(linkedStored);
+        p.intake.paths = [...new Set([...p.intake.paths, linkedStored])];
+        linked.status = 'intaken';
+        linked.projectPath = `${p.project}/${linkedStored}`;
+        linked.intakeSha256 = linked.sha256;
+        linked.updatedAt = new Date().toISOString();
+        this.writeMediaLedger(p);
+      }
       const addDocument = (relative, content, validate = false) => {
         if (validate) {
           try { validateDocument(relative, content); } catch (error) { deny(error.message); }
@@ -710,9 +772,264 @@ export class Harness {
         duplicates: result.duplicates,
         rejected: result.rejected,
         paths: [...paths].filter((name) => name.startsWith(`${p.project}/`)).map((name) => name.slice(p.project.length + 1)),
-        next: 'Import copied assets with apply operations, record their use, then continue the bounded change.',
+        media: linked ? this.mediaView(linked) : undefined,
+        next: linked
+          ? 'Generated media is intaken and recorded. Commit the change to close the media request.'
+          : 'Import copied assets with apply operations, record their use, then continue the bounded change.',
       };
     });
+  }
+  mediaState(p) {
+    if (!p.media || typeof p.media !== 'object' || Array.isArray(p.media)) p.media = { requests: [] };
+    if (!Array.isArray(p.media.requests)) p.media.requests = [];
+    return p.media;
+  }
+  writeMediaLedger(p) {
+    const c = p.change;
+    const relative = 'Documents/MEDIA.md';
+    const escape = (value) => String(value ?? '').replaceAll('|', '\\|').replace(/[\r\n]+/g, ' ').slice(0, 240);
+    const rows = this.mediaState(p).requests.map((request) => [
+      request.id,
+      request.status,
+      request.kind,
+      request.tool,
+      request.model ?? '',
+      request.purpose,
+      request.creditEstimate ?? '',
+      request.creditActual ?? '',
+      (request.attempts ?? []).length,
+      request.stagedPath ?? '',
+      request.projectPath ?? '',
+      request.sha256 ?? '',
+      request.changeId?.slice(0, 8) ?? '',
+      request.commit?.slice(0, 12) ?? '',
+      request.error ?? '',
+    ].map(escape).join(' | '));
+    const text = [
+      `# Media Requests — ${p.project.slice('Blender/'.length)}`,
+      '',
+      'Status: Active',
+      `Last updated: ${new Date().toISOString()}`,
+      '',
+      '## Requests',
+      '',
+      '| Request | Status | Kind | Tool | Model | Purpose | Credit estimate | Credit actual | Attempts | Staged path | Project path | SHA-256 | Change | Commit | Error |',
+      '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+      ...(rows.length ? rows.map((row) => `| ${row} |`) : ['| — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |']),
+      '',
+      '## Rules',
+      '',
+      'Media generation requires a registered project, a checkpointed initial scene, an open bounded change, and an open media request. Generated files stay under `.temp` until `intake` copies them into the project. A failed request is recorded here and does not silently disappear.',
+      '',
+    ].join('\n');
+    const full = contained(this.root, `${p.project}/${relative}`, true);
+    const previous = fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+    if (previous !== text) {
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, text);
+    }
+    if (c && !c.paths.includes(`${p.project}/${relative}`)) {
+      c.paths.push(`${p.project}/${relative}`);
+      c.documentOnly = c.paths.every(documentOnlyPath);
+      c.nonSceneOnly = c.paths.every(nonScenePath);
+    }
+  }
+  mediaView(request) {
+    return {
+      id: request.id,
+      status: request.status,
+      purpose: request.purpose,
+      kind: request.kind,
+      tool: request.tool,
+      model: request.model ?? null,
+      prompt: request.prompt ?? null,
+      seed: request.seed ?? null,
+      creditEstimate: request.creditEstimate ?? null,
+      creditActual: request.creditActual ?? null,
+      attempts: (request.attempts ?? []).length,
+      error: request.error ?? null,
+      stagedPath: request.stagedPath ?? null,
+      sha256: request.sha256 ?? null,
+      bytes: request.bytes ?? null,
+      mime: request.mime ?? null,
+      width: request.width ?? null,
+      height: request.height ?? null,
+      projectPath: request.projectPath ?? null,
+      intakeSha256: request.intakeSha256 ?? null,
+      changeId: request.changeId ?? null,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+      committedAt: request.committedAt ?? null,
+      commit: request.commit ?? null,
+    };
+  }
+  mediaForChange(p, changeId) {
+    return this.mediaState(p).requests.filter((request) => request.changeId === changeId);
+  }
+  openMedia(p, changeId = null) {
+    return this.mediaState(p).requests.find((request) => MEDIA_OPEN_STATUSES.has(request.status)
+      && (changeId === null || request.changeId === changeId));
+  }
+  mediaGate(p, c, { allowIntaken = false } = {}) {
+    const requests = this.mediaForChange(p, c.id);
+    if (c.mediaRequired && !requests.length) deny('this change requires a media request; call media-request before production work');
+    const open = requests.find((request) => request.status === 'requested' || request.status === 'generated'
+      || (!allowIntaken && request.status === 'intaken'));
+    if (open) deny(`media request ${open.id} is ${open.status}; complete generation and intake before continuing`);
+  }
+  mediaRequest(p, args) {
+    const allowed = ['purpose', 'kind', 'tool', 'model', 'prompt', 'seed', 'creditEstimate'];
+    if (Object.keys(args).some((key) => !allowed.includes(key))) deny('media-request accepts purpose, kind, tool, model, prompt, seed and creditEstimate only');
+    if (!p.goalActive || !p.change) deny('media-request requires an active goal and an open bounded change');
+    const c = p.change;
+    if (c.bootstrap) deny('save, commit, and checkpoint the initial scene before requesting media');
+    if (!git(this.root, ['ls-tree', '-r', '--name-only', 'HEAD', '--', p.scene]).trim()) deny('save, commit, and checkpoint the initial scene before requesting media');
+    if (c.sealed || c.pending || c.readyToSeal) deny('media-request requires an unsealed change with no pending operation');
+    const media = this.mediaState(p);
+    if (media.requests.length >= MAX_MEDIA_REQUESTS) deny(`media requests are capped at ${MAX_MEDIA_REQUESTS} per project`);
+    if (this.openMedia(p)) deny('one open media request at a time; complete, fail, or commit the current request first');
+    if (typeof args.purpose !== 'string' || !args.purpose.trim() || args.purpose.length > 500) deny('media-request purpose must be a bounded non-empty string');
+    const kind = args.kind ?? 'image';
+    if (!MEDIA_KIND_TO_INTAKE.has(kind)) deny('media-request kind must be image, texture, or hdri; video, audio, and model generation are not supported yet');
+    if (typeof args.tool !== 'string' || !/^[A-Za-z0-9_.:-]{1,100}$/.test(args.tool)) deny('media-request tool must be a bounded tool name');
+    if (!MEDIA_GENERATION_TOOLS.has(args.tool)) deny('media-request tool must be a configured Media MCP generation tool');
+    if (args.tool === 'mediamcp_generate_video') deny('video generation is not supported yet; use an image, texture, or hdri request');
+    if (args.model !== undefined && (typeof args.model !== 'string' || args.model.length > 100)) deny('media-request model must be a bounded string');
+    if (typeof args.prompt !== 'string' || !args.prompt.trim() || args.prompt.length > 4000) deny('media-request prompt must be a bounded non-empty string');
+    if (args.seed !== undefined && (!Number.isInteger(args.seed) || args.seed < 1 || args.seed > 100000)) deny('media-request seed must be an integer between 1 and 100000');
+    if (args.creditEstimate !== undefined && (typeof args.creditEstimate !== 'string' || args.creditEstimate.length > 120)) deny('media-request creditEstimate must be a bounded string');
+    const now = new Date().toISOString();
+    const request = {
+      id: crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now,
+      status: 'requested',
+      changeId: c.id,
+      purpose: args.purpose.trim(),
+      kind,
+      tool: args.tool,
+      model: args.model?.trim() || null,
+      prompt: args.prompt.trim(),
+      seed: args.seed ?? null,
+      creditEstimate: args.creditEstimate?.trim() || null,
+      attempts: [],
+      generated: {
+        tool: args.tool,
+        model: args.model?.trim() || undefined,
+        prompt: args.prompt.trim(),
+        seed: args.seed === undefined ? undefined : String(args.seed),
+      },
+    };
+    media.requests.push(request);
+    this.writeMediaLedger(p);
+    return {
+      request: this.mediaView(request),
+      next: `Call ${request.tool} only after explicit user permission, then record the returned file with media-complete.`,
+    };
+  }
+  mediaStart(session, id) {
+    return this.transaction((s) => {
+      const p = this.owner(s, session);
+      this.fresh(p);
+      if (!p.goalActive || !p.change) deny('media generation requires an active goal and an open bounded change');
+      const request = this.mediaForChange(p, p.change.id).find((item) => item.id === id);
+      if (!request) deny('media request does not belong to the open change');
+      if (request.status !== 'requested') deny(`media request is ${request.status}; only a requested media item can start generation`);
+      request.status = 'generating';
+      request.startedAt = new Date().toISOString();
+      request.updatedAt = request.startedAt;
+      this.writeMediaLedger(p);
+      return { request: this.mediaView(request) };
+    });
+  }
+  mediaComplete(p, args) {
+    const allowed = ['id', 'path', 'creditActual'];
+    if (Object.keys(args).some((key) => !allowed.includes(key))) deny('media-complete accepts id, path and creditActual only');
+    if (typeof args.id !== 'string' || !args.id.trim()) deny('media-complete requires a media request id');
+    if (typeof args.path !== 'string' || !args.path.trim()) deny('media-complete requires the generated file path');
+    if (args.creditActual !== undefined && (typeof args.creditActual !== 'string' || args.creditActual.length > 120)) deny('media-complete creditActual must be a bounded string');
+    if (!p.change) deny('media-complete requires an open bounded change');
+    const request = this.mediaForChange(p, p.change.id).find((item) => item.id === args.id);
+    if (!request) deny('media request does not belong to the open change');
+    if (!['requested', 'generating'].includes(request.status)) deny(`media request is ${request.status}; only a requested or generating media item can receive a file`);
+    const full = path.resolve(this.root, args.path);
+    const relative = path.relative(this.root, full).replaceAll('\\', '/');
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) deny('generated media must be inside the workspace');
+    if (!relative.startsWith('.temp/')) deny('generated media must be staged under .temp/; use Media MCP staging and media-complete before intake');
+    if (!fs.existsSync(full)) deny('generated media file is missing');
+    const stat = fs.lstatSync(full);
+    if (stat.isSymbolicLink() || !stat.isFile()) deny('generated media must be a regular file');
+    if (stat.size > MAX_INTAKE_FILE_BYTES) deny('generated media exceeds the intake file size limit');
+    let metadata;
+    try {
+      metadata = inspectIntakeFile(full, MEDIA_KIND_TO_INTAKE.get(request.kind));
+    } catch (error) {
+      deny(`generated media is not a valid ${request.kind} file: ${error.message}`);
+    }
+    request.status = 'generated';
+    request.updatedAt = new Date().toISOString();
+    request.stagedPath = relative;
+    request.sha256 = this.hash(relative);
+    request.bytes = stat.size;
+    request.mime = metadata.mime;
+    request.width = metadata.width;
+    request.height = metadata.height;
+    if (args.creditActual !== undefined) request.creditActual = args.creditActual.trim();
+    this.writeMediaLedger(p);
+    return {
+      request: this.mediaView(request),
+      next: `Call intake with media:"${request.id}" and generated metadata, then commit the change.`,
+    };
+  }
+  mediaFail(p, args) {
+    const allowed = ['id', 'error', 'cancel'];
+    if (Object.keys(args).some((key) => !allowed.includes(key))) deny('media-fail accepts id, error and cancel only');
+    if (typeof args.id !== 'string' || !args.id.trim()) deny('media-fail requires a media request id');
+    if (typeof args.error !== 'string' || !args.error.trim() || args.error.length > 1000) deny('media-fail requires a bounded error');
+    if (args.cancel !== undefined && typeof args.cancel !== 'boolean') deny('media-fail cancel must be boolean');
+    if (!p.change) deny('media-fail requires an open bounded change');
+    const request = this.mediaForChange(p, p.change.id).find((item) => item.id === args.id);
+    if (!request) deny('media request does not belong to the open change');
+    if (!MEDIA_OPEN_STATUSES.has(request.status)) deny(`media request is already ${request.status}`);
+    const now = new Date().toISOString();
+    request.attempts ??= [];
+    request.attempts.push({ at: now, error: args.error.trim() });
+    request.error = args.error.trim();
+    request.updatedAt = now;
+    if (args.cancel === true || request.attempts.length >= MAX_MEDIA_ATTEMPTS) {
+      request.status = 'failed';
+      request.closedAt = now;
+      this.writeMediaLedger(p);
+      return {
+        request: this.mediaView(request),
+        next: 'The failure is recorded. Commit the change to preserve the failed media record, then continue with the next bounded change.',
+      };
+    }
+    request.status = 'requested';
+    delete request.stagedPath;
+    delete request.sha256;
+    delete request.bytes;
+    delete request.mime;
+    delete request.width;
+    delete request.height;
+    this.writeMediaLedger(p);
+    return {
+      request: this.mediaView(request),
+      next: `Retry ${request.tool} once, or call media-fail again to record the final failure.`,
+    };
+  }
+  closeMediaForCommit(p, c, commit) {
+    const now = new Date().toISOString();
+    for (const request of this.mediaForChange(p, c.id)) {
+      if (request.status === 'intaken') {
+        request.status = 'committed';
+        request.committedAt = now;
+        request.commit = commit;
+      } else if (request.status === 'failed') {
+        request.closedAt ??= now;
+        request.commit ??= commit;
+      }
+    }
   }
   async download(session, args) {
     const allowed = ['project', 'url', 'filename', 'maxBytes'];
@@ -832,6 +1149,56 @@ export class Harness {
       return { phase: 'goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"start"|"resume",objective:<registered goal prompt>}', reason: 'Start or resume the registered goal before production work.' };
     }
     const c = p.change;
+    const media = c ? this.mediaForChange(p, c.id) : [];
+    const openMedia = media.find((request) => MEDIA_OPEN_STATUSES.has(request.status));
+    if (c?.mediaRequired && !media.length) {
+      return {
+        phase: 'media-request',
+        actor: 'orchestrator',
+        action: 'media-request',
+        command: this.wire('media-request', {
+          purpose: '<what the media informs>',
+          kind: 'image',
+          tool: 'mediamcp_generate_image',
+          model: '<model>',
+          prompt: '<prompt>',
+          creditEstimate: '<estimate or unknown>',
+        }),
+        reason: 'This change declared media. Open a media request before calling Media MCP; explicit user permission is still required before spending credits.',
+      };
+    }
+    if (openMedia?.status === 'requested') {
+      return {
+        phase: 'media-generate',
+        actor: 'orchestrator',
+        action: openMedia.tool,
+        command: `Call ${openMedia.tool} only after explicit user permission, then blender_workflow {action:"media-complete",payload:{id:"${openMedia.id}",path:"<returned path>"}}`,
+        reason: `Media request ${openMedia.id} is open. Generate the media, then record the actual file with media-complete.`,
+      };
+    }
+    if (openMedia?.status === 'generating') {
+      return {
+        phase: 'media-record',
+        actor: 'orchestrator',
+        action: 'media-complete',
+        command: this.wire('media-complete', { id: openMedia.id, path: '<returned path>' }),
+        reason: 'Generation has started. Record the returned file with media-complete, or call media-fail with the error.',
+      };
+    }
+    if (openMedia?.status === 'generated') {
+      return {
+        phase: 'media-intake',
+        actor: 'orchestrator',
+        action: 'intake',
+        command: this.wire('intake', {
+          project: p.project,
+          media: openMedia.id,
+          kind: MEDIA_KIND_TO_INTAKE.get(openMedia.kind),
+          generated: openMedia.generated,
+        }),
+        reason: 'The generated media is staged. Intake it into the open change, then commit the change to close the request.',
+      };
+    }
     if (!c) {
       const prior = p.history.at(-1);
       const revision = Boolean(prior && (!['PASS', 'BOOTSTRAP', 'WIP', 'DOCUMENT'].includes(prior.verdict) || prior.approval === 'Request revision'));
@@ -904,12 +1271,14 @@ export class Harness {
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
+    const media = this.mediaState(p).requests;
+    const openMedia = this.openMedia(p);
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -1151,6 +1520,7 @@ export class Harness {
     });
   }
   autoCommit(p, c, message, { review = true } = {}) {
+    this.mediaGate(p, c, { allowIntaken: true });
     const expectedHead = c.commits?.at(-1) ?? c.base;
     if (this.head() !== expectedHead) deny('commit must directly follow the prior change commit');
     const artifacts = review ? this.reviewPaths(p, c) : [];
@@ -1172,6 +1542,7 @@ export class Harness {
     c.commits ??= [];
     c.commits.push(this.head());
     p.lastCommit = this.head();
+    this.closeMediaForCommit(p, c, this.head());
     return p.lastCommit;
   }
   command(session, action, args = {}) {
@@ -1226,7 +1597,16 @@ export class Harness {
       const c = p.change;
       const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
       this.fresh(p, { allowRosterDrift });
-      if (action === 'goal-active') {
+      if (action === 'media-request') {
+        this.mediaRequest(p, args);
+        return this.status(p, s);
+      } else if (action === 'media-complete') {
+        this.mediaComplete(p, args);
+        return this.status(p, s);
+      } else if (action === 'media-fail') {
+        this.mediaFail(p, args);
+        return this.status(p, s);
+      } else if (action === 'goal-active') {
         if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
         p.goalActive = true;
       } else if (action === 'goal-inactive') {
@@ -1252,8 +1632,10 @@ export class Harness {
         p.escalation = { requested: Date.now(), reason: args.reason, maxRounds };
       } else if (action === 'begin') {
          if (c || p.complete || p.escalation || !p.goalActive) deny('one open logical change per project; prior checkpoint and active goal required');
+        if (this.openMedia(p)) deny('resolve the open media request before beginning another change');
         if (typeof args.outcome !== 'string' || !args.outcome.trim() || args.outcome.length > 1000 || !Array.isArray(args.objects) || args.objects.length > 200 || args.objects.some((n) => typeof n !== 'string' || !/^[\x20-\x7e]{1,100}$/.test(n))) deny('bounded outcome and exact object names required');
         if (args.final !== undefined && typeof args.final !== 'boolean') deny('final must be boolean');
+        if (args.media !== undefined && typeof args.media !== 'boolean') deny('media must be boolean');
         const milestone = args.final === true ? 'final' : args.milestone ?? args.outcome;
         if (typeof milestone !== 'string' || !milestone.trim() || milestone.length > 200) deny('milestone must be a bounded non-empty string');
         if (args.requirements !== undefined && (!Array.isArray(args.requirements) || args.requirements.length > 50 || args.requirements.some((item) => typeof item !== 'string' || !item.trim()))) deny('requirements must be an array of non-empty strings');
@@ -1287,6 +1669,7 @@ export class Harness {
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
         this.ensureTaskLedger(p);
         const sceneExists = fs.existsSync(path.join(this.root, p.scene));
+        if (args.media === true && !sceneExists) deny('media generation requires the initial scene saved and committed; finish the bootstrap save and checkpoint first');
         p.change = {
           id: crypto.randomUUID(), created: Date.now(), outcome: args.outcome, milestone: milestone.trim(),
           requirements: args.requirements ? [...new Set(args.requirements.map((item) => item.trim()))] : [],
@@ -1294,6 +1677,7 @@ export class Harness {
           sceneRequirements: args.sceneRequirements ? structuredClone(args.sceneRequirements) : {},
           renders: {}, inspections: {},
           final: args.final === true, objects: [...new Set(args.objects)], paths, base: this.head(), chain, operations: 0,
+          mediaRequired: args.media === true,
           deadline: Date.now() + CHANGE_WINDOW_MS, sealed: false, inspected: false, readyToSeal: false,
           wipRender: null, wipLook: null, commits: [], graders: {}, reports: {}, bootstrap: !sceneExists,
           documentOnly: paths.every(documentOnlyPath), nonSceneOnly: paths.every(nonScenePath), sceneHash: sceneExists ? this.hash(p.scene) : null,
@@ -1338,11 +1722,13 @@ export class Harness {
         if (!c.paths.includes(`${p.project}/${clean}`)) deny('document path must be declared in the open change paths');
         if (Object.hasOwn(p.records.specs, `${p.project}/${clean}`) || `${p.project}/${clean}` === `${p.project}/Documents/REVIEW.md`) deny('registration documents are frozen after registration; restore the committed version and stop for explicit re-registration');
         if (clean === TASKSTRACKER_DOCUMENT || clean.startsWith('Documents/Tasks/')) deny('the task tracker is harness-owned; it updates on ticket issue and completion');
+        if (clean === 'Documents/MEDIA.md') deny('the media ledger is harness-owned; use media-request, media-complete, media-fail, or intake');
         try { validateDocument(clean, args.content); } catch (error) { deny(error.message); }
         fs.mkdirSync(path.dirname(full), { recursive: true });
         fs.writeFileSync(full, args.content);
       } else if (action === 'self-review') {
         if (!c?.inspected || p.records.review !== 'Off' || !args.notes?.trim()) deny('inspect sealed render before self-review');
+        this.mediaGate(p, c, { allowIntaken: true });
         c.verdict = 'PASS'; c.notes = args.notes;
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
         const text = `# Orchestrator Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nScenes: ${(c.scenes ?? []).join(', ') || 'active'}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
@@ -1435,6 +1821,7 @@ export class Harness {
         return this.status(p, s);
       } else if (action === 'review') {
         if (!c?.inspected || p.records.review === 'Off' || c.verdict) deny('sealed inspection required once before review');
+        this.mediaGate(p, c, { allowIntaken: true });
         if (!args.notes?.trim() || !args.reason?.trim() || !args.dispositions?.trim()) deny('review requires notes, correction/no-correction reasoning, and finding dispositions');
         for (const roster of p.records.roster) {
           const g = c.graders[roster.name];
@@ -1507,6 +1894,7 @@ export class Harness {
         return { question: c.approvalQuestion, labels: ['Approve change', 'Request revision', 'Pause'], outcome: c.outcome, verdict: c.verdict };
       } else if (action === 'checkpoint') {
         if (!c) deny('no open change to checkpoint');
+        this.mediaGate(p, c);
         const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
         const wip = Boolean(c.wip);
         const documentOnly = Boolean(c.nonSceneOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
@@ -1560,6 +1948,7 @@ export class Harness {
       const p = this.owner(s, session); this.fresh(p);
       const c = p.change;
         if (!c || c.sealed || c.pending || !p.goalActive || (operation === 'apply' && (c.failure || Date.now() > c.deadline || c.operations >= CHECKPOINT_EVERY))) deny('open bounded change required; save/seal remains available after budget or failure');
+      if (['apply', 'save', 'seal', 'wip'].includes(operation)) this.mediaGate(p, c, { allowIntaken: true });
       if (operation === 'apply' && c.bootstrap) deny('bootstrap change accepts save only; save the scene, commit, checkpoint, then begin a scene change');
       if (operation === 'apply' && c.documentOnly) deny('document-only changes cannot apply scene operations; begin a scene change');
       if (operation === 'seal' && c.bootstrap) deny('bootstrap save cannot be sealed or graded; commit the saved scene and call checkpoint, then begin a scene change');

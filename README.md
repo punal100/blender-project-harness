@@ -61,6 +61,7 @@ The user stays in plain language. The harness handles the production contract.
 | Review modes | Off, Single, and All |
 | Autonomy modes | Fully Autonomous and Partially Autonomous |
 | Asset governance | Intake, hashes, MIME, dimensions, source, licence, sidecars, and strict asset checks |
+| Media bookkeeping | Media requests, credit records, staging, intake, retry limits, and committed failure records |
 | Multi-scene support | Declared scenes, duplicate/link semantics, per-scene evidence, and a master Video Sequencer scene |
 | Export receipts | Format, path, bytes, SHA-256, source scene, and signature verification |
 | Kilo integration | MCP routing, plugin permissions, goal state, skills, and subagent delegation |
@@ -243,7 +244,8 @@ disabled grader is a tooling failure, not a silent pass.
 
 - User-supplied files enter through guarded `intake`.
 - Downloads stage public HTTPS assets only; they do not import or register automatically.
-- Generated media is agent-owned and requires permission before credits are spent.
+- Generated media is agent-owned but harness-booked: `media-request` is required before credits are
+  spent, generated files stay under `.temp`, and `intake` must link the result before commit.
 - External assets require `SOURCE.md` and `LICENSE.txt`.
 - Non-redistributable binaries stay out of Git.
 - Strict `check_assets` must pass on the final unchanged scene.
@@ -262,6 +264,7 @@ disabled grader is a tooling failure, not a silent pass.
 | No manual project Git | Project commits go through the harness |
 | No silent pass | Missing evidence and grader failures produce `BLOCKED` |
 | No fake assets | Generated or downloaded files must be inspected, registered, and licensed |
+| No lost media | Media requests, staged paths, hashes, retries, and failures are recorded before commit |
 | No hidden exports | Every export needs a verified receipt |
 | No frozen-record edits | Registration changes require explicit re-registration |
 
@@ -356,7 +359,7 @@ Star history is provided by [star-history.com](https://www.star-history.com/).
 - No arbitrary Blender Python execution.
 - No browser or authentication bypass.
 - No automatic licence acceptance.
-- Media generation is agent-owned; the harness intakes and records the result.
+- Media generation is agent-owned but harness-booked; video, audio, and model generation are not supported yet.
 - Multi-scene, media-generation, and export paths are implemented, but the current live acceptance
   run is a single scene. Verify those paths in the project where they are used.
 - One live Blender instance and one writer at a time; parallel read-only inspection is allowed.

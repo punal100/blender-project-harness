@@ -367,6 +367,7 @@ function begin(f, session = 'orchestrator', options = {}) {
     ...(options.requirements === undefined ? {} : { requirements: options.requirements }),
     ...(options.scenes === undefined ? {} : { scenes: options.scenes }),
     ...(options.sceneRequirements === undefined ? {} : { sceneRequirements: options.sceneRequirements }),
+    ...(options.media === undefined ? {} : { media: options.media }),
     final: options.final ?? true,
   };
   return f.harness.command(session, 'begin', args);
@@ -1504,6 +1505,88 @@ test('document-only changes commit without sealing and close at checkpoint', (t)
   assert.equal(checkpointed.nextStep.phase, 'begin');
   assert.equal(f.harness.transaction((state) => state.projects[f.project].history.at(-1).verdict), 'DOCUMENT');
   assert.doesNotThrow(() => begin(f));
+});
+
+test('media requests gate work and close after generated intake', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const started = begin(f, 'orchestrator', {
+    media: true,
+    paths: ['README.md', 'Documents/References/SCENE-HEALTH.md'],
+  });
+  assert.equal(started.nextStep.phase, 'media-request');
+  gate(() => f.harness.issue('orchestrator', 'apply', {}), /media request/);
+
+  const requested = f.harness.command('orchestrator', 'media-request', {
+    purpose: 'Generated concept reference for the desk corner',
+    kind: 'image',
+    tool: 'mediamcp_generate_image',
+    model: 'test-model',
+    prompt: 'A warm reading corner with a walnut desk',
+    seed: 42,
+    creditEstimate: '1 image',
+  });
+  const request = requested.media.requests[0];
+  assert.equal(request.status, 'requested');
+  assert.equal(request.seed, 42);
+  assert.match(read(f.root, `${f.project}/Documents/MEDIA.md`), /Generated concept reference/);
+  gate(() => f.harness.command('orchestrator', 'commit', { message: 'docs: media request' }), /media request/);
+
+  assert.equal(f.harness.mediaStart('orchestrator', request.id).request.status, 'generating');
+  write(f.root, '.temp/references/media-test.png', PNG_1X1);
+  const completed = f.harness.command('orchestrator', 'media-complete', {
+    id: request.id,
+    path: '.temp/references/media-test.png',
+    creditActual: '1 image',
+  });
+  assert.equal(completed.media.open.status, 'generated');
+  assert.equal(completed.media.open.sha256.length, 64);
+  assert.equal(completed.media.open.width, 1);
+  gate(() => f.harness.issue('orchestrator', 'apply', {}), /media request/);
+
+  const intaken = f.harness.intake('orchestrator', { project: f.project, media: request.id });
+  assert.equal(intaken.media.status, 'intaken');
+  assert.match(intaken.media.projectPath, /^Blender\/Test\/Documents\/References\/media-test-[a-f0-9]{8}\.png$/);
+  const committed = f.harness.command('orchestrator', 'commit', { message: 'docs: record generated reference' });
+  assert.equal(committed.media.requests[0].status, 'committed');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+});
+
+test('media failure is recorded and the change can close', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { media: true, paths: ['README.md'] });
+  const requested = f.harness.command('orchestrator', 'media-request', {
+    purpose: 'Generated concept reference',
+    tool: 'mediamcp_generate_image',
+    prompt: 'A warm reading corner',
+  });
+  const id = requested.media.requests[0].id;
+  const first = f.harness.command('orchestrator', 'media-fail', { id, error: 'provider timeout' });
+  assert.equal(first.media.open.status, 'requested');
+  assert.equal(first.media.open.attempts, 1);
+  const second = f.harness.command('orchestrator', 'media-fail', { id, error: 'provider timeout again' });
+  assert.equal(second.media.open, null);
+  assert.equal(second.media.requests[0].status, 'failed');
+  assert.equal(second.media.requests[0].attempts, 2);
+  const committed = f.harness.command('orchestrator', 'commit', { message: 'docs: record media failure' });
+  assert.equal(committed.media.requests[0].status, 'failed');
+  assert.doesNotThrow(() => f.harness.command('orchestrator', 'checkpoint'));
+});
+
+test('media cannot start before the initial scene is saved', (t) => {
+  const f = useFixture(t);
+  fs.rmSync(path.join(f.root, ...f.scene.split('/')), { force: true });
+  commit(f.root, 'test: remove fixture scene', [f.project]);
+  activate(f);
+  gate(() => begin(f, 'orchestrator', { media: true }), /initial scene/);
+  begin(f, 'orchestrator', { paths: ['README.md'] });
+  gate(() => f.harness.command('orchestrator', 'media-request', {
+    purpose: 'Generated concept reference',
+    tool: 'mediamcp_generate_image',
+    prompt: 'A warm reading corner',
+  }), /initial scene/);
 });
 
 test('document-only commit stages a declared deletion', (t) => {
