@@ -266,6 +266,10 @@ export class Harness {
     const req = docs['Documents/REQUIREMENTS.md'];
     const confirmation = field(req, 'Confirmation');
     if (field(req, 'Status') !== 'Confirmed' || !date(field(req, 'Confirmed')) || !/[\p{L}\p{N}]/u.test(confirmation) || /^(TBD|Pending|Unset|<.*>)$/i.test(confirmation)) deny('requirements not confirmed');
+    const referenceLines = [...req.matchAll(/^-\s*Reference images \/ links:[ \t]*(.*)$/gm)];
+    if (referenceLines.length !== 1) deny('requirements need exactly one "- Reference images / links:" constraint');
+    const referenceAnswer = referenceLines[0][1].trim();
+    if (!referenceAnswer || /^\(.*\)$/.test(referenceAnswer) || /^(TBD|Pending|Unset|<.*>)$/i.test(referenceAnswer)) deny('reference images/links answer missing; ask explicitly and record paths, links, or "none"');
     const workflow = field(docs['Documents/WORKFLOW.md'], 'Mode');
     const review = field(docs['Documents/REVIEW.md'], 'Mode');
     if (!['Fully Autonomous', 'Partially Autonomous'].includes(workflow) || !date(field(docs['Documents/WORKFLOW.md'], 'Selected'))) deny('workflow not selected');

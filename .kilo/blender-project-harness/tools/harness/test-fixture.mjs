@@ -33,6 +33,7 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
     'Confirmation: Confirm fixture requirements.',
     '',
     ...['Core value', 'Confirmed requirements', 'Constraints', 'Deferred', 'Out of scope', 'Open questions', 'Research notes', 'Change log'].flatMap((name) => [`## ${name}`, `Fixture ${name.toLowerCase()}.`, '']),
+    '- Reference images / links: none',
   ].join('\n'));
   write(`${project}/Documents/WORKFLOW.md`, [
     '# Workflow',

@@ -128,6 +128,7 @@ function createProject(root, {
     'Confirmation: Fixture requirements confirmed for adversarial workflow tests.',
     '',
     ...sections(['Core value', 'Confirmed requirements', 'Constraints', 'Deferred', 'Out of scope', 'Open questions', 'Research notes', 'Change log']),
+    '- Reference images / links: none',
   ].join('\n'));
   write(root, `${project}/Documents/WORKFLOW.md`, [
     '# Workflow',
