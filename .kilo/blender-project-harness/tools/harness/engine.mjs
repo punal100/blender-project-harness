@@ -1548,6 +1548,15 @@ export class Harness {
       return { path: recordName, commit, project: project ?? null };
     });
   }
+  stateMatchesCheckout(p) {
+    if (!p?.scene || !fs.existsSync(path.join(this.root, ...p.scene.split('/')))) return false;
+    try {
+      git(this.root, ['merge-base', '--is-ancestor', p.checkpoint, 'HEAD']);
+    } catch {
+      return false;
+    }
+    return stable(this.snapshot(p.project)) === stable(p.snapshot);
+  }
   autoCommit(p, c, message, { review = true } = {}) {
     this.mediaGate(p, c, { allowIntaken: true });
     const expectedHead = c.commits?.at(-1) ?? c.base;
@@ -1600,12 +1609,23 @@ export class Harness {
         if (target.orchestrator === session) return this.status(target, s);
         const stale = !target.change || target.change.deadline < Date.now();
         if (!stale) deny('project owner has a live change window; pause it before reclaiming');
+        if (!this.stateMatchesCheckout(target)) deny('stale registration does not match this checkout; use forget {project,reason} to discard it, then prepare a fresh project');
         const from = target.orchestrator;
         target.orchestrator = session;
         target.goalActive = true;
         target.paused = null;
         target.reclaimed = { from, at: new Date().toISOString(), reason: args.reason.trim() };
         return this.status(target, s);
+      }
+      if (action === 'forget') {
+        if (Object.keys(args).some((key) => !['project', 'reason'].includes(key)) || typeof args.project !== 'string' || !args.project || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('forget requires project and one bounded reason');
+        const target = s.projects[args.project];
+        if (!target) deny('project not found');
+        if (target.change && target.change.deadline >= Date.now()) deny('project has a live change; pause or finish it first');
+        if (target.change?.pending) deny('project has a pending operation; recover it first');
+        if (this.stateMatchesCheckout(target)) deny('registration matches this checkout; use status or recover instead of forgetting it');
+        delete s.projects[args.project];
+        return { forgotten: args.project, reason: args.reason.trim(), next: 'Scaffold or prepare a fresh project with this name.' };
       }
       const p = this.owner(s, session);
       if (action === 'pause') {

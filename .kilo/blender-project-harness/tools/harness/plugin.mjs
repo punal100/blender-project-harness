@@ -12,7 +12,7 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
@@ -74,6 +74,7 @@ const capabilities = () => ({
     { name: 'escalate', actor: 'orchestrator', phase: 'capped review', payload: '{reason,max_rounds?:1-4}' },
     { name: 'pause', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
     { name: 'reclaim', actor: 'orchestrator', phase: 'recovery', payload: '{project,reason}' },
+    { name: 'forget', actor: 'orchestrator', phase: 'stale registration', payload: '{project,reason}' },
     { name: 'preserve', actor: 'orchestrator', phase: 'sealed tooling-blocked change', payload: '{reason}' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
@@ -288,7 +289,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, abandon, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, abandon, escalate, preserve, reclaim, forget. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);

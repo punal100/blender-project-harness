@@ -67,7 +67,9 @@ may close with `commit`. Requirements stay frozen.
   it rebinds. A ticket already authorized or running stays bound to that child.
 - Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
 - To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause {reason}`, then
-  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`.
+  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`; it is denied when
+  the registration's checkpoint or snapshot does not match this checkout. Discard such a stale
+  registration with `forget {project,reason}` before scaffolding or preparing that name again.
 - `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
   question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
 - `schedule_wakeup`, cron, and `background_process` are orchestrator-only.

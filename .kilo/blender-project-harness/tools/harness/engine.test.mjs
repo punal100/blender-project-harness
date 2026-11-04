@@ -771,6 +771,18 @@ test('model matching is case-insensitive and ignores provider prefixes', () => {
   assert.equal(modelRole(choice, { providerID: 'punal-9router-compatable', modelID: 'deepseek-v4.1-flash' }), 'primary');
 });
 
+test('reclaim refuses a stale registration and forget discards it', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  f.harness.transaction((state) => { state.projects[f.project].checkpoint = 'f'.repeat(40); });
+  assert.throws(() => f.harness.command('other', 'reclaim', { project: f.project, reason: 'take over the stale project' }), /does not match this checkout/);
+  const forgotten = f.harness.command('other', 'forget', { project: f.project, reason: 'state belongs to another branch' });
+  assert.equal(forgotten.forgotten, f.project);
+  assert.equal(f.harness.transaction((state) => state.projects[f.project]), undefined);
+  const prepared = f.harness.prepare('other', { project: f.project, scene: f.sceneName, goal: f.goal.slice(f.project.length + 1) });
+  assert.ok(prepared.question);
+});
+
 test('recover rejects live writer and recovers expired unconsumed tickets', (t) => {
   const f = useFixture(t);
   activate(f);

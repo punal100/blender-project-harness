@@ -576,6 +576,9 @@ Examples:
 - do not force-add ignored binaries;
 - do not manually stage or commit project files;
 - preserve a failed change as WIP and checkpoint;
+- close an expired change with no applies through `abandon {reason}` or an empty WIP commit;
+- rebind an `issued` ticket to a fresh worker when the failed child never executed;
+- discard a stale registration that does not match the checkout with `forget {project,reason}`;
 - clear a stale base only through a controlled recovery, not by deleting the project;
 - keep code fixes separate from the test project.
 
