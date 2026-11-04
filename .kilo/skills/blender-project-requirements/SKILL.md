@@ -57,6 +57,10 @@ complete.
   assumptions.
 - Record research that supports or changes a requirement under `Research notes`; put long material
   in `Documents/References/`. NEVER turn a finding into a requirement without explicit confirmation.
+- Do not generate paid media during requirements discovery. Requirements are confirmed before
+  scaffold and registration; media generation is post-registration production work. Use text, links,
+  or a user-supplied reference path while confirming requirements. If a generated reference later
+  changes requirements, stop and request explicit re-registration instead of editing the records.
 - If research is unavailable or inconclusive, mark an open question. Do not guess.
 - Search public information only. NEVER send private project data, credentials, or user identity.
 

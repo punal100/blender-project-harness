@@ -23,11 +23,12 @@ Requirements, workflow mode, review mode, and scaffolding happen in ordinary cha
 starts. Kilo removes `question` during an active goal.
 
 1. Confirm requirements with `blender-project-requirements`.
-2. Ask the optional-workflow intake questions: generate references with Media MCP or supply them,
-   use supplied, direct-download, browser/provider, or user-assisted assets, handle scripts as
-   none/source-only, and required deliverable formats. Use `intake {scan:true}` to inspect supplied
-   paths; it does not write the project. Do not generate paid images, download, or execute scripts
-   without explicit consent. Record the media/download scope in the goal or decisions.
+2. Ask the optional-workflow intake questions: whether references should be generated after
+   registration with Media MCP or use supplied, direct-download, browser/provider, or user-assisted
+   assets; handle scripts as none/source-only; and record required deliverable formats. Use
+   `intake {scan:true}` to inspect supplied paths; it does not write the project. Do NOT generate paid
+   media during discovery; generation is post-registration production work booked with
+   `media-request` inside a bounded change. Record the media/download scope in the goal or decisions.
 3. Collect workflow mode with `blender-project-workflow` and review mode with
    `blender-project-grading`.
 4. Scaffold with `blender-project-scaffold`.

@@ -79,10 +79,10 @@ next call. `capabilities` is authoritative for actions, operations, document for
 - A sealed `BLOCKED` tooling change whose grader retry budget is exhausted uses
   `preserve {reason}`, then `checkpoint`; it preserves the render, reports, review, and task records
   as WIP so the project can pause or reregister without manual Git.
-- The harness owns `Documents/TASKSTRACKER.md` and `Documents/Tasks/`; each task records its ID,
-  change, operation, objects, token hash, worker/grader child, timestamps, state, and result in a
-  linked `TASK.md` and `SUMMARY.md`. Read it with `blender_document` `{action:"ledger"}`; never edit
-  the tracker or task records manually.
+- The harness owns `Documents/TASKSTRACKER.md`, `Documents/Tasks/`, and `Documents/MEDIA.md`; each
+  task records its ID, change, operation, objects, token hash, worker/grader child, timestamps,
+  state, and result in a linked `TASK.md` and `SUMMARY.md`. Read it with `blender_document`
+  `{action:"ledger"}`; never edit the tracker or task records manually.
 - Seal ONLY after at least one apply and `finalize`. Every scene change requires a current WIP
   render and `blender_look` on that WIP render. NEVER seal, render, or grade the bootstrap save.
   Close it with `commit` and `checkpoint`.
@@ -152,10 +152,20 @@ next call. `capabilities` is authoritative for actions, operations, document for
   paths, hashes, source/licence sidecars, `Documents/INTAKE.md`, and the asset/reference registers.
 - `download` may fetch an HTTPS asset into ignored staging only. It does not import, register, or
   execute it; inspect the receipt, provide source/licence, then call `intake`.
-- Media generation belongs to the agent, not the harness. Use the configured Media MCP only with
-  explicit permission before spending credits; save the actual file, inspect it, pass its path to
-  `intake` with `generated` metadata, display it, and ask before using it as a texture or reference.
-  Never substitute a fake image or a hidden generator.
+- Media generation belongs to the agent, not the harness, but it MUST be booked through the harness.
+  After registration, with the initial scene saved and checkpointed, open a bounded change and call
+  `media-request` before any Media MCP generation. The request records purpose, tool, model, prompt,
+  seed, and credit estimate. Media generation tools are blocked until that request exists and allow
+  one generation call per request; use the configured Media MCP only with explicit permission before
+  spending credits. Generated files stay under `.temp`; call `media-complete` with the returned
+  path, then `intake` with the media id and `generated` metadata. Do not begin scene work while the
+  request is `requested`, `generating`, or `generated`. Retry at most twice with `media-fail`; a
+  failed request is committed as a failure record and may close the change. Generated media is never
+  an automatic texture or licensed third-party asset. Never substitute a fake image or a hidden
+  generator.
+- Media generation does not reopen requirements. Requirements, workflow, and review mode are frozen
+  after registration; if a generated reference changes them, stop and request explicit
+  re-registration instead of editing the records.
 - External downloads may also be obtained through the browser/provider or supplied by the user.
   Ask for the local path and use `intake`; never ask the user to move files into the project. Direct
   downloads are public HTTPS only, with no credentials, private hosts, authentication bypass, or

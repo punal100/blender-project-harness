@@ -36,9 +36,12 @@ The user does not need to create folders or copy files. Use `blender_workflow {a
   No credentials, private hosts, authentication bypass, CAPTCHA bypass, or unlimited scope.
 - Browser/provider and user-assisted files return through `intake` with their actual local path.
   Never ask the user to move a file into the project.
-- Media generation belongs to the agent. Use the configured Media MCP only after explicit permission,
-  save the actual file, inspect it, and pass its path to `intake` with `generated` metadata. Display
-  it and ask before using it as a texture or reference. Never substitute a fake image.
+- Media generation belongs to the agent, but must be booked through the harness. After registration,
+  with the initial scene saved and checkpointed, open a bounded change and call `media-request`
+  before any Media MCP generation. Generated files stay under `.temp`; call `media-complete`, then
+  `intake` with `media:<id>` and `generated` metadata. Display the result and ask before using it as
+  a texture or reference. Retry at most twice with `media-fail`; a failed request is recorded in
+  `Documents/MEDIA.md` and may close the change. Never substitute a fake image.
 - Project-owned models, textures, HDRIs, and audio use `source.external:false`; third-party files
   require `source.license` and verbatim `source.licenseText` or `source.licenseFile`.
 - Do not use shell copy, direct project writes, or manual Git for user files.

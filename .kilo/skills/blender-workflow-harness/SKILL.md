@@ -36,16 +36,24 @@ scaffold commit, `prepare`, or registration question. Manual project writes and 
 Use `intake` before asking the user to organize anything.
 
 - `intake {project,files?,folders?,kind?,source?,generated?,scan:true}` scans without writing.
-- `intake {project,files?,folders?,kind?,source?,generated?}` copies inside an open change, writes
-  sidecars and registers, and adds exact paths to the change. It never moves the originals.
+- `intake {project,files?,folders?,kind?,source?,generated?,media?}` copies inside an open change,
+  writes sidecars and registers, and adds exact paths to the change. It never moves the originals.
+  Pass `media:<request-id>` for generated media; the staged file is linked to the request and the
+  request becomes `intaken`.
 - `download {project?,url,filename?,maxBytes?}` fetches HTTPS bytes into ignored `.temp/Intake/...`
   staging only. It does not import or register; pass the result to `intake` with source and licence.
-- Media generation is agent-owned. Use the configured Media MCP only after explicit permission,
-  save the actual file, inspect it, then `intake` with
-  `generated:{tool,model,prompt,seed,width,height,c2pa}`. Generated references are never automatic
-  textures or licensed third-party assets.
-- `status` exposes the latest `intake` summary (copied, duplicates, rejected, paths) and the
-  `assetUse`/`assetCheck` state.
+- Media generation is agent-owned, but booked through the harness. It is allowed only after
+  registration, with the initial scene saved and checkpointed, inside an open non-bootstrap change.
+  Call `media-request {purpose,kind?,tool,model?,prompt,seed?,creditEstimate?}` before any Media MCP
+  call. `kind` is `image`, `texture`, or `hdri`; video, audio, and model generation are not enabled
+  yet. One generation call is allowed per request; record failures with `media-fail`. Generated
+  files stay under `.temp`; call `media-complete {id,path,creditActual?}`, then
+  `intake {media:<id>,generated:{...}}`. Scene work is blocked while the request is `requested`,
+  `generating`, or `generated`. Retry at most twice with `media-fail {id,error}`; a failed request is
+  recorded in the harness-owned `Documents/MEDIA.md` and may close with `commit`. Generated
+  references are never automatic textures or licensed third-party assets.
+- `status` exposes the latest `intake` summary (copied, duplicates, rejected, paths), `media`
+  requests, and the `assetUse`/`assetCheck` state.
 - External assets require `source.license` and `source.licenseText` or `source.licenseFile`; the
   action writes `SOURCE.md`, verbatim `LICENSE.txt`, and the register row.
 - Scripts may be copied only under `scripts/` and are source-only. The harness does not execute
@@ -61,8 +69,10 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
 
 1. `launch` `{}`. Verify `blender_get_addon_status` and
    `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
-2. `begin` `{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,final?,revision?}`.
+2. `begin` `{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,final?,revision?,media?}`.
    One bounded change; exact object names, project-relative paths, and optional exact scene names.
+   Set `media:true` when the change needs generated media; the next step is `media-request`, not a
+   Media MCP call.
    Use `milestone` and the requirement IDs the change advances for intermediate changes; use
    `final:true` only for the final full-spec change. Do not pass full-deliverable IDs whose content is
    intentionally deferred. `extend` adds exact objects, paths, scenes, or scene requirements while
@@ -73,7 +83,13 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
    `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
    payload. Each operation auto-saves. Strict changes commit each successful apply batch. The
    orchestrator NEVER executes apply.
-4. A change whose declared paths are all markdown, source-only scripts under `scripts/`,
+4. For a media-bearing change, complete the request lifecycle before scene work: `media-request`,
+   generate, `media-complete`, `intake` with `media:<id>`, then commit the non-scene reference
+   change. A request in `requested`, `generating`, or `generated` blocks apply tickets, review, commit, and
+   checkpoint. If generation fails twice, `media-fail` records it; commit the failure record and
+   continue. Requirements, workflow, and review mode remain frozen after registration; if the
+   generated reference changes them, stop and reregister.
+5. A change whose declared paths are all markdown, source-only scripts under `scripts/`,
    references, or assets is non-scene: after editing, use `commit` and `checkpoint` without
    `apply`, `seal`, or review. Every scene change requires `finalize`, then
    `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
@@ -81,9 +97,9 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
    `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a primary
    PNG, per-scene renders and facts, and a manifest. A single-scene project keeps the existing
    primary render.
-5. Call `blender_look` on every returned scene render. A receipt requires a real image; review is
+6. Call `blender_look` on every returned scene render. A receipt requires a real image; review is
    blocked until every declared scene is inspected.
-6. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
+7. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
    `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
    lists exact evidence files; read those paths, not a folder. Non-final tickets grade only their
    milestone; absent future scope is deferred, not a finding. Final tickets require the complete
@@ -93,12 +109,12 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
    harness records the missing/expired grader as `BLOCKED`, computes the verdict, and writes
    `REVIEW.md`. Seal and grader task metadata commit at task completion; review artifacts and the
    sealed scene commit at the review boundary.
-7. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
+8. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
    `question`. Approval is required before the review commit.
-8. In Fully Autonomous with `All` or `Single`, `review` auto-commits reports and the verdict; skip to
+9. In Fully Autonomous with `All` or `Single`, `review` auto-commits reports and the verdict; skip to
    `checkpoint`. With `Off`, or in Partially Autonomous, `commit` creates the scoped review commit.
    Apply batches are already committed. NEVER use manual Git for project paths.
-9. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
+10. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
    clean project. Then start the next `begin` or report completion. After any asset-using operation,
    run `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
    without a matching strict receipt. Every produced export needs a valid receipt; completion is
@@ -107,7 +123,7 @@ Direct downloads are public HTTPS only; browser/provider and user-assisted files
    `TASKSTRACKER.md` complete and commits that tracker-only update. After a complete report, stop
    Blender through the harness unless it is intentionally left open for user inspection; report that
    choice.
-10. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
+11. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
     then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
 
 Bootstrap save: use ticketed `save`, then `commit`, then `checkpoint`. NEVER seal, render, grade, or
