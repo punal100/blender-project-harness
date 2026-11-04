@@ -20,7 +20,7 @@ TEMPLATE = Path(".kilo/blender-project-harness/tools/harness/templates/project")
 
 class IgnoreTests(unittest.TestCase):
     def test_nested_asset_metadata_not_binaries_is_trackable(self):
-        for ignore in (ROOT / ".gitignore", ROOT / TEMPLATE / ".gitignore"):
+        for ignore in (ROOT / ".gitignore", ROOT / TEMPLATE / "gitignore"):
             with self.subTest(ignore=ignore), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 shutil.copy2(ignore, root / ".gitignore")
@@ -43,8 +43,8 @@ class IgnoreTests(unittest.TestCase):
             root = Path(directory)
             reviews = root / "Documents/Reviews"
             reviews.mkdir(parents=True)
-            shutil.copy2(ROOT / TEMPLATE / ".gitignore", root / ".gitignore")
-            shutil.copy2(ROOT / TEMPLATE / "Documents/Reviews/.gitignore", reviews / ".gitignore")
+            shutil.copy2(ROOT / TEMPLATE / "gitignore", root / ".gitignore")
+            shutil.copy2(ROOT / TEMPLATE / "Documents/Reviews/gitignore", reviews / ".gitignore")
             subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
             for name, ignored in (
                 ("Documents/Reviews/R01-20261031T081500Z/_evidence/camera.png", True),
@@ -326,7 +326,7 @@ class WorkspaceContractTests(unittest.TestCase):
         rounds = (ROOT / TEMPLATE / "Documents/Reviews/README.md").read_text(encoding="utf-8")
         for expected in ("manifest.json", "REVIEW.md", "REPORT.md", "_evidence/"):
             self.assertIn(expected, rounds)
-        ignore = (ROOT / TEMPLATE / "Documents/Reviews/.gitignore").read_text(encoding="utf-8")
+        ignore = (ROOT / TEMPLATE / "Documents/Reviews/gitignore").read_text(encoding="utf-8")
         self.assertIn("**/_evidence/", ignore)
         self.assertIn("**/tmp/", ignore)
         brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { Harness, contained, externalBinaryPolicy } from './engine.mjs';
+import { Harness, contained, externalBinaryPolicy, modelRole } from './engine.mjs';
 
 const tempRoot = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempRoot, { recursive: true });
@@ -758,6 +758,19 @@ test('deadline and twenty apply operations block edits but preserve recovery sav
   assert.equal(seal(deadline).result.change.sealed, true);
 });
 
+test('model matching is case-insensitive and ignores provider prefixes', () => {
+  const choice = {
+    provider: 'Punal-9Router-Compatable',
+    model: 'ocg/deepseek-v4.1-flash',
+    variant: 'Max',
+    backup: { provider: 'backup', model: 'vendor/gpt-6.1-sol', variant: 'xhigh' },
+  };
+  assert.equal(modelRole(choice, { providerID: 'punal-9router-compatable', modelID: 'deepseek-v4.1-flash', variant: 'max' }), 'primary');
+  assert.equal(modelRole(choice, { providerID: 'backup', modelID: 'gpt-6.1-sol', variant: 'extra-high' }), 'backup');
+  assert.equal(modelRole(choice, { providerID: 'punal-9router-compatable', modelID: 'deepseek-v4.1-flash', variant: 'low' }), null);
+  assert.equal(modelRole(choice, { providerID: 'punal-9router-compatable', modelID: 'deepseek-v4.1-flash' }), 'primary');
+});
+
 test('recover rejects live writer and recovers expired unconsumed tickets', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -787,6 +800,30 @@ test('recover clears an expired unstarted ticket without closing edits', (t) => 
   const retried = issueAndConsume(f, 'orchestrator', 'apply', { retried: true });
   f.harness.finish(retried.token, { ok: true });
   assert.equal(f.harness.command('orchestrator', 'status').change.operations, 1);
+});
+
+test('abandon closes an empty expired change without a commit', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((state) => { state.projects[f.project].change.deadline = 0; });
+  const expired = f.harness.command('orchestrator', 'status');
+  assert.equal(expired.nextStep.phase, 'abandon');
+  const result = f.harness.command('orchestrator', 'abandon', { reason: 'Empty change expired without applying anything' });
+  assert.equal(result.change, null);
+  assert.equal(f.harness.transaction((state) => state.projects[f.project].history.at(-1).verdict), 'ABANDONED');
+  const fresh = begin(f);
+  assert.equal(fresh.change.operations, 0);
+});
+
+test('empty expired change closes with a WIP commit without staging files', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((state) => { state.projects[f.project].change.deadline = 0; });
+  const result = f.harness.command('orchestrator', 'commit', { message: 'wip: close empty change', mode: 'wip' });
+  assert.equal(result.change, null);
+  assert.equal(f.harness.transaction((state) => state.projects[f.project].history.at(-1).verdict), 'WIP');
 });
 
 test('recover reopens a failed or expired reviewable change for repair', (t) => {

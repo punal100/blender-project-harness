@@ -21,7 +21,7 @@ import { downloadToStaging } from './download.mjs';
 import { configPath } from './workspace.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
-export const normalizeGoal = (value) => typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : value;
+export const normalizeGoal = (value) => typeof value === 'string' ? value.normalize('NFC').replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
@@ -115,12 +115,31 @@ function modelChoice(value, label, { requireBackup = false } = {}) {
   return choice;
 }
 
+const modelKey = (value) => String(value ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+const modelNameKey = (value) => modelKey(String(value ?? '').split('/').pop());
+const variantKey = (value) => {
+  const key = modelKey(value);
+  return ({ xhigh: 'xhigh', extrahigh: 'xhigh', xh: 'xhigh', max: 'max', maximum: 'max' })[key] ?? key;
+};
+function modelEntryMatches(entry, runtime) {
+  if (!entry || !runtime) return false;
+  if (modelKey(entry.provider) !== modelKey(runtime.providerID)) return false;
+  if (modelNameKey(entry.model) !== modelNameKey(runtime.modelID)) return false;
+  const observed = variantKey(runtime.variant);
+  return !observed || variantKey(entry.variant) === observed;
+}
 export function modelRole(choice, runtime) {
   if (!choice || !runtime) return null;
-  const matches = (entry) => entry && entry.provider === runtime.providerID && entry.model === runtime.modelID && entry.variant === runtime.variant;
-  if (matches(choice)) return 'primary';
-  if (matches(choice.backup)) return 'backup';
+  if (modelEntryMatches(choice, runtime)) return 'primary';
+  if (modelEntryMatches(choice.backup, runtime)) return 'backup';
   return null;
+}
+export function modelDiagnostics(choice, runtime) {
+  const entry = (value) => value ? `${value.provider}/${value.model}/${value.variant}` : null;
+  return {
+    observed: runtime ? `${runtime.providerID}/${runtime.modelID}/${runtime.variant ?? '(unset)'}` : 'unavailable',
+    expected: [entry(choice), entry(choice?.backup)].filter(Boolean).join(' or '),
+  };
 }
 
 function modelSummary(choice) {
@@ -1085,7 +1104,7 @@ export class Harness {
       const records = this.records(args.project, args.goal);
       const prior = s.projects[args.project];
       if (prior?.escalation?.maxRounds) records.maxRounds = Math.max(records.maxRounds, prior.escalation.maxRounds);
-      if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be project-root .blend filename');
+      if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be a bare project-root .blend filename such as "cozy-room.blend"; begin paths are project-relative such as "Blender/CozyRoom/Documents/DECISIONS.md"');
       contained(this.projectPath(args.project), args.scene, true);
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
@@ -1221,7 +1240,10 @@ export class Harness {
         : { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<bounded bootstrap message>' }), reason: 'Close the bootstrap save with the harness commit, then checkpoint; never seal or grade the initial scene.' };
     }
     if (!c.sealed && c.operations >= CHECKPOINT_EVERY && (c.failure || Date.now() > c.deadline)) return { phase: 'wip', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: 'wip: preserve failed or expired change', mode: 'wip' }), reason: 'The apply budget is exhausted and the change cannot be repaired; preserve it with a WIP commit, then checkpoint and begin a fresh change.' };
-    if (!c.sealed && (c.failure || Date.now() > c.deadline)) return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it to repair, or commit {mode:"wip"} to preserve it.' };
+    if (!c.sealed && (c.failure || Date.now() > c.deadline)) {
+      if (c.operations === 0 && !c.pending && !c.failure) return { phase: 'abandon', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Empty change expired without applying anything' }), reason: 'This change expired with no applied operations; abandon it, then begin a fresh change.' };
+      return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it to repair, or commit {mode:"wip"} to preserve it.' };
+    }
     if (!c.sealed && c.reopen && !c.documentOnly) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: 'The change was reopened; issue a repair apply batch and delegate it to blender-worker.' };
     if (!c.sealed && c.nonSceneOnly && c.operations === 0) {
       return this.head() === c.base
@@ -1515,6 +1537,13 @@ export class Harness {
           p.snapshot = this.snapshot(p.project);
         }
         p.lastCommit = commit;
+      } else if (!project) {
+        const owned = Object.values(s.projects).find((item) => item.orchestrator === session && !item.change);
+        if (owned) {
+          owned.checkpoint = commit;
+          owned.snapshot = this.snapshot(owned.project);
+          owned.lastCommit = commit;
+        }
       }
       return { path: recordName, commit, project: project ?? null };
     });
@@ -1522,7 +1551,13 @@ export class Harness {
   autoCommit(p, c, message, { review = true } = {}) {
     this.mediaGate(p, c, { allowIntaken: true });
     const expectedHead = c.commits?.at(-1) ?? c.base;
-    if (this.head() !== expectedHead) deny('commit must directly follow the prior change commit');
+    try {
+      git(this.root, ['merge-base', '--is-ancestor', expectedHead, 'HEAD']);
+    } catch {
+      deny('commit must follow the prior change commit; HEAD is not a descendant of it');
+    }
+    const intervening = gitText(this.root, ['diff', '--name-only', `${expectedHead}..HEAD`, '--', p.project]).split(/\r?\n/).filter(Boolean);
+    if (intervening.length) deny('project files changed outside the bounded change commit; restore them or start a new change');
     const artifacts = review ? this.reviewPaths(p, c) : [];
     const declared = new Set(c.paths);
     const taskDocument = this.taskDocument(p);
@@ -1595,7 +1630,7 @@ export class Harness {
         return this.reregisterStatus(p);
       }
       const c = p.change;
-      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
+      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail','abandon'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
       this.fresh(p, { allowRosterDrift });
       if (action === 'media-request') {
         this.mediaRequest(p, args);
@@ -1664,7 +1699,7 @@ export class Harness {
            const review = `${p.project}/Documents/Reviews/${prior.round}/REVIEW.md`;
            if (!git(this.root, ['ls-files', '--', review]).trim()) deny('revision requires the committed verdict document from the prior round');
          }
-         if (prior?.verdict !== undefined && !['PASS', 'BOOTSTRAP', 'WIP', 'DOCUMENT'].includes(prior.verdict) && !args.revision) deny('failed review permits correction only');
+         if (prior?.verdict !== undefined && !['PASS', 'BOOTSTRAP', 'WIP', 'DOCUMENT', 'ABANDONED'].includes(prior.verdict) && !args.revision) deny('failed review permits correction only');
         const chain = args.revision ? (prior?.chain ?? 0) + 1 : 1;
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
         this.ensureTaskLedger(p);
@@ -1871,6 +1906,12 @@ export class Harness {
         if (args.mode === 'wip') {
           if (!c.failure && Date.now() <= c.deadline) deny('WIP commit requires a failed or expired change');
           if (c.verdict) deny('reviewed changes use the normal commit path');
+          const dirty = gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]);
+          if (c.operations === 0 && !dirty) {
+            p.history.push({ id: c.id, round: null, verdict: 'WIP', commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, final: Boolean(c.final), approval: null, empty: true });
+            p.change = null;
+            return this.status(p, s);
+          }
           this.autoCommit(p, c, args.message.trim(), { review: false });
           c.wip = true;
           c.verdict = 'WIP';
@@ -1878,6 +1919,31 @@ export class Harness {
           if (!bootstrap && !documentOnly && !c.verdict) deny('complete review before committing the change');
           this.autoCommit(p, c, args.message.trim(), { review: !bootstrap && !documentOnly });
         }
+      } else if (action === 'abandon') {
+        if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('abandon requires one bounded reason');
+        if (!c) deny('no open change to abandon');
+        if (c.sealed) deny('sealed changes cannot be abandoned; finish review or preserve a tooling block');
+        if (c.operations > 0) deny('abandon is for changes with no applied operations; use commit {mode:"wip"} or preserve for a failed change');
+        if (c.sceneHash !== null && this.hash(p.scene) !== c.sceneHash) deny('scene changed since the change began; commit or restore before abandoning');
+        if (gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project])) deny('change has uncommitted project files; commit or restore before abandoning');
+        const token = c.pending, t = s.tickets[token];
+        if (t) {
+          const live = t.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
+          if (live) deny('cannot abandon a live operation; wait for it to finish or expire');
+          t.state = 'abandoned';
+          const task = p.tasks?.find((item) => item.token === token);
+          if (task && task.state !== 'done' && task.state !== 'failed') {
+            task.state = 'abandoned';
+            task.finished = new Date().toISOString();
+            task.result = 'abandoned';
+            this.writeTaskDocument(p, task);
+            this.writeTaskSummary(p, task);
+            this.writeTaskLedger(p);
+          }
+        }
+        p.history.push({ id: c.id, round: null, verdict: 'ABANDONED', commit: this.head(), sceneHash: c.sceneHash, chain: c.chain, final: Boolean(c.final), approval: null, reason: args.reason.trim() });
+        p.change = null;
+        return this.status(p, s);
       } else if (action === 'preserve') {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('preserve requires one bounded reason');
         if (!c?.sealed || c.verdict !== 'BLOCKED' || c.blockingKind !== 'tooling') deny('preserve requires a sealed tooling-blocked change');
@@ -1903,7 +1969,7 @@ export class Harness {
         const partialApprovalRequired = p.records.workflow === 'Partially Autonomous' && !documentOnly && (!c.approval || c.approval.evidence !== c.evidenceKey);
         if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || this.reviewPending(p, c) || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review commit and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
-        const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`]).split(/\r?\n/).filter(Boolean);
+        const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`, '--', p.project]).split(/\r?\n/).filter(Boolean);
         const reviewed = bootstrap || documentOnly || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, this.taskDocument(p), ...reviewed, ...this.taskFiles(p, c)]);
         const taskPrefix = `${p.project}/Documents/Tasks/`;
@@ -1983,7 +2049,7 @@ export class Harness {
       const p = s.projects[t.project]; this.fresh(p);
       if (p.change?.id !== t.change || p.change.pending !== token) deny('ticket change mismatch');
       if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= CHECKPOINT_EVERY)) deny('apply budget exhausted; seal, review, commit and checkpoint before more edits');
-      t.state = 'running'; t.pid = process.pid;
+      t.state = 'running'; t.started = Date.now(); t.pid = process.pid;
       return { project: p.project, scene: p.scene, goal: p.goal, previousRound: p.history.at(-1)?.round ?? null, change: structuredClone(p.change), records: p.records,
         operationTasks: (p.tasks ?? []).filter((task) => task.change === p.change.id).map(({ token: _token, ...task }) => task) };
     });
@@ -2073,7 +2139,8 @@ export class Harness {
       const p = this.owner(s, orchestrator);
       const task = p.tasks?.find((item) => item.token === token);
       if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
-      if (task.child && task.child !== child) deny('worker token is already bound to another child');
+      const ticket = s.tickets[task.token];
+      if (task.child && task.child !== child && ticket && ticket.state !== 'issued') deny('worker token is already bound to another child');
       if (task.child === child && task.state === 'running') return;
       task.child = child;
       if (task.state === 'issued') task.state = 'running';
@@ -2087,8 +2154,13 @@ export class Harness {
       const tokens = [...String(prompt).matchAll(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi)].map((match) => match[0]);
       const task = p.tasks?.find((item) => tokens.includes(item.token)) ?? p.tasks?.find((item) => item.token === p.change?.pending);
       if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
-      if (task.child && task.child !== child) deny('worker token is already bound to another child');
-      if (task.child === child) return;
+      const ticket = s.tickets[task.token];
+      if (task.child && task.child !== child) {
+        if (ticket && ticket.state !== 'issued') deny('worker token is already bound to another child');
+        task.child = child;
+      } else if (task.child === child) {
+        return;
+      }
       task.child = child;
       if (task.state === 'issued') task.state = 'running';
       this.writeTaskDocument(p, task);
@@ -2106,7 +2178,10 @@ export class Harness {
       if (!entry || (entry[1].child && entry[1].child !== child)) deny('grader assignment missing or already owned');
       const cfg = p.records.roster.find((g) => g.name === entry[0]);
       const role = modelRole(cfg, model);
-      if (!role) deny('grader runtime model does not match configured primary or backup');
+      if (!role) {
+        const detail = modelDiagnostics(cfg, model);
+        deny(`grader runtime model does not match configured primary or backup; observed ${detail.observed}; expected ${detail.expected}`);
+      }
       entry[1].child = child;
       entry[1].modelRole = role;
       const task = p.tasks?.find((item) => item.token === entry[1].token);
@@ -2220,7 +2295,7 @@ export class Harness {
     return this.transaction((s) => {
       if (Object.keys(args).some((key) => key !== 'reopen') || (args.reopen !== undefined && args.reopen !== true)) deny('recover accepts reopen:true only');
       const p = this.owner(s, session);
-      this.fresh(p);
+      this.fresh(p, { allowRosterDrift: true });
       if (args.reopen) {
         const c = p.change;
         if (!c || c.sealed || c.pending || c.bootstrap) deny('reopen requires an unsealed reviewable change with no pending operation');
@@ -2232,7 +2307,9 @@ export class Harness {
         return this.status(p, s);
       }
       const token = p.change?.pending, t = s.tickets[token];
-      if (!t || (t.state === 'running' && (!t.pid || (() => { try { process.kill(t.pid, 0); return true; } catch { return false; } })())) || t.state !== 'running' && Date.now() - t.created <= TICKET_TTL_MS) deny('no expired/dead operation; never release a live writer');
+      const liveWriter = t?.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
+      const unexpired = t && t.state !== 'running' && Date.now() - t.created <= TICKET_TTL_MS;
+      if (!t || liveWriter || unexpired) deny('no expired/dead operation; never release a live writer');
       const writerStarted = t.state === 'running';
       t.state = 'abandoned'; delete p.change.pending;
       const task = p.tasks?.find((item) => item.token === token);

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+
+- Scaffolded projects now receive `.gitignore` from the npm package (template files renamed to `gitignore` because npm strips dotfiles); launch logs, WIP renders, review evidence, `.blend1`, and caches no longer break `begin`.
+- Installer workspace `.gitignore` now covers logs, WIP renders, review evidence, Blender backups, caches, and nested `node_modules`.
+- `recover` treats an unstarted ticket as expired after its TTL instead of waiting for Blender to stop; worker tickets rebind to a fresh child when the prior child never executed.
+- Added `abandon {reason}` and empty-change `commit {mode:"wip"}` so an expired change with no applies can close without a commit.
+- Worker/grader model matching is case-insensitive, ignores provider prefixes on model ids, aliases `xhigh`/`extra-high`, and prints observed versus expected values; read-only worker preflight is no longer blocked by the model gate.
+- `autoCommit` and `checkpoint` tolerate workspace-level commits interleaved with an open project change.
+- Workspace-level shell approvals refresh the owning project snapshot.
+- `prepare` explains the difference between the bare `.blend` filename and project-relative `begin` paths.
+- Requirements discovery now asks for reference images or links explicitly and gates requirements against harness capabilities.
+- Documented live primitive sizing and unsupported material/world features.
+- Doctor reports workspace `.gitignore` coverage and project Git cleanliness.
+
 ## 1.0.3
 
 ### Added

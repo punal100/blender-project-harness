@@ -30,6 +30,7 @@
 **/renders/wip/**
 !**/renders/wip/.gitkeep
 !**/renders/wip/README.md
+**/Documents/Reviews/**/_evidence/
 **/backups/**
 !**/backups/.gitkeep
 !**/backups/README.md

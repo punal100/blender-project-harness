@@ -21,7 +21,15 @@ function walk(directory, base = directory) {
 }
 
 function isText(file) {
-  return path.basename(file) === '.gitignore' || TEXT_EXTENSIONS.has(path.extname(file).toLowerCase());
+  const base = path.basename(file);
+  return base === '.gitignore' || base === 'gitignore' || TEXT_EXTENSIONS.has(path.extname(file).toLowerCase());
+}
+
+function destinationName(relative) {
+  const parts = relative.split(path.sep);
+  const last = parts.at(-1);
+  if (last === 'gitignore') parts[parts.length - 1] = '.gitignore';
+  return parts.join(path.sep);
 }
 
 function render(text, replacements, name) {
@@ -57,10 +65,11 @@ export function scaffold(root, { name, description, goal, goalTitle, dryRun = fa
   const files = walk(resolvedTemplateRoot).map((file) => ({
     source: file,
     relative: path.relative(resolvedTemplateRoot, file),
+    target: destinationName(path.relative(resolvedTemplateRoot, file)),
     text: isText(file) ? render(fs.readFileSync(file, 'utf8'), replacements, file) : null,
   }));
 
-  if (dryRun) return { dryRun: true, destination, slug, files: files.map((file) => file.relative) };
+  if (dryRun) return { dryRun: true, destination, slug, files: files.map((file) => file.target) };
 
   const staging = path.join(projectsRoot, `.scaffold-${crypto.randomUUID().replaceAll('-', '')}`);
   let owned = false;
@@ -68,7 +77,7 @@ export function scaffold(root, { name, description, goal, goalTitle, dryRun = fa
     fs.mkdirSync(staging);
     owned = true;
     for (const file of files) {
-      const target = path.join(staging, file.relative);
+      const target = path.join(staging, file.target);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       if (file.text === null) fs.copyFileSync(file.source, target);
       else fs.writeFileSync(target, file.text);
