@@ -1,7 +1,7 @@
 # Task Tracker — CozyComputerRoom
 
 Status: Active
-Last updated: 2026-11-04T21:37:40.261Z
+Last updated: 2026-11-04T21:39:33.886Z
 
 ## Tasks
 
@@ -28,3 +28,6 @@ Last updated: 2026-11-04T21:37:40.261Z
 | [T019](Tasks/T019/TASK.md) | operation | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | apply x2 | 3 | blender-worker | ses_e579aad26ffezdsKla5m9TFO8D | done | 2026-11-04T21:36:13.524Z | 2026-11-04T21:36:28.841Z | ok (2 ops) |
 | [T020](Tasks/T020/TASK.md) | operation | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | wip | 0 | orchestrator |  | done | 2026-11-04T21:37:06.270Z | 2026-11-04T21:37:15.175Z | ok |
 | [T021](Tasks/T021/TASK.md) | operation | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | seal | 0 | orchestrator |  | done | 2026-11-04T21:37:30.872Z | 2026-11-04T21:37:40.260Z | ok |
+| [G022](Tasks/G022/TASK.md) | grader | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | grader:visual | 0 | visual | ses_e578036b4ffe5JBLTz0v6VyCui | done | 2026-11-04T21:37:57.539Z | 2026-11-04T21:39:33.885Z | ok |
+| [G023](Tasks/G023/TASK.md) | grader | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | grader:technical | 0 | technical | ses_e578036b1ffedr5f4EEmYZLaJJ | running | 2026-11-04T21:37:57.722Z |  |  |
+| [G024](Tasks/G024/TASK.md) | grader | 6c1bc87c-05cd-4f23-aa1e-71ba37b883ff | grader:spec | 0 | spec | ses_e578036b0ffe7hFZnTKFXqnng1 | running | 2026-11-04T21:37:57.941Z |  |  |
