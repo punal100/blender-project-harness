@@ -38,6 +38,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R03-20261104T214814Z | 20261104T214814Z | 39007a16f460 | All milestone | visual, technical, spec | PASS | [R03-20261104T214814Z/REVIEW.md](R03-20261104T214814Z/REVIEW.md) |
 | R04-20261104T220345Z | 20261104T220345Z | a50c2b4045c3 | All milestone | visual, technical, spec | PASS | [R04-20261104T220345Z/REVIEW.md](R04-20261104T220345Z/REVIEW.md) |
 | R05-20261104T223723Z | 20261104T223723Z | 67cb24fa192a | All final | visual, technical, spec | CHANGES_REQUIRED | [R05-20261104T223723Z/REVIEW.md](R05-20261104T223723Z/REVIEW.md) |
+| R06-20261104T230000Z | 20261104T230000Z | 477427fee5cc | All final | visual, technical, spec | BLOCKED | [R06-20261104T230000Z/REVIEW.md](R06-20261104T230000Z/REVIEW.md) |
 
 ## Rules
 
@@ -60,3 +61,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R04-20261104T220345Z: Furnish the room with a low bed and bedding, an open wall bookshelf with books, a rug, a potted plant, and framed wall art; seat the chair back on its seat; evidence 84b000231f251adf4b4d96fad7511381490cb4c5a2864edf5d307fc16db691cc
 
 - R05-20261104T223723Z: Complete the final evening lighting with warm practical fixtures and a deep dusk window, fix curtain and door contacts, refine the hero camera, add final trim, and update the project delivery documents; evidence a917b013f986323fde75a285b1fbc84d827e7084ac0447109053e11ff3cbbcf7
+
+- R06-20261104T230000Z: Replace the crisp point practicals with soft area lights, lift the dark chair and tower, material the pendant cord, and deliver a soft-shadow final render; evidence 6793a860dfc10242a0aff151e84f4d1354df5fd18b762194684069be9ea0e8ae
