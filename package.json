@@ -1,6 +1,6 @@
 {
   "name": "@punal_manalan/blender-project-harness",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Install and update the guarded Blender project harness for Kilo workspaces.",
   "repository": {
     "type": "git",

@@ -2,11 +2,21 @@
 
 ## Unreleased
 
+## 1.0.3
+
 ### Added
 
 - Harness-booked media requests with staged-file hashes, generated metadata, retry limits, committed failure records, and a harness-owned `Documents/MEDIA.md` ledger.
 - Media generation gating before registration or without an open media request.
 - Required intake linking for generated media before commit.
+
+### Changed
+
+- Trimmed `AGENTS.md` from 244 to 152 lines; procedural detail moved into harness `capabilities` and `nextStep`.
+- Refactored all 10 skill files: reduced total line count from 1,245 to 823.
+- `capabilities` action table now exposes exact payload shapes for every action; recovery actions split into individual rows.
+- Fixed `BLOCKED` vs `CHANGES_REQUIRED` verdict wording in `blender-subagents` and `blender-project-grading`.
+- Goal skill now includes explicit `goal(action="start", …)` and `goal(action="resume")` call forms.
 
 ## 1.0.2
 
