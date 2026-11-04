@@ -5,199 +5,93 @@ description: Use before any production blender_workflow action. Defines the harn
 
 # Blender Workflow Harness
 
-`blender_workflow` takes `{action:string,payload:JSON object or string}`. The runtime owns state,
-evidence, approval receipts, and project commits.
+`blender_workflow` takes `{action,payload}`. The runtime owns state, evidence, approvals, and project
+commits. `status.nextStep.command` is the next call; execute it exactly. `capabilities` is
+authoritative for actions, operations, document formats, limits, and policy strings. A gate error is a
+missing prerequisite: fix it through the named action, never by bypassing the harness.
 
-MUST:
-- Call `status` first and after every deny, compaction, restart, or completed phase.
-- Execute `status.nextStep.command` exactly. Do not infer another route.
-- Call `capabilities` for actions, operations, primitives, document formats, and limits.
-- Treat a gate error as a missing prerequisite. Fix the prerequisite; never bypass with shell,
-  raw Python, direct state edits, or a temp copy.
-
-## Bootstrap before registration
+## Bootstrap
 
 1. Scaffold with `node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold --name "Name"`.
-2. Create or update project markdown with `bootstrap-document`
-   `{project,path,content}`. `capabilities.documentFormats` defines required headings and fields;
-   `bootstrap-document` rejects malformed documents.
-3. Commit the exact scaffold with `bootstrap-commit` `{project,message}`. It accepts only
-   documentation and metadata, never scene, render, evidence, or asset binaries.
-4. Call `prepare` `{project,goal,scene}`. Answer its exact question and labels through `question`.
-   Only a runtime answer registers. NEVER forge approval JSON or answer for the user.
-5. Start or resume the registered goal with its exact prompt. Launch only after the goal is active.
+2. Create or update project markdown with `bootstrap-document`; use `capabilities.documentFormats`.
+3. Commit the exact scaffold with `bootstrap-commit`; it accepts documentation and metadata only.
+4. Call `prepare`; pass its exact question and labels to `question`. Only the runtime answer registers.
+5. Start or resume the goal with its exact prompt; launch only after the goal is active.
 
-Inspect bootstrap state with `status` `{project}`. Its `nextStep` names the missing document,
-scaffold commit, `prepare`, or registration question. Manual project writes and project
-`git add`/`git commit` are blocked before and after registration.
+`status {project}` names the missing document, scaffold commit, `prepare`, or registration question.
+Manual project writes and project `git add`/`git commit` are blocked.
 
-## User files and optional workflows
+## Lifecycle
 
-Use `intake` before asking the user to organize anything.
+Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
 
-- `intake {project,files?,folders?,kind?,source?,generated?,scan:true}` scans without writing.
-- `intake {project,files?,folders?,kind?,source?,generated?,media?}` copies inside an open change,
-  writes sidecars and registers, and adds exact paths to the change. It never moves the originals.
-  Pass `media:<request-id>` for generated media; the staged file is linked to the request and the
-  request becomes `intaken`.
-- `download {project?,url,filename?,maxBytes?}` fetches HTTPS bytes into ignored `.temp/Intake/...`
-  staging only. It does not import or register; pass the result to `intake` with source and licence.
-- Media generation is agent-owned, but booked through the harness. It is allowed only after
-  registration, with the initial scene saved and checkpointed, inside an open non-bootstrap change.
-  Call `media-request {purpose,kind?,tool,model?,prompt,seed?,creditEstimate?}` before any Media MCP
-  call. `kind` is `image`, `texture`, or `hdri`; video, audio, and model generation are not enabled
-  yet. One generation call is allowed per request; record failures with `media-fail`. Generated
-  files stay under `.temp`; call `media-complete {id,path,creditActual?}`, then
-  `intake {media:<id>,generated:{...}}`. Scene work is blocked while the request is `requested`,
-  `generating`, or `generated`. Retry at most twice with `media-fail {id,error}`; a failed request is
-  recorded in the harness-owned `Documents/MEDIA.md` and may close with `commit`. Generated
-  references are never automatic textures or licensed third-party assets.
-- `status` exposes the latest `intake` summary (copied, duplicates, rejected, paths), `media`
-  requests, and the `assetUse`/`assetCheck` state.
-- External assets require `source.license` and `source.licenseText` or `source.licenseFile`; the
-  action writes `SOURCE.md`, verbatim `LICENSE.txt`, and the register row.
-- Scripts may be copied only under `scripts/` and are source-only. The harness does not execute
-  project Python. Workspace automation scripts may run only through the audited shell approval path.
-  Any Blender Python execution requires a separately reviewed OS/VM isolation design.
+`launch` → `begin` → `ticket apply` → worker → WIP every 3 applies + `look` → `finalize` → `seal` →
+`look` every scene → review/self-review → approval when required → `commit` → `checkpoint`.
 
-Ask the user to choose references, asset source, script handling, and deliverables before
-production. Do not generate paid images, download, or execute scripts without explicit consent.
-Direct downloads are public HTTPS only; browser/provider and user-assisted files return through
-`intake` with source and licence.
+- `begin` needs one outcome, exact object names, exact project-relative paths, and optional
+  `milestone`, `requirements`, `scenes`, `sceneRequirements`, `final`, `revision`, `media`.
+- `extend` adds exact scope; `finalize` marks ready to seal; `final:true` is only the final full-spec
+  change. `revision:true` needs a committed prior verdict.
+- Apply is worker-only. One ticket is one operation or a batch of up to 10; pass the token to one
+  foreground `blender-worker`. The orchestrator never executes apply.
+- A non-scene change (markdown, source-only `scripts/`, references, assets) commits and checkpoints
+  without apply, seal, or review.
+- Bootstrap save: ticketed `save`, `commit`, `checkpoint`; never seal, render, or grade it.
+- Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
+  Partially Autonomous needs approval before the review commit.
 
-## Registered lifecycle
+## Media
 
-1. `launch` `{}`. Verify `blender_get_addon_status` and
-   `blender_get_scene_info(fields=["settings"])`; stop on connection, addon, or file mismatch.
-2. `begin` `{outcome,objects,paths,milestone?,requirements?,scenes?,sceneRequirements?,final?,revision?,media?}`.
-   One bounded change; exact object names, project-relative paths, and optional exact scene names.
-   Set `media:true` when the change needs generated media; the next step is `media-request`, not a
-   Media MCP call.
-   Use `milestone` and the requirement IDs the change advances for intermediate changes; use
-   `final:true` only for the final full-spec change. Do not pass full-deliverable IDs whose content is
-   intentionally deferred. `extend` adds exact objects, paths, scenes, or scene requirements while
-   the change is open; `finalize` marks the change ready to seal. `revision:true` requires the prior
-   committed verdict.
-3. Issue `ticket` `{operation:"apply",payload:<operation or {operations:[...]}>}`. A batch contains
-   up to 10 operations and executes sequentially under one token. Pass the token to one foreground
-   `blender-worker`; the worker calls `blender_harness_execute` with the exact token, operation, and
-   payload. Each operation auto-saves. Strict changes commit each successful apply batch. The
-   orchestrator NEVER executes apply.
-4. For a media-bearing change, complete the request lifecycle before scene work: `media-request`,
-   generate, `media-complete`, `intake` with `media:<id>`, then commit the non-scene reference
-   change. A request in `requested`, `generating`, or `generated` blocks apply tickets, review, commit, and
-   checkpoint. If generation fails twice, `media-fail` records it; commit the failure record and
-   continue. Requirements, workflow, and review mode remain frozen after registration; if the
-   generated reference changes them, stop and reregister.
-5. A change whose declared paths are all markdown, source-only scripts under `scripts/`,
-   references, or assets is non-scene: after editing, use `commit` and `checkpoint` without
-   `apply`, `seal`, or review. Every scene change requires `finalize`, then
-   `ticket` `{operation:"wip",payload:{}}`, then `blender_look` on the WIP render; every third apply
-   also requires a WIP check. The harness denies a new apply ticket until the due WIP render has a
-   `blender_look` receipt. Seal only after that look. `seal` writes immutable evidence, a primary
-   PNG, per-scene renders and facts, and a manifest. A single-scene project keeps the existing
-   primary render.
-6. Call `blender_look` on every returned scene render. A receipt requires a real image; review is
-   blocked until every declared scene is inspected.
-7. Review: `self-review` `{notes}` when mode is `Off`; otherwise issue every configured
-   `grader-ticket` and dispatch the `blender-grader` tasks up to `max_parallel` at once. The ticket
-   lists exact evidence files; read those paths, not a folder. Non-final tickets grade only their
-   milestone; absent future scope is deferred, not a finding. Final tickets require the complete
-   deliverable. If a task fails before binding a child, call `grader-fail {name,reason}`. A
-   tooling-blocked grader is retried without a scene
-   revision. When retries are exhausted, aggregate with `review` `{notes,reason,dispositions}`; the
-   harness records the missing/expired grader as `BLOCKED`, computes the verdict, and writes
-   `REVIEW.md`. Seal and grader task metadata commit at task completion; review artifacts and the
-   sealed scene commit at the review boundary.
-8. In Partially Autonomous mode call `approval` `{}` and pass its exact question and labels to
-   `question`. Approval is required before the review commit.
-9. In Fully Autonomous with `All` or `Single`, `review` auto-commits reports and the verdict; skip to
-   `checkpoint`. With `Off`, or in Partially Autonomous, `commit` creates the scoped review commit.
-   Apply batches are already committed. NEVER use manual Git for project paths.
-10. `checkpoint` `{}`. It accepts the validated commit range after the change base and requires a
-   clean project. Then start the next `begin` or report completion. After any asset-using operation,
-   run `check_assets` with `{strict:true}` on the final scene before sealing; completion is denied
-   without a matching strict receipt. Every produced export needs a valid receipt; completion is
-   denied for a missing or changed export. External binaries are committed only when their sidecar
-   allows redistribution. Completion needs a final full-spec change before `goal_report`; `goal-complete` marks
-   `TASKSTRACKER.md` complete and commits that tracker-only update. After a complete report, stop
-   Blender through the harness unless it is intentionally left open for user inspection; report that
-   choice.
-11. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause` `{reason}`,
-    then stop Blender. A stale expired owner can be transferred with `reclaim` `{project,reason}`. Do not leave an open change owned by a dead session.
-
-Bootstrap save: use ticketed `save`, then `commit`, then `checkpoint`. NEVER seal, render, grade, or
-open a review round for the initial empty/default scene.
+Media is allowed only after registration, with the initial scene saved and checkpointed, inside an
+open non-bootstrap change. Call `media-request` before any Media MCP call. One generation call per
+request; explicit permission before spending credits. Generated files stay under `.temp`; call
+`media-complete`, then `intake {media:<id>}`. Scene work is blocked while the request is `requested`,
+`generating`, or `generated`. Retry at most twice with `media-fail`; a failed request is recorded and
+may close with `commit`. Requirements stay frozen.
 
 ## Limits and recovery
 
-- Maximum 20 apply tickets per change, each carrying up to 10 operations. Operation tickets expire
-  after 10 minutes; the change window is 15 minutes without a successful apply. Recovery `save` and
-  `seal` remain available after the apply budget or a failed apply.
+- `capabilities.limits` is authoritative: 20 applies per change, 10-minute tickets, 15-minute idle
+  window, WIP every 3 applies.
+- Failed or expired reviewable change: `recover {reopen:true}` for repairs, or `commit {mode:"wip"}`
+  then `checkpoint`.
 - `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
-  save, and reseal. NEVER release a live writer.
-- `recover {reopen:true}` clears a failed or expired reviewable change so repair applies can run.
-  It does not reopen a sealed or bootstrap change, and it keeps the failed round history.
-- `commit {mode:"wip"}` preserves a failed or expired change and closes it at the next `checkpoint`
-  with verdict `WIP`; it is not a review substitute and does not set a completion render.
-- `preserve {reason}` closes a sealed tooling-blocked change after its grader retry budget is
-  exhausted. It commits the sealed render, reports, review aggregate, tracker, and task records as
-  `WIP`; then `checkpoint` and `pause` or `reregister`. Never mark a tooling block `PASS`.
-- `status.change` reports `appliesRemaining`, `deadlineRemainingMs`, `commits`, `wipRender`, and
-  `wipLook`. `Documents/TASKSTRACKER.md` and `Documents/Tasks/<id>/` are harness-owned and record
-  every task's ID, token hash, child session, state, and result. Read them with
-  `blender_document {action:"ledger"}`; never write it directly.
-- `max_rounds` is configured 1-4. A capped review requires `escalate` `{reason,max_rounds?}`, then
-  the exact registration question again. Escalation preserves history.
-- A tooling/evidence `BLOCKED` is not a design failure: retry the blocked grader; do not open a scene
-  revision. `CHANGES_REQUIRED` is the design revision path.
-- `schedule_wakeup`/cron and `background_process` are orchestrator-only production tools. Workers and
-  graders cannot use them.
-- `status.nextStep` is authoritative for pending tickets, missing `look`, WIP, review, approval,
-  commit, checkpoint, `preserve`, and completion. Do not repeat a completed phase.
-- Kilo's `kilo.goal.status` is authoritative for whether `goal_report` exists. If `status` reports
-  `kiloGoal.status` as `blocked` or `paused` and `nextStep.phase` is `resume-goal`, call
-  `goal {action:"resume"}` before any report or further production action.
+  save, and reseal; never release a live writer.
+- Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
+- To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause {reason}`, then
+  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`.
+- `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
+  question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
+- `schedule_wakeup`, cron, and `background_process` are orchestrator-only.
+- Kilo goal status is authoritative. If `nextStep.phase` is `resume-goal`, call
+  `goal {action:"resume"}` before reporting or continuing.
 
 ## Documents and commits
 
-- Use `blender_document` `{action:"read"}` for structured title, field, and section access. The
-  default read returns an index and diagnostics, not the full file. Pass `section` to read one
-  section. Direct `read`/`grep` is permitted but discouraged.
-- Pre-registration new markdown: `bootstrap-document`; commit with `bootstrap-commit`.
-- Registered new markdown: declare its exact path in `begin`, then call `blender_document`
-  `{action:"write"}` or `document` `{path,content}`.
-- Existing documents update only within the declared change paths. Direct edit is permitted but
-  discouraged; the harness re-validates on the next lifecycle command.
-- Registration documents are frozen after `prepare`: `Documents/REQUIREMENTS.md`,
-  `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, and the active goal. NEVER write them inside a
-  bounded change. To change them, close the change and call `reregister` `{reason}`, edit with
-  `bootstrap-document`, commit with `bootstrap-commit`, then call `prepare` and answer the new
-  registration question. Re-registration clears the active goal and completion evidence.
-- Each grader writes only its assigned `REPORT.md` through `blender_document` `{action:"write"}`.
-  Direct report edits are denied. The harness generates the aggregate `REVIEW.md`.
-- Project commits: `bootstrap-commit` before registration; `commit` after registration. One bounded
-  message. `checkpoint` verifies the exact commit and clean project.
+- Use `blender_document` `{action:"read"}` for structured access; `{action:"write"}` for declared
+  writes; `{action:"ledger"}` for harness-owned task rows.
+- Pre-registration: `bootstrap-document` then `bootstrap-commit`.
+- Registered: declare the exact path in `begin`, then use `document` or `blender_document` write.
+- Registration documents are frozen after `prepare`: `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`,
+  and the active goal. Close the change and call `reregister {reason}` to replace them.
+- Grader reports are written only through `blender_document`; the harness writes `REVIEW.md`.
+- Project commits use harness actions only. `checkpoint` verifies the scoped commit range and a clean
+  project.
 
 ## Forbidden
 
-- Raw `execute_blender_code`, imports, generation, arbitrary Python, shell Blender commands, command
-  substitution, or manual project Git commands. Read-only inspection is always allowed; other
-  non-project commands require the warning acknowledgement documented in `AGENTS.md`. The harness
-  commits the command and reason under project `Documents/Commands/` or root `Commands/`; command
-  output is never captured or committed. Project files stay tool-owned.
-- Editing external harness state; creating fake tickets, receipts, approvals, or reports.
-- Sealing without a saved reviewable change; grading the bootstrap save; skipping required review.
-- Continuing after a gate error without resolving the phase named by `status.nextStep`.
+- Raw Python, imports, generation, shell Blender commands, command substitution, manual project Git,
+  and external harness-state edits.
+- Fake tickets, receipts, approvals, reports, or review artifacts.
+- Sealing without a saved reviewable change, grading the bootstrap save, or skipping required review.
+- Continuing past a gate without resolving the phase named by `status.nextStep`.
 
-## Live Test 03 state and workspace rules
+## Live Test 03
 
-- Treat kilo.goal as the goal source of truth. Reconcile goalActive before status and production
-  checks. Never emit resume-goal while Kilo reports active.
-- Split registration drift: specification and mode changes require re-registration before any work;
-  roster changes block new work but allow review, preserve, commit, checkpoint, seal, and goal
-  reconciliation.
-- A registered root may commit code-only workspace changes through the approved shell path when
-  every staged path is outside the project folder. Project paths remain harness-owned.
-- A registered root may use agent_manager for session and worktree coordination.
-- Workspace files under .temp may be written directly; project files remain change-scoped.
+- Treat `kilo.goal` as the goal source of truth. Never emit `resume-goal` while Kilo reports active.
+- Specification and mode changes require re-registration; roster changes block new work but allow
+  review, preserve, commit, checkpoint, seal, and goal reconciliation.
+- A registered root may commit code-only workspace changes through the approved shell path when every
+  staged path is outside the project. Project paths remain harness-owned.
+- A registered root may use `agent_manager`; workers and graders remain denied.
+- Workspace `.temp` writes are allowed; project files remain change-scoped.

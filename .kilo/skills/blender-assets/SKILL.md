@@ -5,70 +5,59 @@ description: Use when adding, importing, linking, packing, or delivering externa
 
 # Blender Assets
 
-Project paths are relative to `Blender/<Project>/`. External assets and derivatives MUST be
-registered before use.
+Project paths are relative to `Blender/<Project>/`. External assets and derivatives must be
+registered before use. The user does not need to create folders or copy files; `intake` owns that.
 
-## Folder policy
+## Folder and metadata policy
 
 - Project-owned files: `assets/textures/`, `assets/hdri/`, `assets/models/`, `assets/audio/`.
-- Third-party files and derivatives:
-  `assets/external/<source-or-vendor>/<asset>/`. Modification does not remove source or licence
-  duties.
+- Third-party files and derivatives: `assets/external/<source-or-vendor>/<asset>/`. Modification does
+  not remove source or licence duties.
 - Register every third-party original and derivative in `Documents/ASSETS.md`.
-- Keep `SOURCE.md` and a verbatim `LICENSE.txt` beside every external asset. Preserve original
-  licence files. Use
-  `../../../.kilo/blender-project-harness/tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md`
-  as the source metadata template.
-
-## Harness intake
-
-The user does not need to create folders or copy files. Use `blender_workflow {action:"intake"}`.
-
-- `scan:true` inspects explicit files or folders without writing the project. Use it during
-  requirements discovery.
-- `scan:false` copies accepted files into an open bounded change and adds their exact paths to the
-  change. It writes `SOURCE.md`, `LICENSE.txt`, `Documents/INTAKE.md`, `Documents/ASSETS.md`, and
-  `Documents/References/README.md` as applicable, including MIME type, bytes, dimensions, and
-  SHA-256. File signatures are checked against the extension.
-- Rejections, hashes, and duplicates are reported. The original files are never moved or deleted.
-- `download` fetches a public HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does
-  not import or register it. Pass the returned path to `intake` with source and licence details.
-  No credentials, private hosts, authentication bypass, CAPTCHA bypass, or unlimited scope.
-- Browser/provider and user-assisted files return through `intake` with their actual local path.
-  Never ask the user to move a file into the project.
-- Media generation belongs to the agent, but must be booked through the harness. After registration,
-  with the initial scene saved and checkpointed, open a bounded change and call `media-request`
-  before any Media MCP generation. Generated files stay under `.temp`; call `media-complete`, then
-  `intake` with `media:<id>` and `generated` metadata. Display the result and ask before using it as
-  a texture or reference. Retry at most twice with `media-fail`; a failed request is recorded in
-  `Documents/MEDIA.md` and may close the change. Never substitute a fake image.
+- Keep `SOURCE.md` and a verbatim `LICENSE.txt` beside every external asset. Preserve original licence
+  files. The source template is under
+  `../../../.kilo/blender-project-harness/tools/harness/templates/project/assets/external/SOURCE_TEMPLATE.md`.
 - Project-owned models, textures, HDRIs, and audio use `source.external:false`; third-party files
   require `source.license` and verbatim `source.licenseText` or `source.licenseFile`.
+
+## Intake and media
+
+- `intake {scan:true}` inspects explicit files or folders without writing the project. Use it during
+  requirements discovery.
+- `intake {scan:false}` copies accepted files into an open bounded change, adds exact paths, and
+  writes sidecars, `Documents/INTAKE.md`, `Documents/ASSETS.md`, and reference registers as
+  applicable. It reports hashes, duplicates, and rejections; originals are never moved.
+- `download` fetches a public HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does
+  not import or register; pass the path to `intake` with source and licence. No credentials, private
+  hosts, authentication bypass, CAPTCHA bypass, or unlimited scope.
+- Browser/provider and user-assisted files return through `intake` with their actual local path.
+  Never ask the user to move a file into the project.
+- Media generation is harness-booked. After registration, with the initial scene saved and
+  checkpointed, open a bounded change and call `media-request` before any Media MCP generation.
+  Generated files stay under `.temp`; call `media-complete`, then `intake {media:<id>}`. Display the
+  result and ask before using it as a texture or reference. Retry at most twice with `media-fail`.
 - Do not use shell copy, direct project writes, or manual Git for user files.
 
 ## Workflow
 
-1. Ask how the user wants assets sourced: use supplied files, search/download, project-owned
-   primitives/materials, or a mix. Ask for exact paths when files are supplied.
-2. If download is chosen, search first, inspect licence and size, then use `download` to stage. If the
-   provider is not supported, ask the user to supply the file rather than inventing a URL.
+1. Ask how the user wants assets sourced: supplied files, search/download, project-owned
+   primitives/materials, or a mix. Ask for exact paths when supplied.
+2. If download is chosen, search first, inspect licence and size, then `download` to stage. If the
+   provider is unsupported, ask the user to supply the file rather than inventing a URL.
 3. Scan with `intake`; resolve rejected files, missing licences, and ambiguous use.
-4. Open the bounded change with the intake document path, then call `intake` with `scan:false`. The
-   action copies files and registers metadata.
-5. Import a local model with the reviewed `import_asset` operation, link a `.blend` library with
-   `link_library`, import audio with `import_audio`, and use `image_texture` or `world_hdri` for local
-   images. Paths stay project-relative (`assets/...`). NEVER leave absolute paths. Declare the
-   import's parent Empty name in `begin.objects`; inspect the imported children after the apply and
-   use `extend` if later operations need to target them.
-6. Check missing and packed files with `check_assets`; use `{strict:true}` on the final scene so a
-   missing external file fails the apply. Pack only when the licence permits redistribution with
-   `pack_assets`.
+4. Open the bounded change with the intake document path, then call `intake` with `scan:false`.
+5. Import a local model with `import_asset`, link a `.blend` library with `link_library`, import audio
+   with `import_audio`, and use `image_texture` or `world_hdri` for local images. Paths stay
+   project-relative. Declare the import's parent Empty name in `begin.objects`; inspect imported
+   children after the apply and use `extend` if later operations target them.
+6. Check missing and packed files with `check_assets`; use `{strict:true}` on the final scene. Pack
+   only when the licence permits redistribution with `pack_assets`.
 7. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
    third-party data even when source binaries are ignored.
 
 The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary project Python remain blocked.
-Asset search does not authorize a remote import. Generated images are registered with `intake`
-using `generated` metadata; they are not automatically scene assets.
+Asset search does not authorize a remote import. Generated images are registered with `intake` using
+`generated` metadata; they are not automatically scene assets.
 
 ## Git and delivery
 
@@ -76,27 +65,20 @@ using `generated` metadata; they are not automatically scene assets.
 - Commit only assets whose `SOURCE.md` says `Redistribution allowed: yes`. The harness rejects a
   tracked or force-staged external binary without that clearance.
 - Use Git LFS for large redistributable binaries.
-- NEVER commit non-redistributable assets, credentials, or paid asset packs.
+- Never commit non-redistributable assets, credentials, or paid asset packs.
 - A tracked `.blend` with packed or embedded third-party data is a redistribution. Verify licence,
   attribution, and delivery rights before commit or delivery.
-- Required metadata MUST be tracked with the project.
-- Re-check missing files and packed/embedded data before delivery.
+- Required metadata must be tracked with the project. Re-check missing files and packed/embedded data
+  before delivery.
 
 ## Validation
 
-- Run `check_assets` with `{strict:true}` on the final scene before sealing. It fails on missing
-  external files. Completion is denied after asset use until the strict receipt is sealed on the
-  final unchanged scene.
+- Run `check_assets` with `{strict:true}` on the final scene before sealing. Completion is denied
+  after asset use until the strict receipt is sealed on the final unchanged scene.
 - Keep paths project-relative; verify moving the project folder does not break the scene.
-- Run `pack_assets` only after licence review when packing is required.
-- Require an `ASSETS.md` row for every third-party asset and derivative, with asset ID, type,
-  local path, source, licence, SHA-256, packaging, preview path when available, scene use, and
+- Require an `ASSETS.md` row for every third-party asset and derivative with asset ID, type, local
+  path, source, licence, SHA-256, packaging, preview path when available, scene use, and
   redistribution status.
 - Require `SOURCE.md` and verbatim `LICENSE.txt` in every external asset folder.
-- Require a registered source, licence, and packaging decision for every linked, packed, or embedded
-  third-party datablock.
 - Require a harness export receipt with format, path, bytes, SHA-256, source scene, and signature for
   every produced export. A missing or changed export blocks completion.
-
-For delivery, pack external data only when its licence permits redistribution, or ship the documented
-asset folders. Re-run missing-file checks and inspect packed/embedded data before delivery.

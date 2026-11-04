@@ -5,92 +5,62 @@ description: Select and enforce Fully Autonomous or Partially Autonomous work on
 
 # Blender Project Workflow
 
-Workflow mode MUST be selected in ordinary chat before the production goal starts, after
-requirements are confirmed. Ask it again on a genuine later return before resume. Workspace
-maintenance is exempt.
+Workflow mode must be selected in ordinary chat before the production goal starts, after requirements
+are confirmed. Ask it again on a genuine later return before resume. Workspace maintenance is exempt.
+Read `AGENTS.md` and `blender-workflow-harness`; follow `status.nextStep`.
 
 ## Rules
 
-- Read `AGENTS.md` and `blender-workflow-harness`. Follow `status.nextStep`.
-- Requirements MUST be confirmed before either mode starts.
+- Requirements must be confirmed before either mode starts.
 - `question` is unavailable during an active goal. Use `blender-project-goal` for the required-input
   handoff before asking approval or changing mode.
-- A **reviewable change** is one bounded change with at least one apply operation. The bootstrap save
-  is not reviewable.
+- A reviewable change is one bounded change with at least one apply operation. The bootstrap save is
+  not reviewable.
 - Each reviewable change follows `begin` → apply tickets → `seal` → `look` → review → approval when
   required → `commit` → `checkpoint`.
-- Project documents and project commits MUST use harness actions. Manual project writes and Git
-  commits are blocked.
+- Project documents and project commits use harness actions. Manual project writes and Git commits are
+  blocked.
 
 ## Fully Autonomous
 
 - Proceed within confirmed requirements without approval pauses.
 - Complete review and `checkpoint` for every reviewable change. With `Off`, call `commit` after
   self-review. With `All` or `Single`, `review` auto-commits the change; go directly to `checkpoint`.
-- STOP for a requirements conflict, destructive or irreversible choice, missing asset or licence,
+- Stop for a requirements conflict, destructive or irreversible choice, missing asset or licence,
   missing required grader, or technical blocker.
 
 ## Capped-review escalation
 
-- When `max_rounds` is exhausted, `escalate` is an intentional user gate, not a silent retry.
-- `escalate` records the reason and enters re-registration. `prepare` returns one exact registration
-  question; only a runtime answer may register the new cap.
-- If the goal is active, `question` is unavailable. Call `goal_report(status="blocked", reason=<the
-  exact registration question>)`, end the turn, and wait for the user's answer.
-- NEVER auto-confirm, raise `max_rounds` without `escalate`, or continue with the old cap.
+When `max_rounds` is exhausted, `escalate` is an intentional user gate, not a silent retry. It records
+the reason and enters re-registration. `prepare` returns one exact registration question; only a
+runtime answer may register the new cap. If the goal is active, `question` is unavailable: call
+`goal_report(status="blocked", reason=<the exact registration question>)`, end the turn, and wait.
+Never auto-confirm, raise `max_rounds` without `escalate`, or continue with the old cap.
 
 ## Partially Autonomous
 
 - Obtain approval after every reviewable change and before its commit.
 - After `seal` and `look`, complete required review and record every finding disposition.
-- Call `approval` `{}` with the goal stopped when `question` is unavailable. Pass its exact question
-  and labels to `question`: `Approve change`, `Request revision`, `Pause`.
-- Only a runtime answer counts. NEVER self-approve or record approval the user did not give.
+- Call `approval {}` with the goal stopped when `question` is unavailable. Pass its exact question and
+  labels to `question`: `Approve change`, `Request revision`, `Pause`.
+- Only a runtime answer counts. Never self-approve or record approval the user did not give.
 - `Approve change`: `commit` the exact reviewed change, then `checkpoint`.
 - `Request revision`: obtain concrete direction while stopped; commit the failed round; resume only
   for a bounded `begin` with `revision:true`; repeat review and approval.
 - `Pause`, cancellation, or no answer: make no further scene changes.
 - Findings do not authorize fixes or the next change without approval or revision direction.
 
-## New-project question
+## Questions and mode switches
 
-```text
-header: "Workflow"
-question: "How should I work on this project?"
-options:
-- "Fully Autonomous" — proceed within confirmed requirements without approval pauses
-- "Partially Autonomous" — stop for approval after every reviewable change
-```
+New project: ask "How should I work on this project?" with `Fully Autonomous` and
+`Partially Autonomous` options. Record the exact answer in `Documents/WORKFLOW.md` with `Mode:`,
+`Selected:`, `Last changed:`, and a change-log row. Do not reask an answer already collected.
 
-Record the exact answer in `Documents/WORKFLOW.md` with `Mode:`, `Selected:`, `Last changed:`, and a
-change-log row. Do not reask an answer already collected for the current task.
+On a genuine later return, read `Documents/WORKFLOW.md` and `Documents/REVIEW.md` and ask
+"Continue this project in <current mode>?" with `Continue <current mode>`, `Switch to <other mode>`,
+and `Review requirements`. Continue without rewriting frozen records. If switch or review is chosen
+after registration, stop and report the need for explicit re-registration before resume.
 
-## Return question
-
-On a genuine later return, read `Documents/WORKFLOW.md` and `Documents/REVIEW.md` and ask:
-
-```text
-header: "Workflow"
-question: "Continue this project in <current mode>?"
-options:
-- "Continue <current mode>"
-- "Switch to <other mode>"
-- "Review requirements"
-```
-
-Continue in the existing mode without rewriting the frozen records. If `Switch to <other mode>` or
-`Review requirements` is chosen after registration, stop and report the need for explicit
-re-registration before resume.
-
-## Mode switch
-
-1. Obtain explicit user direction.
-2. After registration, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, and the active goal are frozen.
-   Do not edit them inside a bounded change.
-3. Stop and report the need for explicit re-registration before any production work resumes.
-
-## Manual edits
-
-If the user requests manual scene edits, keep the goal paused. Do not use raw Python or shell edits
-to prepare the scene. After the user reports completion, inspect `status`; resolve stale state
-through reviewed recovery. Required review and approval remain mandatory before further production.
+If the user requests manual scene edits, keep the goal paused. Do not use raw Python or shell edits.
+After the user reports completion, inspect `status`; resolve stale state through reviewed recovery.
+Required review and approval remain mandatory before further production.
