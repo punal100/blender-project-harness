@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261104T212554Z | 20261104T212554Z | b4eb973417bc | All milestone | visual, technical, spec | PASS | [R01-20261104T212554Z/REVIEW.md](R01-20261104T212554Z/REVIEW.md) |
+| R02-20261104T213739Z | 20261104T213739Z | 6b65269f21c4 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R02-20261104T213739Z/REVIEW.md](R02-20261104T213739Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261104T212554Z: Build the enclosed room shell with floor, walls, ceiling, door, dusk window, curtains, and a working hero camera and evening lighting rig; evidence 2a5808b80bde1a602680812ed545107e83f189de10dc56129281119bff9f67e4
+
+- R02-20261104T213739Z: Build the desk workstation with monitor, tower, keyboard, mouse, mug, warm desk lamp, and office chair at believable scale; evidence fb124fecf06996afdcf5a6e6b0fb6c7f7ad8d59f0ddc63378cce7ebabc20f11c
