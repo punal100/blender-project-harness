@@ -33,7 +33,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| R01-20261105T044624Z | 20261105T044624Z | 27a5219d16c0 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261105T044624Z/REVIEW.md](R01-20261105T044624Z/REVIEW.md) |
 
 ## Rules
 
@@ -46,3 +46,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
   the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
   are blocked.
+
+- R01-20261105T044624Z: Build the enclosed room shell with dusk window, curtains, door, hero camera, and cool/warm lighting.; evidence 9d4e636d28ec798fed644dceacbeef25032c972710c36b807d50e95d55a923e1
