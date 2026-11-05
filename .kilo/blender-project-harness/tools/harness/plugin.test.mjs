@@ -260,6 +260,15 @@ test('grader delegation requires the exact ticket evidence key and scene hash', 
     before(h, f.session, 'task', { subagent_type: 'blender-grader', prompt: `HARNESS_GRADER:${token}\nhand-written prompt without evidence`, background: false }),
     /saved scene SHA-256/,
   );
+  await assert.rejects(
+    before(h, f.session, 'task', {
+      subagent_type: 'blender-grader',
+      task_id: 'ses_previous_grader',
+      prompt: `HARNESS_GRADER:${token}\nsaved scene SHA-256 ${'a'.repeat(64)}\nEvidence key: ${'b'.repeat(64)}`,
+      background: false,
+    }),
+    /fresh task.*omit task_id/i,
+  );
 });
 
 test('manual creation of new project documents is blocked', async (t) => {

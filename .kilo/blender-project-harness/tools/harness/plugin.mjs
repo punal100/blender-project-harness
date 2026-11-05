@@ -604,6 +604,7 @@ export function createHooks(harness, client, directory = harness.root) {
         if (!/saved scene SHA-256 [a-f0-9]{64}/.test(args.prompt ?? '') || !/Evidence key: [a-f0-9]{64}/.test(args.prompt ?? '')) {
           deny('grader task must use the exact grader-ticket prompt including the saved scene SHA-256 and evidence key');
         }
+        if (args.task_id || args.taskId) deny('grader tickets require a fresh task; omit task_id. Resumed sessions keep an old grader token and cannot satisfy the current assignment.');
         const token = args.prompt.match(/HARNESS_GRADER:([a-f0-9-]{36})/)[1];
         if (!p.change?.inspected || !Object.values(p.change.graders).some((g) => g.token === token)) deny('grader ticket missing');
         const graderName = Object.entries(p.change.graders).find(([, g]) => g.token === token)?.[0];
