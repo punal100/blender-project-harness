@@ -35,6 +35,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 |---|---|---|---|---|---|---|
 | R01-20261105T044624Z | 20261105T044624Z | 27a5219d16c0 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261105T044624Z/REVIEW.md](R01-20261105T044624Z/REVIEW.md) |
 | R02-20261105T045756Z | 20261105T045756Z | feebaf1c7e41 | All milestone | visual, technical, spec | PASS | [R02-20261105T045756Z/REVIEW.md](R02-20261105T045756Z/REVIEW.md) |
+| R03-20261105T051224Z | 20261105T051224Z | da17d024a168 | All milestone | visual, technical, spec | PASS | [R03-20261105T051224Z/REVIEW.md](R03-20261105T051224Z/REVIEW.md) |
 
 ## Rules
 
@@ -51,3 +52,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R01-20261105T044624Z: Build the enclosed room shell with dusk window, curtains, door, hero camera, and cool/warm lighting.; evidence 9d4e636d28ec798fed644dceacbeef25032c972710c36b807d50e95d55a923e1
 
 - R02-20261105T045756Z: Revise shell lighting and framing: soft warm area light, cool dusk spill, wider hero lens, and door casing with handle.; evidence 1a92bc57e28ccafa344b40aabf95518889c7c79cc04668a2ea1b10a9b36cdc97
+
+- R03-20261105T051224Z: Build the wooden desk, desktop computer with monitor, tower, keyboard and mouse, office chair, and warm desk lamp.; evidence 332770b4dce244c4dd87694fcc7d124d6cc65aded71cc30ae11f0aa1908f2bf3
