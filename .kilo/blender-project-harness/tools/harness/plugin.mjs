@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelRole, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, normalizeGoal, stable } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -12,7 +12,7 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'escalate', 'reregister', 'pause', 'reclaim', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
@@ -70,13 +70,15 @@ const capabilities = () => ({
     { name: 'approval', actor: 'orchestrator', phase: 'reviewed change (Partially Autonomous)', payload: '{}' },
     { name: 'checkpoint', actor: 'orchestrator', phase: 'committed change', payload: '{}' },
     { name: 'recover', actor: 'orchestrator', phase: 'recovery', payload: '{reopen?:true}' },
+    { name: 'abandon', actor: 'orchestrator', phase: 'empty failed/expired change', payload: '{reason}' },
     { name: 'escalate', actor: 'orchestrator', phase: 'capped review', payload: '{reason,max_rounds?:1-4}' },
     { name: 'pause', actor: 'orchestrator', phase: 'active goal', payload: '{}' },
     { name: 'reclaim', actor: 'orchestrator', phase: 'recovery', payload: '{project,reason}' },
+    { name: 'forget', actor: 'orchestrator', phase: 'stale registration', payload: '{project,reason}' },
     { name: 'preserve', actor: 'orchestrator', phase: 'sealed tooling-blocked change', payload: '{reason}' },
   ],
   limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
-  commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A non-scene change containing only documentation, source-only scripts, references, or assets commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; a sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
+  commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A non-scene change containing only documentation, source-only scripts, references, or assets commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; an expired change with no applies also closes with abandon {reason} or an empty WIP commit. A sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
   mediaPolicy: 'Media generation is blocked until the project is registered, the initial scene is saved and checkpointed, a post-registration bounded change is open, and media-request has recorded the purpose, tool, model, prompt, seed, and credit estimate. Image, texture, and HDRI requests use the configured Media MCP image tools; video, audio, and model generation are not enabled yet. One generation call is allowed per request. Generated files stay under .temp. Call media-complete with the returned path, then intake with the media id and generated metadata. Scene work is blocked while the request is requested, generating, or generated. Retry at most twice with media-fail; a recorded failure can close with commit. Generated media is reference or asset input, never an automatic texture or licensed third-party asset.',
   shellPolicy: 'Read-only and trusted harness commands run directly. Any other non-project shell command requires a warning acknowledgement: repeat the exact command with description "Reason: ... [HARNESS_SHELL:<id>]". The command and reason are committed atomically under <project>/Documents/Commands/ or root Commands/; command output is never captured or committed. Blender launches, project mutations, and command substitution stay blocked.',
   documentPolicy: 'Use blender_document action read for structured title/field/section access and action write for declared writes. Registration documents (REQUIREMENTS, WORKFLOW, REVIEW, and the active goal) are frozen after prepare; close the change and call reregister {reason}, bootstrap-document, bootstrap-commit, then prepare to replace them. Direct read/edit is permitted but discouraged; review reports are written only through the document tool.',
@@ -245,15 +247,17 @@ export function createHooks(harness, client) {
     const prompt = first?.parts?.filter((p) => p.type === 'text' && !p.synthetic && !p.ignored).map((p) => p.text).join('\n');
     const assistant = messages.data.findLast((m) => m.info?.role === 'assistant' && !m.info.summary)?.info;
     if (user?.agent === 'blender-worker') {
-      if (!assistant) deny('worker runtime model metadata unavailable');
       const cfg = harness.workerConfig();
-      if (!modelRole(cfg, assistant)) deny('worker runtime model does not match configured worker or backup');
-      return { worker: true, info };
+      const observed = assistant ? { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant } : null;
+      const role = observed ? modelRole(cfg, observed) : null;
+      return { worker: true, info, role, observed, expected: cfg };
     }
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
     const existing = harness.transaction((s) => harness.graderAssignment(s, session));
-    if (!assistant) deny('grader runtime model metadata unavailable');
-    if (!existing) harness.bindGrader(info.parentID, session, prompt, { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant });
+    if (!existing) {
+      if (!assistant) deny('grader runtime model metadata unavailable; cannot bind grader');
+      harness.bindGrader(info.parentID, session, prompt, { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant });
+    }
     return info;
   }
   function stateFor(session) {
@@ -285,7 +289,7 @@ export function createHooks(harness, client) {
   return {
     tool: {
       blender_workflow: {
-        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, escalate, preserve. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
+        description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, abandon, escalate, preserve, reclaim, forget. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
         async execute(args, context) {
           const session = await identity(context.sessionID);
@@ -337,6 +341,10 @@ export function createHooks(harness, client) {
         if (session.parentID) {
           const child = await childAssignment(input.sessionID);
           if (!child?.worker || args.operation !== 'apply') deny('worker may execute assigned apply operations only');
+          if (!child.role) {
+            const detail = modelDiagnostics(child.expected, child.observed);
+            deny(`worker runtime model does not match configured worker or backup; observed ${detail.observed}; expected ${detail.expected}. Stop this worker and dispatch a fresh one with the configured primary or backup.`);
+          }
           harness.authorize(session.parentID, args.token, args.operation, args.payload);
           harness.bindWorkerByToken(session.parentID, input.sessionID, args.token);
           return;
