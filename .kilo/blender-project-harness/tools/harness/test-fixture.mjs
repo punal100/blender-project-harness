@@ -82,6 +82,8 @@ export function fixture(t, { partial = false, review = 'Off' } = {}) {
   const harness = new Harness(root, { stateRoot: path.join(temp, 'state') });
   const session = 'ses_orchestrator';
   const questionArgs = (question, labels) => ({ questions: [{ question, custom: false, multiple: false, options: labels.map((label) => ({ label, description: label })) }] });
+  const reference = harness.command(session, 'reference');
+  harness.question(session, questionArgs(reference.question, reference.labels), [['None']]);
   const registration = harness.prepare(session, { project, scene: 'scene.blend', goal });
   harness.question(session, questionArgs(registration.question, registration.labels), [['Confirm registration']]);
   const begin = () => {

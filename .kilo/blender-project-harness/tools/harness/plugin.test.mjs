@@ -534,12 +534,23 @@ test('config registers goal-blender and never goal', async (t) => {
   assert.equal(config.command.goal, undefined);
 });
 
+test('reference action opens the runtime reference gate', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  f.harness.transaction((s) => { delete s.references?.[f.session]; });
+  const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'reference', payload: {} }, { sessionID: f.session }));
+  assert.match(result.question, /HARNESS REFERENCE/);
+  assert.deepEqual(result.labels, ['Use my references', 'Generate one', 'Use web references', 'None']);
+});
+
 test('goal_blender starts, pauses, and resumes without kilo.goal', async (t) => {
   const f = fixture(t), h = hooks(f);
   const started = JSON.parse(await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session }));
   assert.equal(started.goalActive, true);
   assert.equal(started.goalSource, 'goal-blender');
   assert.equal(started.goalMeta.autoTurns, 0);
+  f.harness.transaction((s) => { s.projects[f.project].goalMeta.autoTurns = 7; });
+  const restarted = JSON.parse(await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session }));
+  assert.equal(restarted.goalMeta.autoTurns, 7);
   await assert.doesNotReject(before(h, f.session, 'question', { questions: [] }));
   const paused = JSON.parse(await h.tool.goal_blender.execute({ action: 'pause' }, { sessionID: f.session }));
   assert.equal(paused.goalActive, false);

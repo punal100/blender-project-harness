@@ -186,6 +186,8 @@ function fixture({
   git(root, ['config', 'user.email', 'harness-tests@example.invalid']);
   if (commitInitial) commit(root, 'scaffold fixture');
   const harness = new Harness(root, { stateRoot });
+  const reference = harness.command('orchestrator', 'reference');
+  harness.question('orchestrator', registrationQuestion(reference), [['None']]);
   return {
     root,
     stateRoot,
@@ -262,10 +264,24 @@ test('prepare is idempotent and replaces its own expired challenge', (t) => {
   assert.notEqual(f.harness.prepare('orchestrator', args).question, first.question);
 });
 
+test('prepare requires a runtime reference answer', (t) => {
+  const f = useFixture(t);
+  const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
+  f.harness.transaction((s) => { delete s.references.orchestrator; });
+  gate(() => f.harness.prepare('orchestrator', args), /reference question/);
+  const reference = f.harness.command('orchestrator', 'reference');
+  f.harness.question('orchestrator', registrationQuestion(reference), [['None']]);
+  assert.ok(f.harness.prepare('orchestrator', args).question);
+});
+
 test('pending registration does not lock out another session forever', (t) => {
   const f = useFixture(t);
   const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
+  const firstReference = f.harness.command('first', 'reference');
+  f.harness.question('first', registrationQuestion(firstReference), [['None']]);
   f.harness.prepare('first', args);
+  const secondReference = f.harness.command('second', 'reference');
+  f.harness.question('second', registrationQuestion(secondReference), [['None']]);
   gate(() => f.harness.prepare('second', args), /pending in another session/);
   f.harness.transaction((s) => { s.challenge.created -= 600001; });
   const prepared = f.harness.prepare('second', args);
@@ -344,6 +360,8 @@ test('bootstrap save closes with checkpoint and cannot be sealed or graded', (t)
 });
 
 function register(f, session = 'orchestrator') {
+  const reference = f.harness.command(session, 'reference');
+  if (!reference.answered) f.harness.question(session, registrationQuestion(reference), [['None']]);
   const prepared = f.harness.prepare(session, {
     project: f.project,
     goal: f.goal.slice(f.project.length + 1),
@@ -802,6 +820,8 @@ test('reclaim refuses a stale registration and forget discards it', (t) => {
   const forgotten = f.harness.command('other', 'forget', { project: f.project, reason: 'state belongs to another branch' });
   assert.equal(forgotten.forgotten, f.project);
   assert.equal(f.harness.transaction((state) => state.projects[f.project]), undefined);
+  const otherReference = f.harness.command('other', 'reference');
+  f.harness.question('other', registrationQuestion(otherReference), [['None']]);
   const prepared = f.harness.prepare('other', { project: f.project, scene: f.sceneName, goal: f.goal.slice(f.project.length + 1) });
   assert.ok(prepared.question);
 });
@@ -1810,6 +1830,36 @@ test('goal conflict preserves and checkpoints an open change before reregister',
   assert.equal(checkpointed.nextStep.action, 'reregister');
 });
 
+test('goal conflict revokes issued tickets', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'save', {});
+  f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'abandoned');
+  gate(() => f.harness.authorize('orchestrator', issued.token, 'save', {}), /missing, stale/);
+});
+
+test('goal conflict preserves an already-committed applied change', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['README.md'] });
+  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'Applied and committed.\n');
+  commit(f.root, 'apply: fixture change');
+  f.harness.transaction((s) => {
+    const c = s.projects[f.project].change;
+    c.operations = 1;
+    c.commits = ['fixture-apply'];
+  });
+  const conflict = f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(conflict.nextStep.action, 'preserve');
+  const preserved = f.harness.command('orchestrator', 'preserve', { reason: 'Preserve applied work.' });
+  assert.equal(preserved.nextStep.action, 'checkpoint');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+  assert.equal(checkpointed.nextStep.action, 'reregister');
+});
+
 test('paused project can reregister with updated records', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -2102,6 +2152,7 @@ test('reclaim requires a stale window and transfers ownership explicitly', (t) =
   f.harness.transaction((s) => { s.projects[f.project].change.deadline = Date.now() - 1; });
   const reclaimed = f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'old session stopped responding' });
   assert.equal(reclaimed.goalActive, true);
+  assert.equal(reclaimed.goalMeta.autoTurns, 0);
   assert.equal(f.harness.command('new-session', 'status').project, f.project);
 });
 

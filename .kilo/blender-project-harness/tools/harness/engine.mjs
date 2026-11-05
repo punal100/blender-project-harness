@@ -1142,6 +1142,23 @@ export class Harness {
       return { project: args.project, commit: this.head(), files: files.length, next: 'Call prepare and answer its exact registration question.' };
     });
   }
+  referenceState(s, session) {
+    s.references ??= {};
+    let reference = s.references[session];
+    if (!reference || Date.now() - reference.created > 600000) {
+      reference = {
+        question: `Reference images or links for this project? HARNESS REFERENCE ${crypto.randomUUID()}`,
+        labels: ['Use my references', 'Generate one', 'Use web references', 'None'],
+        created: Date.now(),
+        answer: null,
+      };
+      s.references[session] = reference;
+    }
+    return { question: reference.question, labels: reference.labels, answered: Boolean(reference.answer), answer: reference.answer ?? null };
+  }
+  reference(session) {
+    return this.transaction((s) => this.referenceState(s, session));
+  }
   prepare(session, args) {
     return this.transaction((s) => {
       if (Object.keys(args).some((k) => !['project', 'goal', 'scene'].includes(k))) deny('prepare accepts project, goal and scene only');
@@ -1151,6 +1168,8 @@ export class Harness {
       if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be a bare project-root .blend filename such as "cozy-room.blend"; begin paths are project-relative such as "Blender/CozyRoom/Documents/DECISIONS.md"');
       contained(this.projectPath(args.project), args.scene, true);
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
+      const reference = s.references?.[session];
+      if (!reference?.answer) deny('reference question must be asked and answered before registration; call blender_workflow reference first');
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
       if (s.challenge) {
         const c = s.challenge;
@@ -1173,6 +1192,14 @@ export class Harness {
     return this.transaction((s) => {
       const q = args.questions?.length === 1 ? args.questions[0] : null;
       if (!q || q.multiple === true || q.custom === true || !Array.isArray(answers) || answers.length !== 1 || !Array.isArray(answers[0]) || answers[0].length !== 1 || !q.options?.some((o) => o.label === answers[0][0])) return;
+      const reference = s.references?.[session];
+      if (reference && q.question === reference.question) {
+        if (stable(q.options.map((o) => o.label)) !== stable(reference.labels)) deny('reference options changed');
+        if (Date.now() - reference.created > 600000) deny('reference question expired');
+        reference.answer = answers[0][0];
+        reference.answeredAt = new Date().toISOString();
+        return;
+      }
       if (s.challenge?.session === session && q.question === s.challenge.question) {
         const c = s.challenge;
         if (stable(q.options.map((o) => o.label)) !== stable(['Confirm registration', 'Cancel'])) deny('registration options changed');
@@ -1207,9 +1234,10 @@ export class Harness {
     const reason = `${p.goalConflict.reason} Stop production; clear any built-in /goal, close the open change, then call reregister.`;
     if (p.change) {
       const c = p.change;
-      if (c.wip || (c.commits?.length && (c.documentOnly || c.verdict))) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint'), reason };
-      if (!c.operations && c.nonSceneOnly) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: 'chore: preserve change after goal conflict' }), reason };
-      if (!c.operations) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
+      if (c.pending) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reason: 'Resolve the pending worker ticket before conflict recovery' }), reason };
+      if (c.wip) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint'), reason };
+      const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
+      if (!c.operations && !c.commits?.length && !dirty) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
       return { phase: 'goal-conflict', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: 'Preserve the open change after built-in goal conflict' }), reason };
     }
     return { phase: 'goal-conflict', actor: 'orchestrator', action: 'reregister', command: this.wire('reregister', { reason: 'Built-in goal invalidated the registration; clear /goal and re-register.' }), reason };
@@ -1487,7 +1515,7 @@ export class Harness {
     return Boolean(gitText(this.root, ['status', '--porcelain', '--', ...paths]).trim());
   }
   reviewPaths(p, c) {
-    return [c.renderPath, ...Object.keys(c.reports), `${p.project}/Documents/Reviews/${c.round}/manifest.json`, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`];
+    return [c.renderPath, ...Object.keys(c.reports ?? {}), c.round ? `${p.project}/Documents/Reviews/${c.round}/manifest.json` : null, `${p.project}/Documents/Reviews/README.md`, `${p.project}/Documents/REVIEW.md`].filter(Boolean);
   }
   updateReviewIndex(p, c) {
     const relative = `${p.project}/Documents/Reviews/README.md`;
@@ -1671,6 +1699,10 @@ export class Harness {
             : 'Complete and commit scaffold docs, then call prepare and answer its registration question';
         return { project: null, scene: null, checkpoint: this.head(), goalActive: false, complete: false, change: null, blender: instanceStatus(this.home), next: pending, nextStep: { phase: 'unregistered', actor: 'orchestrator', action: 'status', command: 'blender_workflow {action:"status",payload:"{\\"project\\":\\"Blender/<Name>\\"}"}', reason: pending } };
       }
+      if (action === 'reference') {
+        if (Object.keys(args).length) deny('reference accepts no payload');
+        return this.referenceState(s, session);
+      }
       if (action === 'reclaim') {
         if (typeof args.project !== 'string' || !args.project.trim() || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('reclaim requires project and one bounded reason');
         const target = s.projects[args.project];
@@ -1684,6 +1716,7 @@ export class Harness {
         target.orchestrator = session;
         target.goalActive = true;
         target.goalSource = 'goal-blender';
+        target.goalMeta ??= { startedAt: new Date().toISOString(), autoTurns: 0, lastTurnAt: null };
         target.paused = null;
         target.reclaimed = { from, at: new Date().toISOString(), reason: args.reason.trim() };
         return this.status(target, s);
@@ -1740,8 +1773,9 @@ export class Harness {
         if (p.complete || p.goalConflict) deny('goal cannot start while the project is complete or registration-conflicted');
         if (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText)) deny('goal must match registered prompt');
         if (args.source !== undefined && args.source !== 'goal-blender') deny('goal source must be goal-blender');
-        const mode = args.mode ?? 'start';
+        let mode = args.mode ?? 'start';
         if (!['start', 'resume'].includes(mode)) deny('goal mode must be start or resume');
+        if (p.goalActive && mode === 'start') mode = 'resume';
         const now = new Date().toISOString();
         if (mode === 'start' || !p.goalMeta) p.goalMeta = { startedAt: now, autoTurns: 0, lastTurnAt: null };
         else p.goalMeta = { ...p.goalMeta, lastTurnAt: now };
@@ -1793,6 +1827,11 @@ export class Harness {
         p.goalSource = null;
         p.goalConflict = { at: new Date().toISOString(), reason: args.reason.trim(), kind: 'built-in-goal' };
         p.paused = { at: new Date().toISOString(), reason: 'registration invalidated by built-in goal' };
+        for (const [key, ticket] of Object.entries(s.tickets ?? {})) {
+          if (ticket.project !== p.project || ticket.change !== c?.id || !['issued', 'authorized'].includes(ticket.state)) continue;
+          ticket.state = 'abandoned';
+          if (c?.pending === key) delete c.pending;
+        }
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
         if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
@@ -2117,13 +2156,16 @@ export class Harness {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('preserve requires one bounded reason');
         const toolingBlocked = c?.sealed && c.verdict === 'BLOCKED' && c.blockingKind === 'tooling';
         if (!c || (!toolingBlocked && !p.goalConflict)) deny('preserve requires a sealed tooling-blocked change or a goal conflict');
+        if (c.pending) deny('resolve the pending worker ticket before preserving the change');
         if (c.preserved) deny('change is already preserved');
+        const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
+        if (!dirty && !c.commits?.length) deny('nothing to preserve; abandon the empty change');
         c.preserved = { reason: args.reason.trim(), at: new Date().toISOString() };
         c.wip = true;
         c.verdict = 'WIP';
         c.blockingKind = null;
-        this.updateManifest(p);
-        this.autoCommit(p, c, toolingBlocked ? `chore: preserve tooling-blocked ${c.round ?? 'review'}` : 'chore: preserve change after goal conflict', { review: toolingBlocked });
+        if (c.sealed && dirty) this.updateManifest(p);
+        if (dirty) this.autoCommit(p, c, toolingBlocked ? `chore: preserve tooling-blocked ${c.round ?? 'review'}` : 'chore: preserve change after goal conflict', { review: Boolean(c.sealed) });
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
@@ -2140,7 +2182,7 @@ export class Harness {
         if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || this.reviewPending(p, c) || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review commit and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`, '--', p.project]).split(/\r?\n/).filter(Boolean);
-        const reviewed = bootstrap || documentOnly || p.goalConflict || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
+        const reviewed = bootstrap || documentOnly || (p.goalConflict && !c.sealed) || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, this.taskDocument(p), ...reviewed, ...this.taskFiles(p, c)]);
         const taskPrefix = `${p.project}/Documents/Tasks/`;
         const commandPrefix = `${p.project}/Documents/Commands/`;
@@ -2209,6 +2251,8 @@ export class Harness {
     return this.transaction((s) => {
       const t = s.tickets[token];
       if (!t || t.session !== session || t.state !== 'issued' || t.operation !== operation || stable(t.payload) !== stable(payload) || Date.now() - t.created > TICKET_TTL_MS) deny('missing, stale, forged or replayed operation ticket');
+      const p = s.projects[t.project];
+      if (!p || !p.goalActive || p.goalConflict) deny('mission is not active or has a goal conflict; ticket authorization is blocked');
       t.state = 'authorized';
     });
   }
@@ -2216,7 +2260,9 @@ export class Harness {
     return this.transaction((s) => {
       const t = s.tickets[token];
       if (!t || t.state !== 'authorized' || t.operation !== operation || stable(t.payload) !== stable(payload) || Date.now() - t.created > TICKET_TTL_MS) deny('Kilo hook authorization missing or stale');
-      const p = s.projects[t.project]; this.fresh(p);
+      const p = s.projects[t.project];
+      if (!p?.goalActive || p.goalConflict) deny('mission is not active or has a goal conflict; ticket consumption is blocked');
+      this.fresh(p);
       if (p.change?.id !== t.change || p.change.pending !== token) deny('ticket change mismatch');
       if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= CHECKPOINT_EVERY)) deny('apply budget exhausted; seal, review, commit and checkpoint before more edits');
       t.state = 'running'; t.started = Date.now(); t.pid = process.pid;
@@ -2229,6 +2275,7 @@ export class Harness {
       const t = s.tickets[token];
       if (!t || t.state !== 'running') deny('operation receipt has no running ticket');
       const p = s.projects[t.project], c = p.change;
+      const conflict = Boolean(p.goalConflict);
       t.state = result.ok ? 'done' : 'failed'; delete c.pending;
        if (!result.ok) {
          c.failure = result.completed ? `Failed after ${result.completed} completed operation(s): ${result.error}` : result.error;
@@ -2282,15 +2329,15 @@ export class Harness {
         p.assetCheck = { sceneHash: c.sceneHash, change: c.id, at: new Date().toISOString(), receipt: c.assetCheckReceipt ?? null };
       }
       this.recordTaskFinished(p, token, result);
-      if (t.operation === 'apply') {
+      if (!conflict && t.operation === 'apply') {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitProgress(p, c, task);
       }
-      if (t.operation === 'wip') {
+      if (!conflict && t.operation === 'wip') {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitTaskArtifacts(p, c, 'task: ' + task.id + ' ' + task.state);
       }
-      if (t.operation === 'seal') {
+      if (!conflict && t.operation === 'seal') {
         const task = p.tasks?.find((item) => item.token === token);
         if (task) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`, { manifest: false });
         if (c.manifestPath) this.updateManifest(p);

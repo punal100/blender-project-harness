@@ -12,7 +12,7 @@ const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list'
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
-const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
+const PUBLIC_ACTIONS = new Set(['status', 'reference', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
@@ -48,6 +48,7 @@ const capabilities = () => ({
   documentFormats: describeDocumentFormats(),
   actions: [
     { name: 'status', actor: 'orchestrator', phase: 'any', payload: '{project?:string}' },
+    { name: 'reference', actor: 'orchestrator', phase: 'before registration', payload: '{}' },
     { name: 'bootstrap-document', actor: 'orchestrator', phase: 'before registration', payload: '{project,path,content}' },
     { name: 'bootstrap-commit', actor: 'orchestrator', phase: 'before registration', payload: '{project,message}' },
     { name: 'intake', actor: 'orchestrator', phase: 'scan or open change', payload: '{project,files?,folders?,kind?,source?,generated?,scan?,media?}' },
@@ -311,12 +312,14 @@ export function createHooks(harness, client, directory = harness.root) {
     }
     continuations.add(sessionID);
     try {
-      harness.transaction((s) => {
-        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
-        if (!current?.goalMeta) return;
-        current.goalMeta = { ...current.goalMeta, autoTurns: (current.goalMeta.autoTurns ?? 0) + 1, lastTurnAt: new Date().toISOString() };
-      });
       if (typeof client.session.promptAsync !== 'function') return;
+      const counted = harness.transaction((s) => {
+        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
+        if (!current?.goalMeta) return false;
+        current.goalMeta = { ...current.goalMeta, autoTurns: (current.goalMeta.autoTurns ?? 0) + 1, lastTurnAt: new Date().toISOString() };
+        return true;
+      });
+      if (!counted) return;
       await client.session.promptAsync({
         path: { id: sessionID },
         query: { directory },
@@ -463,11 +466,13 @@ export function createHooks(harness, client, directory = harness.root) {
             const detail = modelDiagnostics(child.expected, child.observed);
             deny(`worker runtime model does not match configured worker or backup; observed ${detail.observed}; expected ${detail.expected}. Stop this worker and dispatch a fresh one with the configured primary or backup.`);
           }
+          reconcileGoal(harness, session.parentID, await identity(session.parentID));
           harness.authorize(session.parentID, args.token, args.operation, args.payload);
           harness.bindWorkerByToken(session.parentID, input.sessionID, args.token);
           return;
         }
         if (args.operation === 'apply') deny('orchestrator delegates apply operations to blender-worker; save and seal stay orchestrator-owned');
+        reconcileGoal(harness, input.sessionID, session);
         harness.authorize(input.sessionID, args.token, args.operation, args.payload);
         return;
       }
