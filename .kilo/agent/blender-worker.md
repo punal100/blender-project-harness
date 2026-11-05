@@ -26,6 +26,7 @@ permission:
   agent_manager: deny
   goal: deny
   goal_report: deny
+  goal_blender: deny
   question: deny
   bash: deny
   edit:

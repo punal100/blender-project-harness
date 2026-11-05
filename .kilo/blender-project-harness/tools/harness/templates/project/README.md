@@ -125,6 +125,6 @@ Identify the active goal's actual path; use it for grading rather than assuming 
 ## Next steps
 
 - [ ] Persist the exact confirmed requirements and workflow/review answers collected before scaffold.
-- [ ] Fill this README and the active goal, then start the goal before launch.
+- [ ] Fill this README and the active goal, then start `/goal-blender` before launch.
 - [ ] Collect references and external assets.
 - [ ] Build the scene, save and inspect a review render, and complete applicable grading and approvals.

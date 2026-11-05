@@ -185,7 +185,7 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIs(type(metadata["steps"]), int)
         self.assertGreater(metadata["steps"], 0)
         permissions = metadata["permission"]
-        for tool in ("task", "agent_manager", "goal", "goal_report", "question", "bash",
+        for tool in ("task", "agent_manager", "goal", "goal_report", "goal_blender", "question", "bash",
                      "external_directory", "blender_generate_3d", "mediamcp_*", "generate_image"):
             self.assertEqual(permissions[tool], "deny", tool)
         self.assertEqual(list(permissions["edit"].items()), [("*", "deny")])
@@ -237,7 +237,7 @@ class WorkspaceContractTests(unittest.TestCase):
         self.assertIs(type(agent["steps"]), int)
         self.assertGreater(agent["steps"], 0)
         permissions = agent["permission"]
-        for tool in ("task", "agent_manager", "goal", "goal_report", "question", "bash",
+        for tool in ("task", "agent_manager", "goal", "goal_report", "goal_blender", "question", "bash",
                      "external_directory", "blender_execute_blender_code", "blender_import_asset",
                      "blender_generate_3d", "mediamcp_*", "generate_image"):
             self.assertEqual(permissions[tool], "deny", tool)
@@ -355,27 +355,26 @@ class WorkspaceContractTests(unittest.TestCase):
         brief = (ROOT / TEMPLATE / "Documents/Goals/01-project-brief.md").read_text(encoding="utf-8")
         for text in (workflow, brief):
             self.assertIn("blender-project-goal", text)
-        self.assertIn('goal_report(status="blocked"', goal)
-        self.assertIn('goal(action="resume")', goal)
-        self.assertIn('goal(action="start", objective=', goal)
-        self.assertIn("`question` is unavailable", workflow)
+        self.assertIn('goal_blender {action:"resume"}', goal)
+        self.assertIn('goal_blender {action:"start"}', goal)
+        self.assertIn("`question` remains available", workflow)
         self.assertIn("ordinary chat", goal)
-        self.assertIn("entire filled prompt", goal)
-        self.assertIn("this entire filled prompt", brief)
+        self.assertIn("filled goal", goal)
+        self.assertIn("this filled goal", brief)
 
     def test_agent_instructions_keep_goal_controls_with_orchestrator(self):
         paths = [ROOT / "AGENTS.md", *sorted((ROOT / ".kilo/skills").rglob("*.md"))]
         for path in paths:
             with self.subTest(path=str(path.relative_to(ROOT))):
                 text = path.read_text(encoding="utf-8")
-                self.assertFalse(re.search(r"(?<![\w])/goal(?:[\s`]|$)", text),
-                                 "Goal slash commands must not be assigned to the user")
-                self.assertFalse(re.search(r'goal\(action=["\'](?:pause|clear|update)["\']', text),
-                                 "Only supported goal actions may be documented")
+                self.assertFalse(re.search(r"(?<![\w])/goal\s+(?:start|resume|pause|complete|update)\b", text),
+                                 "Built-in goal actions must not be assigned to the user")
+                self.assertFalse(re.search(r"goal\(action=", text),
+                                 "Legacy built-in goal calls must not be documented")
         goal = (ROOT / ".kilo/skills/blender-project-goal/SKILL.md").read_text(encoding="utf-8")
-        for expected in ("orchestrator owns", "already paused", "no successful action",
-                         "next ordinary user turn", "not approval", "registration",
-                         "A final response alone does not prove", "runtime receipt"):
+        for expected in ("goal_blender", "goalSource", "goalConflict", "question` remains available",
+                         "registration", "A final response alone is not approval", "runtime receipt",
+                         "Never call the built-in"):
             self.assertIn(expected, goal)
 
     def test_reference_guides_are_attributed(self):

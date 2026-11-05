@@ -21,11 +21,12 @@ deliverable.
 ## Rules
 
 - Confirm requirements, collect workflow and review answers, scaffold, then persist all three exact
-  records. Fill and start the goal before launching Blender. Do not reask collected mode answers.
+  records. Fill and start `/goal-blender` before launching Blender. Do not reask collected mode
+  answers.
 - Confirmation means `Status: Confirmed`, a `Confirmed: YYYY-MM-DD` date, and the exact
   `Confirmation:` response and scope in `REQUIREMENTS.md`.
-- Before Blender work, ensure a goal is active, a workflow mode is selected, and the review mode is
-  not `Unset`.
+- Before Blender work, ensure the `/goal-blender` mission is active, a workflow mode is selected, and
+  the review mode is not `Unset`.
 - After registration, requirements, workflow mode, review mode, and the active goal are frozen. Stop
   and report a requested change for explicit re-registration; do not edit the frozen records.
 - Record sources used during requirements in `REQUIREMENTS.md`; user confirmation, not research,
@@ -34,7 +35,7 @@ deliverable.
   revision direction after every reviewable change before its commit. Grader findings never bypass
   this gate.
 - In either autonomy mode, the orchestrator follows `blender-project-goal` for required-input handoffs,
-  questions, objective updates, and resume. Users provide inputs, never goal commands. Pause,
+  questions, approvals, and resume. Users provide inputs, never mission commands. Pause,
   cancellation, unanswered questions, and manual editing keep work stopped until continuation is
   authorized.
 - Do not reask or rewrite workflow and review modes after registration; a mode change stops for

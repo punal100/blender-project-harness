@@ -5,4 +5,4 @@ impact, not a diary.
 
 | Date | Decision | Reason | Impact |
 |---|---|---|---|
-| {{DATE}} | Project scaffold created. | New design project. | Persist exact requirements, workflow, and review records; fill README and start the filled goal before launch. |
+| {{DATE}} | Project scaffold created. | New design project. | Persist exact requirements, workflow, and review records; fill README and start `/goal-blender` before launch. |

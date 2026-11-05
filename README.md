@@ -52,7 +52,7 @@ The user stays in plain language. The harness handles the production contract.
 
 | Area | What you get |
 |---|---|
-| Guarded lifecycle | Registration, goals, bounded changes, tickets, WIP renders, seals, reviews, and checkpoints |
+| Guarded lifecycle | Registration, `/goal-blender` missions, bounded changes, tickets, WIP renders, seals, reviews, and checkpoints |
 | Single writer | One Blender instance and one apply writer at a time; parallel read-only inspection is allowed |
 | Exact scope | Object names, project-relative paths, declared scenes, requirements, and milestones |
 | Evidence contract | Saved scene hash, per-scene renders, camera evidence, scene facts, manifest, and evidence key |
@@ -64,7 +64,7 @@ The user stays in plain language. The harness handles the production contract.
 | Media bookkeeping | Media requests, credit records, staging, intake, retry limits, and committed failure records |
 | Multi-scene support | Declared scenes, duplicate/link semantics, per-scene evidence, and a master Video Sequencer scene |
 | Export receipts | Format, path, bytes, SHA-256, source scene, and signature verification |
-| Kilo integration | MCP routing, plugin permissions, goal state, skills, and subagent delegation |
+| Kilo integration | MCP routing, plugin permissions, mission state, skills, and subagent delegation |
 | Installer | Versioned install, config preservation, dependency install, and automatic backups |
 | Documentation | Setup guide, expected-flow reference, project templates, and contract tests |
 
@@ -176,12 +176,20 @@ The agent then:
 1. Confirms requirements and asks for the workflow mode: **Fully Autonomous** or **Partially
    Autonomous**.
 2. Asks for the review mode: **Off**, **Single**, or **All**.
-3. Scaffolds the project, fills its records, registers it, and starts the goal.
+3. Scaffolds the project, fills its records, registers it, and starts `/goal-blender`.
 4. Launches Blender through the harness and saves the bootstrap scene.
 5. Builds the project in bounded changes using worker apply tickets.
 6. Renders and inspects WIP evidence, then seals a review round.
 7. Dispatches the configured graders and aggregates their reports.
 8. Commits the scoped change, checkpoints the project, and reports the result.
+
+### `/goal-blender`
+
+`/goal-blender` is the harness-owned mission command. It supports `start`, `status`, `pause`, `resume`,
+`complete <evidence>`, and `clear`; `goal_blender` is the model-facing tool. It does not create
+`kilo.goal`, and `question` stays available for clarifications and approvals. Never use the built-in
+`/goal`: it invalidates the Blender registration, which then requires `/goal clear`, closing any open
+change, and re-registration.
 
 ---
 
@@ -191,7 +199,7 @@ The agent then:
 status and capabilities
   -> requirements confirmation
   -> workflow and review mode selection
-  -> scaffold, documents, registration, and goal
+  -> scaffold, documents, registration, and /goal-blender mission
   -> bounded scene change
   -> apply ticket and worker execution
   -> save and WIP render

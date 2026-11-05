@@ -17,7 +17,7 @@ user prompt
   -> requirements confirmation
   -> workflow and review selection
   -> project scaffold and registration
-  -> active goal
+  -> active /goal-blender mission
   -> bounded scene changes
   -> worker apply tickets
   -> WIP renders and inspections
@@ -45,7 +45,7 @@ The harness exists to make these guarantees:
 |---|---|
 | Workflow engine | State machine, registrations, changes, tickets, review, commits, checkpoints. |
 | MCP proxy | Exposes a narrow tool surface and guards the live Blender connection. |
-| Kilo plugin | Enforces tool permissions, goal state, session identity, and delegation rules. |
+| Kilo plugin | Enforces tool permissions, mission state, session identity, and delegation rules. |
 | Scaffold | Creates the project structure from templates. |
 | Document tools | Validates and reads/writes structured project documents. |
 | Operation schema | Defines bounded Blender operations and generated Blender Python. |
@@ -74,14 +74,16 @@ during requirements and registration.
 
 ### Registration
 
-Registration freezes the project requirements, workflow mode, review mode, goal, scene path, and
+Registration freezes the project requirements, workflow mode, review mode, goal document, scene path, and
 grader roster. After registration, changing those records requires an explicit re-registration.
 Do not edit registration documents inside a normal change.
 
-### Goal
+### Mission
 
-The goal is the active production objective. The harness exposes `status.nextStep`; follow it rather
-than guessing the next action. Do not start a goal just to ask questions.
+The `/goal-blender` mission is the active production objective. The harness exposes `status.nextStep`;
+follow it rather than guessing the next action. Do not start a mission just to ask questions. Start it
+with `goal_blender {action:"start"}` after registration; never use the built-in `/goal`. A built-in
+goal marks `goalConflict`; stop production, run `/goal clear`, close the open change, then reregister.
 
 ### Bounded change
 
@@ -171,7 +173,7 @@ Record confirmed answers before scaffolding. Do not present the requirements con
 reference answer is explicit; `none` is valid, but "fully modeled / no external assets" does not
 answer it. Do not ask the user to understand harness internals.
 
-### Phase 2 — Scaffold, documents, registration, and goal
+### Phase 2 — Scaffold, documents, registration, and mission
 
 Expected sequence:
 
@@ -183,7 +185,7 @@ Expected sequence:
 5. Call `prepare`.
 6. Ask the exact registration question.
 7. Register only after a real user answer.
-8. Start the goal.
+8. Start `/goal-blender` with `goal_blender {action:"start"}`.
 9. Launch Blender through the harness.
 10. Verify the addon and scene path.
 11. Save the bootstrap scene.
@@ -391,7 +393,7 @@ Before reporting complete:
 - the strict asset receipt is present when assets were used;
 - exports have valid receipts;
 - the checkpoint is clean;
-- the goal is complete;
+- the `/goal-blender` mission is complete;
 - the tracker is complete.
 
 ## 5. Evidence contract
@@ -649,7 +651,7 @@ Agent:
 - [ ] Exports have verified receipts if produced.
 - [ ] Project history is scoped and clean.
 - [ ] Checkpoint is clean.
-- [ ] Goal and tracker are complete.
+- [ ] Mission and tracker are complete.
 
 ## 16. Known limits
 

@@ -49,10 +49,10 @@ proves the result.
 
 ## Workflow
 
-1. Read `blender-project-goal` and `blender-workflow-harness`. Before this goal: confirm
+1. Read `blender-project-goal` and `blender-workflow-harness`. Before this mission: confirm
    requirements, collect workflow and review answers, scaffold, fill all records through
    `bootstrap-document`, commit with `bootstrap-commit`, call `prepare`, answer its exact question,
-   then start this goal with this entire filled prompt.
+   then start `/goal-blender` with this filled goal.
 2. Inspect `blender_workflow` `status` and follow `nextStep` for every lifecycle action.
 3. Launch and stop only through `blender_workflow`. Save the first scene through a bounded `begin`
    and ticketed `save`; commit and checkpoint without sealing the bootstrap save.
@@ -62,7 +62,7 @@ proves the result.
 5. Keep project documents current inside the change that changes them. Create new markdown through
    `bootstrap-document` or `document`; commit through the harness.
 6. Complete final grading, inspect the final sealed render, and call
-   `goal_report(status="complete", reason=<evidence>)` only after every acceptance check passes.
+   `goal_blender {action:"complete", evidence:<evidence>}` only after every acceptance check passes.
 
 ## Done
 

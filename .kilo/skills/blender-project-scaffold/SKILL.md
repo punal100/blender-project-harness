@@ -7,7 +7,8 @@ description: Use when creating a new Blender project under the workspace Blender
 
 The harness scaffold command is the only project creator. Do not invent, copy, or reconstruct a
 layout. Requirements must be confirmed and workflow and review modes selected before scaffolding.
-Complete those in ordinary chat; no goal starts before scaffold, records, commit, and registration.
+Complete those in ordinary chat; no `/goal-blender` mission starts before scaffold, records, commit,
+and registration.
 
 ## Create
 
@@ -35,7 +36,8 @@ copies it and renders project tokens. Do not duplicate the tree in documentation
    never `.blend`, renders, evidence, or asset binaries.
 3. Call `prepare {project,goal,scene}`; pass its exact question and labels to `question`. Only the
    runtime answer registers.
-4. Start or resume the goal with the entire filled prompt. End the turn.
+4. Start or resume the mission with `goal_blender {action:"start"}` or `/goal-blender start`. End the
+   turn.
 5. Launch with `blender_workflow` `launch`; stop with `stop`. Never invoke Blender from the shell.
 6. Save the first scene through one bounded `begin` and ticketed `save` to the declared project-root
    `.blend`. Verify the path, `commit`, and `checkpoint`. The bootstrap save is not reviewable: never

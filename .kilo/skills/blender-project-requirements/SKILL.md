@@ -7,9 +7,10 @@ description: Use before creating a Blender project and whenever requirements are
 
 Requirements are agreed with the user, never inferred. Production must not start until requirements
 are confirmed, workflow and review modes are selected, the scaffold is committed, and registration is
-complete. Run this discussion in ordinary chat before any goal starts; Kilo removes `question` during
-an active goal. Do not scaffold, launch Blender, or create scene work during the discussion. For a
-necessary question during production, follow `blender-project-goal` for the required-input handoff.
+complete. Run this discussion in ordinary chat before any `/goal-blender` mission starts; `question`
+remains available during the mission for necessary clarifications. Do not scaffold, launch Blender, or
+create scene work during the discussion. For a necessary question during production, follow
+`blender-project-goal`.
 
 ## Discussion
 
@@ -39,7 +40,7 @@ necessary question during production, follow `blender-project-goal` for the requ
    frozen; do not use `document` for them.
 10. New project: collect workflow mode with `blender-project-workflow` and review mode with
     `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
-    `prepare` and start the goal.
+    `prepare` and start `/goal-blender`.
 11. Existing project: registration documents are frozen after registration. If the user requests a
     requirements change, stop and report the need for explicit re-registration. Do not edit
     `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, or the active goal

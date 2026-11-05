@@ -13,7 +13,7 @@ holds the runtime contract.
 
 ## Preflight
 
-1. Verify confirmed requirements, selected workflow/review records, active goal, and valid grader
+1. Verify confirmed requirements, selected workflow/review records, active mission, and valid grader
    configuration for `All` or `Single`. Stop on a mismatch.
 2. Launch only through `blender_workflow` `launch`; stop only through `stop`. Never invoke Blender
    from the shell.

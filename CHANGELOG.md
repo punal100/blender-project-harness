@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added
+
+- Harness-owned `/goal-blender` mission lifecycle with `goal_blender` start, status, pause, resume,
+  complete, and clear actions, persisted mission metadata, and bounded auto-continuation.
+- The initial scaffold commit and post-completion tracker commit remain the mission boundaries.
+
+### Changed
+
+- The built-in `goal` and `goal_report` tools are disabled. Using `/goal` invalidates the Blender
+  registration and requires `/goal clear`, closing any open change, and re-registration.
+- `question` is available during `/goal-blender` for clarifications and Partially Autonomous approvals.
+
 ### Fixed
 
 - Requirements discovery now asks for reference images or links as a mandatory standalone question
@@ -44,7 +56,7 @@
 - Refactored all 10 skill files: reduced total line count from 1,245 to 823.
 - `capabilities` action table now exposes exact payload shapes for every action; recovery actions split into individual rows.
 - Fixed `BLOCKED` vs `CHANGES_REQUIRED` verdict wording in `blender-subagents` and `blender-project-grading`.
-- Goal skill now includes explicit `goal(action="start", …)` and `goal(action="resume")` call forms.
+- Goal skill documents explicit goal start and resume call forms.
 
 ## 1.0.2
 

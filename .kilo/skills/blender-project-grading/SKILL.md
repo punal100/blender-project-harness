@@ -23,7 +23,7 @@ fails. The grader's full rubric is in `.kilo/agent/blender-grader.md`.
   downgrade to self-review.
 
 `Documents/REVIEW.md` records one `Mode:` value, one `Selected:` date, and for `Single` one
-`Single grader:` name. Ask the mode in ordinary chat before the goal starts and on a genuine later
+`Single grader:` name. Ask the mode in ordinary chat before the mission starts and on a genuine later
 return. The record is frozen after registration; stop and report the need for re-registration instead
 of editing it inside a bounded change.
 

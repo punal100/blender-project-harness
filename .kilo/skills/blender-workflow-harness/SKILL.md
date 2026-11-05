@@ -16,7 +16,8 @@ missing prerequisite: fix it through the named action, never by bypassing the ha
 2. Create or update project markdown with `bootstrap-document`; use `capabilities.documentFormats`.
 3. Commit the exact scaffold with `bootstrap-commit`; it accepts documentation and metadata only.
 4. Call `prepare`; pass its exact question and labels to `question`. Only the runtime answer registers.
-5. Start or resume the goal with its exact prompt; launch only after the goal is active.
+5. Start the mission with `goal_blender {action:"start"}` or `/goal-blender start`; launch only after
+   the mission is active.
 
 `status {project}` names the missing document, scaffold commit, `prepare`, or registration question.
 Manual project writes and project `git add`/`git commit` are blocked.
@@ -73,8 +74,10 @@ may close with `commit`. Requirements stay frozen.
 - `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
   question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
 - `schedule_wakeup`, cron, and `background_process` are orchestrator-only.
-- Kilo goal status is authoritative. If `nextStep.phase` is `resume-goal`, call
-  `goal {action:"resume"}` before reporting or continuing.
+- Harness mission state is authoritative. Use `goal_blender` for start, status, pause, resume, complete,
+  and clear. If `nextStep.phase` is `goal-blender`, call `/goal-blender resume` before continuing. If
+  `status.goalConflict` is present, stop production, run `/goal clear`, close any open change, and
+  reregister.
 
 ## Documents and commits
 
@@ -83,7 +86,7 @@ may close with `commit`. Requirements stay frozen.
 - Pre-registration: `bootstrap-document` then `bootstrap-commit`.
 - Registered: declare the exact path in `begin`, then use `document` or `blender_document` write.
 - Registration documents are frozen after `prepare`: `REQUIREMENTS.md`, `WORKFLOW.md`, `REVIEW.md`,
-  and the active goal. Close the change and call `reregister {reason}` to replace them.
+  and the active goal document. Close the change and call `reregister {reason}` to replace them.
 - Grader reports are written only through `blender_document`; the harness writes `REVIEW.md`.
 - Project commits use harness actions only. `checkpoint` verifies the scoped commit range and a clean
   project.
@@ -98,9 +101,12 @@ may close with `commit`. Requirements stay frozen.
 
 ## Live Test 03
 
-- Treat `kilo.goal` as the goal source of truth. Never emit `resume-goal` while Kilo reports active.
+- Harness mission state is authoritative. `/goal-blender` must not set `kilo.goal`; a built-in
+  `/goal` invalidates the registration. Never emit `resume-goal`.
+- `question` remains available during an active mission for clarifications and approval. Never use
+  `goal_report`.
 - Specification and mode changes require re-registration; roster changes block new work but allow
-  review, preserve, commit, checkpoint, seal, and goal reconciliation.
+  review, preserve, commit, checkpoint, and seal for an existing change.
 - A registered root may commit code-only workspace changes through the approved shell path when every
   staged path is outside the project. Project paths remain harness-owned.
 - A registered root may use `agent_manager`; workers and graders remain denied.
