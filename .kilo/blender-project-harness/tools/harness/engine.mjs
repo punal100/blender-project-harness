@@ -2166,6 +2166,15 @@ export class Harness {
           c.verdict = 'WIP';
         } else {
           if (!bootstrap && !documentOnly && !c.verdict) deny('complete review before committing the change');
+          if (!bootstrap && !documentOnly && p.records.workflow === 'Partially Autonomous') {
+            const spec = approvalSpec(c);
+            if (!c.approval || c.approval.evidence !== c.evidenceKey) {
+              deny('runtime approval is required before committing this reviewable change; ask the exact approval question first');
+            }
+            if (!spec.labels.includes(c.approval.label) || c.approval.label === 'Pause') {
+              deny(`approval "${c.approval.label}" does not authorize this commit; use ${JSON.stringify(spec.labels)}`);
+            }
+          }
           this.autoCommit(p, c, args.message.trim(), { review: !bootstrap && !documentOnly });
         }
       } else if (action === 'abandon') {

@@ -1103,6 +1103,20 @@ test('failed review approval excludes the impossible approve option', (t) => {
   }, [['Request revision']]), /not recorded.*still pending.*labels exactly.*Request revision.*Pause.*default "Request revision"/);
 });
 
+test('commit requires runtime approval for a reviewable Partially Autonomous change', (t) => {
+  const f = useFixture(t, { workflow: 'Partially Autonomous' });
+  activate(f);
+  begin(f);
+  seal(f);
+  selfReview(f);
+  gate(() => f.harness.command('orchestrator', 'commit', { message: 'change fixture' }), /runtime approval is required/i);
+  const approval = f.harness.command('orchestrator', 'approval');
+  f.harness.question('orchestrator', {
+    questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
+  }, [['Approve change']]);
+  assert.doesNotThrow(() => f.harness.command('orchestrator', 'commit', { message: 'change fixture' }));
+});
+
 test('partial approval ignores forged JSON and Pause, then accepts only actual labels', (t) => {
   const f = useFixture(t, { workflow: 'Partially Autonomous' });
   activate(f);
