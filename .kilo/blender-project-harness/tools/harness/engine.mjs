@@ -1399,6 +1399,10 @@ export class Harness {
   status(p, state) {
     const c = p.change;
     const step = this.nextStep(p, state);
+    if (typeof step.command === 'string') {
+      step.template = /<[^>]+>|(?:^|[^\\])""/.test(step.command);
+      if (step.template) step.instruction = 'This command is a template; replace every placeholder with exact values before calling it, and do not execute it literally.';
+    }
     const media = this.mediaState(p).requests;
     const openMedia = this.openMedia(p);
     return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),

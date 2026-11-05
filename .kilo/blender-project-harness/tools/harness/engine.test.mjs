@@ -742,6 +742,15 @@ test('command and public method schemas reject malformed lifecycle input and pat
   gate(() => f.harness.command('orchestrator', 'approval'));
 });
 
+test('status marks generative next-step commands as templates', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const step = f.harness.command('orchestrator', 'status').nextStep;
+  assert.equal(step.phase, 'begin');
+  assert.equal(step.template, true);
+  assert.match(step.instruction, /replace every placeholder/i);
+});
+
 test('begin normalizes workspace-prefixed paths to project-relative paths', (t) => {
   const f = useFixture(t);
   activate(f);

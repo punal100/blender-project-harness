@@ -1,7 +1,8 @@
 # AGENTS.md — Blender Project Collection
 
 Mandatory. `MUST` and `NEVER` are literal. `blender_workflow {action:"status"}` returns `nextStep`;
-execute `nextStep.command` exactly. `capabilities` is authoritative for actions, operations, document
+execute `nextStep.command` exactly unless `nextStep.template` is true, in which case replace every
+placeholder before calling it. `capabilities` is authoritative for actions, operations, document
 formats, limits, and policies. A `Workflow gate` error means a prerequisite is missing: fix it through
 the named action; never bypass with shell, raw Python, state edits, or a temp copy.
 
