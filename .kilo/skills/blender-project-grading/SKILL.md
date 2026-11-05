@@ -124,8 +124,10 @@ Read `operation_tasks` in the manifest and the task ledger as process evidence; 
 7. Call `review {notes,reason,dispositions}`. The harness validates reports, computes the verdict,
    writes `REVIEW.md`, appends the round row, and auto-commits in Fully Autonomous mode. In Partially
    Autonomous mode, `commit` after approval creates the review commit.
-8. A tooling `BLOCKED` is retried with the configured backup, not a scene revision. After the retry
-   budget, `preserve {reason}` then `checkpoint`. Never mark a tooling block `PASS`.
+8. A tooling `BLOCKED` is retried with the configured backup, not a scene revision. A valid
+   `PASS`/`CHANGES_REQUIRED` report is recovered instead of re-dispatched; a `BLOCKED` retry archives
+   the prior report as `REPORT.attemptN.md`. After the retry budget, `preserve {reason}` then
+   `checkpoint`. Never mark a tooling block `PASS`.
 
 Verdicts: `PASS` when all selected graders completed, required dimensions were assessed, evidence is
 complete, and no substantiated blocker or major remains. `CHANGES_REQUIRED` when at least one blocker

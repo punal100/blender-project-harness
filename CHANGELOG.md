@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Harness Git operations now retry transient timeouts and lock contention with backoff, recognize a commit that landed before its timeout, and keep a grader's verdict when task-metadata commit fails transiently.
+- Valid grader reports are preserved: PASS and CHANGES_REQUIRED reports are recovered instead of re-dispatched, BLOCKED retries archive the prior report as `REPORT.attemptN.md`, and a grader cannot overwrite a valid report.
+- A missing grader config now reports a workflow gate instead of an unhandled file error.
 - Grader budgets raised after a live final review exhausted 10 steps before writing the technical report: the ceiling is now 24, visual/technical default to 16 steps and 8 minutes, and a full-spec `spec` grader defaults to 20 steps and 10 minutes.
 - Grader prompts now name the exact frozen-image call (`blender_look {image:"..."}`), tell graders to skip optional documents, reserve a step for the report write, and write the verdict from available evidence instead of ending without a report after a denied look or a tight budget.
 - Scaffolded projects now receive `.gitignore` from the npm package (template files renamed to `gitignore` because npm strips dotfiles); launch logs, WIP renders, review evidence, `.blend1`, and caches no longer break `begin`.

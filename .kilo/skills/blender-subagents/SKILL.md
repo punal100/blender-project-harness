@@ -114,9 +114,11 @@ Dispatch only after `seal` and a successful sealed-render `look`:
    backup. If the task fails before binding a child, call `grader-fail {name,reason}`.
 
 A missing or failed report permits one replacement ticket; a second failure is aggregated as
-`BLOCKED` by `review`. A `BLOCKED` aggregate is always tooling — retry with the backup, then
-`preserve` and `checkpoint`. A `CHANGES_REQUIRED` aggregate requires a scene revision via a new
-`begin {revision:true}`. Graders never loop or ask the user.
+`BLOCKED` by `review`. A valid report is never overwritten: `PASS`/`CHANGES_REQUIRED` is recovered,
+and a `BLOCKED` retry archives the prior report as `REPORT.attemptN.md`. A `BLOCKED` aggregate is
+always tooling — retry with the backup, then `preserve` and `checkpoint`. A `CHANGES_REQUIRED`
+aggregate requires a scene revision via a new `begin {revision:true}`. Graders never loop or ask the
+user.
 
 ## Output and boundaries
 
