@@ -741,6 +741,13 @@ test('command and public method schemas reject malformed lifecycle input and pat
   gate(() => f.harness.command('orchestrator', 'approval'));
 });
 
+test('begin normalizes workspace-prefixed paths to project-relative paths', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  const started = begin(f, 'orchestrator', { paths: [`${f.project}/notes.txt`] });
+  assert.deepEqual(started.change.paths, [`${f.project}/notes.txt`]);
+});
+
 test('tickets require hook authorization and reject forged, replayed, cross-session, and expired use', (t) => {
   const f = useFixture(t);
   activate(f);

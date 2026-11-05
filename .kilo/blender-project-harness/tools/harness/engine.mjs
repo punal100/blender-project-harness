@@ -26,6 +26,7 @@ const CHECKPOINT_EVERY = 20;
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
 const nonScenePath = (name) => documentOnlyPath(name) || /(?:^|\/)(?:assets|Documents\/References)\//i.test(name);
+const projectRelativePath = (project, name) => name.startsWith(`${project}/`) ? name.slice(project.length + 1) : name;
 const checkAssetsStrict = (payload) => {
   const operations = Array.isArray(payload?.operations) ? payload.operations : [payload];
   return operations.some((operation) => operation?.operation === 'check_assets' && operation.strict === true);
@@ -1171,7 +1172,7 @@ export class Harness {
       const records = this.records(args.project, args.goal);
       const prior = s.projects[args.project];
       if (prior?.escalation?.maxRounds) records.maxRounds = Math.max(records.maxRounds, prior.escalation.maxRounds);
-      if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be a bare project-root .blend filename such as "cozy-room.blend"; begin paths are project-relative such as "Blender/CozyRoom/Documents/DECISIONS.md"');
+      if (!/^[A-Za-z0-9 _-]+\.blend$/.test(args.scene ?? '')) deny('scene must be a bare project-root .blend filename such as "cozy-room.blend"; do not pass a path or the Blender/<Project>/ prefix');
       contained(this.projectPath(args.project), args.scene, true);
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       const reference = s.references?.[session];
@@ -1864,7 +1865,8 @@ export class Harness {
         }
         if (!Array.isArray(args.paths) || !args.paths.length || args.paths.length > 100) deny('exact project-relative file paths required');
         const paths = [...new Set(args.paths.map((name) => {
-          const full = contained(this.projectPath(p.project), name, true);
+          const relative = projectRelativePath(p.project, name);
+          const full = contained(this.projectPath(p.project), relative, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
           if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
           return `${p.project}/${clean}`;
@@ -1902,7 +1904,8 @@ export class Harness {
         if (args.objects !== undefined && (!Array.isArray(args.objects) || args.objects.length > 200 || args.objects.some((name) => typeof name !== 'string' || !/^[\x20-\x7e]{1,100}$/.test(name)))) deny('extend objects must be exact printable names');
         if (!Array.isArray(args.paths) || !args.paths.length || args.paths.length > 100) deny('extend requires exact project-relative paths');
         const added = [...new Set(args.paths.map((name) => {
-          const full = contained(this.projectPath(p.project), name, true);
+          const relative = projectRelativePath(p.project, name);
+          const full = contained(this.projectPath(p.project), relative, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
           if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
           return `${p.project}/${clean}`;
