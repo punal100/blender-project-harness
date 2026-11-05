@@ -33,7 +33,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 ## Deliverables
 
 - Main Blender file: `cozycomputerroom.blend`
-- Final renders: `renders/final/R06-20261105T060316Z.png` (1920x1080 hero)
+- Final renders: `renders/final/R07-20261105T061908Z.png` (1920x1080 hero)
 - Exports: none
 - Documentation: `Documents/`
 - External assets: none
