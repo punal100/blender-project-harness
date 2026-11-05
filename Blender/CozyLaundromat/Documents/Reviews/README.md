@@ -37,6 +37,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R02-20261105T150726Z | 20261105T150726Z | bbba0dc62c78 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R02-20261105T150726Z/REVIEW.md](R02-20261105T150726Z/REVIEW.md) |
 | R03-20261105T153033Z | 20261105T153033Z | 34f4d125f3ef | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R03-20261105T153033Z/REVIEW.md](R03-20261105T153033Z/REVIEW.md) |
 | R04-20261105T154954Z | 20261105T154954Z | 1e18eb7f1226 | All milestone | visual, technical, spec | PASS | [R04-20261105T154954Z/REVIEW.md](R04-20261105T154954Z/REVIEW.md) |
+| R05-20261105T162039Z | 20261105T162039Z | a9543155b0c7 | All milestone | visual, technical, spec | BLOCKED | [R05-20261105T162039Z/REVIEW.md](R05-20261105T162039Z/REVIEW.md) |
 
 ## Rules
 
@@ -57,3 +58,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R03-20261105T153033Z: Fix R02 findings: give the window clear margin, refine the floor grid, place the runner, and support the pendants; evidence 958425adac3d77f2fa8aeeaec2f4c65f72648e977fcc175e454842abd463784c
 
 - R04-20261105T154954Z: Fix the cool mottled ceiling: lower the cool fill, lower the pendant bulbs, and make the ceiling warm cream; evidence 3da7d4c5e8cf259dd5b8d4abe989be05e29dafddcde5a98dca4e46a366cd2998
+
+- R05-20261105T162039Z: Build the six front-loading machine row with steel door rims, dark glass, control strip, and laundromat sign; evidence a3ee8253c008b3263bcc8fb5b9178544adf615bf049e02459f5ec4f58744e361
