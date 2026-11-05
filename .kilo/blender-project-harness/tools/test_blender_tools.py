@@ -221,9 +221,9 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertNotIn("blender_graders", config)
                 roles = config["blender_subagents"]
                 self.assertIsInstance(roles, dict)
-                self.assertLessEqual(set(roles), {"workers", "graders"})
+                self.assertLessEqual(set(roles), {"workers", "graders", "global_fallback"})
                 if path.name == "config.example.json":
-                    self.assertEqual(set(roles), {"workers", "graders"})
+                    self.assertEqual(set(roles), {"workers", "graders", "global_fallback"})
                 for role in roles.values():
                     self.assertIsInstance(role, dict)
 
@@ -266,7 +266,7 @@ class WorkspaceContractTests(unittest.TestCase):
                 self.assertEqual(set(config), {"blender_subagents"}, name)
                 roles = config["blender_subagents"]
                 self.assertTrue(roles, name)
-                self.assertLessEqual(set(roles), {"workers", "graders"}, name)
+                self.assertLessEqual(set(roles), {"workers", "graders", "global_fallback"}, name)
                 if "graders" in roles:
                     grader_examples += 1
                     graders = roles["graders"]
