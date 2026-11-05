@@ -225,7 +225,7 @@ test('registration accepts question args without custom or multiple flags', (t) 
   f.harness.question('orchestrator', {
     questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })) }],
   }, [['Confirm registration']]);
-  assert.match(f.harness.command('orchestrator', 'status').next, /registered goal/);
+  assert.match(f.harness.command('orchestrator', 'status').next, /registered \/goal-blender/);
 });
 
 test('custom-answer questions do not register', (t) => {
@@ -270,7 +270,7 @@ test('pending registration does not lock out another session forever', (t) => {
   f.harness.transaction((s) => { s.challenge.created -= 600001; });
   const prepared = f.harness.prepare('second', args);
   f.harness.question('second', { questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })) }] }, [['Confirm registration']]);
-  assert.match(f.harness.command('second', 'status').next, /registered goal/);
+  assert.match(f.harness.command('second', 'status').next, /registered \/goal-blender/);
 });
 
 test('bounded changes track scenes and scene requirement mappings', (t) => {
@@ -1776,9 +1776,38 @@ test('document-only checkpoint preserves a prior PASS for completion', (t) => {
   fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'Document-only completion note.\n');
   f.harness.command('orchestrator', 'commit', { message: 'docs: fixture completion note' });
   f.harness.command('orchestrator', 'checkpoint');
-  const complete = f.harness.command('orchestrator', 'goal-complete');
+  const complete = f.harness.command('orchestrator', 'goal-complete', { reason: 'All acceptance checks passed.' });
   assert.equal(complete.complete, true);
+  assert.equal(complete.goalActive, false);
+  assert.equal(complete.goalSource, null);
+  assert.equal(complete.goalReport.reason, 'All acceptance checks passed.');
   assert.equal(complete.nextStep.phase, 'complete');
+});
+
+test('goal conflict stops production and offers recovery', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const conflict = f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(conflict.goalActive, false);
+  assert.equal(conflict.goalConflict.kind, 'built-in-goal');
+  assert.equal(conflict.nextStep.phase, 'goal-conflict');
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'blocked', objects: ['Cube'], paths: ['notes.txt'] }), /active goal/);
+});
+
+test('goal conflict preserves and checkpoints an open change before reregister', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['README.md'] });
+  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'Conflict recovery note.\n');
+  f.harness.transaction((s) => { s.projects[f.project].change.operations = 1; });
+  const conflict = f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(conflict.nextStep.action, 'preserve');
+  const preserved = f.harness.command('orchestrator', 'preserve', { reason: 'Preserve before re-registration.' });
+  assert.equal(preserved.nextStep.action, 'checkpoint');
+  const checkpointed = f.harness.command('orchestrator', 'checkpoint');
+  assert.equal(checkpointed.change, null);
+  assert.equal(checkpointed.nextStep.action, 'reregister');
 });
 
 test('paused project can reregister with updated records', (t) => {
@@ -1796,7 +1825,7 @@ test('paused project can reregister with updated records', (t) => {
   f.harness.question('orchestrator', registrationQuestion(prepared), [['Confirm registration']]);
   const after = f.harness.command('orchestrator', 'status');
   assert.equal(after.goalActive, false);
-  assert.equal(after.nextStep.phase, 'goal');
+  assert.equal(after.nextStep.phase, 'goal-blender');
   assert.equal(f.harness.transaction((state) => state.projects[f.project].reregistering), false);
   assert.notDeepEqual(f.harness.transaction((state) => state.projects[f.project].records.specs), before);
 });
@@ -1901,8 +1930,8 @@ test('a paused or cleared goal keeps an open change resumable', (t) => {
   begin(f);
   const paused = f.harness.command('orchestrator', 'goal-inactive');
   assert.equal(paused.goalActive, false);
-  assert.equal(paused.nextStep.phase, 'resume-goal');
-  assert.match(paused.nextStep.command, /goal \{action:"resume"\}/);
+  assert.equal(paused.nextStep.phase, 'goal-blender');
+  assert.match(paused.nextStep.command, /goal_blender \{action:"resume"\}/);
   f.harness.command('orchestrator', 'goal-active', {});
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'apply');
 });
@@ -2057,7 +2086,7 @@ test('pause is explicit, requires a closed change, and stops the active goal', (
   f.harness.transaction((s) => { s.projects[f.project].change = null; });
   const paused = f.harness.command('orchestrator', 'pause', { reason: 'User requested stop.' });
   assert.equal(paused.goalActive, false);
-  assert.equal(paused.nextStep.phase, 'goal');
+  assert.equal(paused.nextStep.phase, 'goal-blender');
   gate(() => begin(f));
 });
 

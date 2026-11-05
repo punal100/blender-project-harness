@@ -386,7 +386,7 @@ export class Harness {
       const tracker = path.join(base, 'Documents', 'TASKSTRACKER.md');
       const tasks = path.join(base, 'Documents', 'Tasks');
       return {
-        project, owner: p.orchestrator, goalActive: Boolean(p.goalActive), complete: Boolean(p.complete),
+        project, owner: p.orchestrator, goalActive: Boolean(p.goalActive), goalSource: p.goalSource ?? null, goalConflict: p.goalConflict ?? null, complete: Boolean(p.complete),
         staleOwnerWindow: Boolean(p.change ? p.change.deadline < Date.now() : false),
         change: p.change ? { id: p.change.id, milestone: p.change.milestone, operations: p.change.operations, deadline: p.change.deadline, verdict: p.change.verdict, blockingKind: p.change.blockingKind ?? null } : null,
         scene: { path: p.scene, exists: fs.existsSync(path.join(this.root, p.scene)) },
@@ -1185,9 +1185,9 @@ export class Harness {
         const existing = s.projects[c.project];
         if (c.reRegister) {
           if (!existing || existing.orchestrator !== session || existing.change || (!existing.escalation?.requested && !existing.reregistering)) deny('explicit re-registration is no longer valid');
-          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, complete: false, escalation: null, reregistering: false, lastRender: null });
+          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, complete: false, escalation: null, reregistering: false, lastRender: null });
         } else {
-          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, change: null, history: [], complete: false, escalation: null };
+          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, history: [], complete: false, escalation: null };
         }
         s.challenge = null;
       } else {
@@ -1203,13 +1203,25 @@ export class Harness {
   wire(action, payload = {}) {
     return `blender_workflow {action:"${action}",payload:${JSON.stringify(JSON.stringify(payload))}}`;
   }
+  goalConflictStep(p) {
+    const reason = `${p.goalConflict.reason} Stop production; clear any built-in /goal, close the open change, then call reregister.`;
+    if (p.change) {
+      const c = p.change;
+      if (c.wip || (c.commits?.length && (c.documentOnly || c.verdict))) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint'), reason };
+      if (!c.operations && c.nonSceneOnly) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: 'chore: preserve change after goal conflict' }), reason };
+      if (!c.operations) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
+      return { phase: 'goal-conflict', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: 'Preserve the open change after built-in goal conflict' }), reason };
+    }
+    return { phase: 'goal-conflict', actor: 'orchestrator', action: 'reregister', command: this.wire('reregister', { reason: 'Built-in goal invalidated the registration; clear /goal and re-register.' }), reason };
+  }
   nextStep(p, state) {
     const preparePayload = { project: p.project, goal: p.goal, scene: path.basename(p.scene) };
+    if (p.goalConflict) return this.goalConflictStep(p);
     if (p.escalation) return { phase: 'reregister', actor: 'orchestrator', action: 'prepare', command: this.wire('prepare', preparePayload), reason: 'Complete the exact registration question again with the escalated review cap.' };
-    if (p.complete) return { phase: 'complete', actor: 'orchestrator', action: 'goal_report', command: 'goal_report {status:"complete",reason:<evidence>}', reason: 'The goal has a clean checkpoint and applicable PASS; report completion.' };
+    if (p.complete) return { phase: 'complete', actor: 'orchestrator', action: 'goal_blender', command: 'goal_blender {action:"status"}', reason: 'The mission has a clean checkpoint and applicable PASS.' };
     if (!p.goalActive) {
-      if (p.change) return { phase: 'resume-goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"resume"}', reason: 'The Kilo goal is paused or cleared while a bounded change is open; resume before continuing.' };
-      return { phase: 'goal', actor: 'orchestrator', action: 'goal', command: 'goal {action:"start"|"resume",objective:<registered goal prompt>}', reason: 'Start or resume the registered goal before production work.' };
+      if (p.change) return { phase: 'goal-blender', actor: 'orchestrator', action: 'goal_blender', command: 'goal_blender {action:"resume"}', reason: 'The /goal-blender mission is paused while a bounded change is open; resume before continuing.' };
+      return { phase: 'goal-blender', actor: 'orchestrator', action: 'goal_blender', command: 'goal_blender {action:"start"}', reason: 'Start the registered /goal-blender mission before production work.' };
     }
     const c = p.change;
     const media = c ? this.mediaForChange(p, c.id) : [];
@@ -1339,7 +1351,7 @@ export class Harness {
     const step = this.nextStep(p, state);
     const media = this.mediaState(p).requests;
     const openMedia = this.openMedia(p);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1348,7 +1360,7 @@ export class Harness {
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
-    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, complete: p.complete, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering };
+    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering };
     try { this.records(p.project, p.goal); }
     catch (error) {
       return { ...base, next: `Fix the registration documents before preparing: ${error.message}`, nextStep: { phase: 'reregister-document', actor: 'orchestrator', action: 'bootstrap-document', command: this.wire('bootstrap-document', { project: p.project, path: '<invalid registration document>', content: '<complete format from capabilities.documentFormats>' }), reason: 'Fix registration documents through bootstrap-document while reregistering.' } };
@@ -1668,8 +1680,10 @@ export class Harness {
         if (!stale) deny('project owner has a live change window; pause it before reclaiming');
         if (!this.stateMatchesCheckout(target)) deny('stale registration does not match this checkout; use forget {project,reason} to discard it, then prepare a fresh project');
         const from = target.orchestrator;
+        if (target.goalConflict) deny('goal conflict must be cleared and the project re-registered before reclaiming');
         target.orchestrator = session;
         target.goalActive = true;
+        target.goalSource = 'goal-blender';
         target.paused = null;
         target.reclaimed = { from, at: new Date().toISOString(), reason: args.reason.trim() };
         return this.status(target, s);
@@ -1689,6 +1703,7 @@ export class Harness {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('pause requires one bounded reason');
         if (p.change) deny('close the open change with commit/checkpoint or WIP before pausing the project');
         p.goalActive = false;
+        p.goalSource = null;
         p.paused = { at: new Date().toISOString(), reason: args.reason.trim() };
         return this.status(p, s);
       }
@@ -1698,6 +1713,7 @@ export class Harness {
         if (p.change) deny('checkpoint or preserve the open change before re-registration');
         p.reregistering = { requested: Date.now(), reason: args.reason.trim() };
         p.goalActive = false;
+        p.goalSource = null;
         p.complete = false;
         p.escalation = null;
         p.lastRender = null;
@@ -1707,7 +1723,7 @@ export class Harness {
         return this.reregisterStatus(p);
       }
       const c = p.change;
-      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail','abandon'].includes(action)) || ['goal-active','goal-inactive','goal-complete'].includes(action));
+      const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail','abandon'].includes(action)) || ['goal-active','goal-inactive','goal-complete','goal-conflict'].includes(action));
       this.fresh(p, { allowRosterDrift });
       if (action === 'media-request') {
         this.mediaRequest(p, args);
@@ -1719,11 +1735,38 @@ export class Harness {
         this.mediaFail(p, args);
         return this.status(p, s);
       } else if (action === 'goal-active') {
-        if (p.complete || (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText))) deny('goal must match registered prompt');
+        const keys = Object.keys(args);
+        if (keys.some((key) => !['objective', 'source', 'mode'].includes(key))) deny('goal-active accepts objective, source and mode only');
+        if (p.complete || p.goalConflict) deny('goal cannot start while the project is complete or registration-conflicted');
+        if (args.objective !== undefined && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText)) deny('goal must match registered prompt');
+        if (args.source !== undefined && args.source !== 'goal-blender') deny('goal source must be goal-blender');
+        const mode = args.mode ?? 'start';
+        if (!['start', 'resume'].includes(mode)) deny('goal mode must be start or resume');
+        const now = new Date().toISOString();
+        if (mode === 'start' || !p.goalMeta) p.goalMeta = { startedAt: now, autoTurns: 0, lastTurnAt: null };
+        else p.goalMeta = { ...p.goalMeta, lastTurnAt: now };
         p.goalActive = true;
+        p.goalSource = 'goal-blender';
+        p.paused = null;
       } else if (action === 'goal-inactive') {
+        const keys = Object.keys(args);
+        if (keys.some((key) => !['reason', 'clear'].includes(key))) deny('goal-inactive accepts reason and clear only');
+        if (args.reason !== undefined && (typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000)) deny('goal-inactive reason must be bounded');
+        if (args.clear !== undefined && typeof args.clear !== 'boolean') deny('goal-inactive clear must be boolean');
         p.goalActive = false;
+        p.goalSource = null;
+        if (args.clear) {
+          p.goalMeta = null;
+          p.goalReport = null;
+          p.paused = null;
+        } else {
+          p.paused = { at: new Date().toISOString(), reason: args.reason?.trim() || 'Mission paused' };
+        }
       } else if (action === 'goal-complete') {
+        const keys = Object.keys(args);
+        if (keys.some((key) => key !== 'reason')) deny('goal-complete accepts reason only');
+        if (args.reason !== undefined && (typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 2000)) deny('goal-complete reason must be bounded');
+        if (p.goalSource !== 'goal-blender') deny('completion requires an active /goal-blender mission');
         const last = p.history.at(-1);
         if (!p.goalActive || c || !last || !['PASS', 'DOCUMENT'].includes(last.verdict) || last.approval === 'Request revision' || this.hash(p.scene) !== last.sceneHash || !p.lastRender || this.hash(p.lastRender.path) !== p.lastRender.hash) deny('completion requires active goal, checkpoint, inspected render, unchanged scene and applicable PASS');
         if (p.lastRenders && Object.values(p.lastRenders).some((render) => !fs.existsSync(path.join(this.root, ...render.path.split('/'))) || this.hash(render.path) !== render.hash)) deny('completion requires every sealed scene render to remain unchanged');
@@ -1735,7 +1778,21 @@ export class Harness {
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project));
         p.complete = true;
+        p.goalReport = { at: new Date().toISOString(), reason: args.reason?.trim() || 'Mission complete' };
+        p.goalActive = false;
+        p.goalSource = null;
+        p.paused = null;
+        p.goalMeta = { ...(p.goalMeta ?? {}), lastTurnAt: p.goalReport.at };
         this.commitTaskTrackerCompletion(p);
+      } else if (action === 'goal-conflict') {
+        const keys = Object.keys(args);
+        if (keys.some((key) => !['reason', 'kind'].includes(key))) deny('goal-conflict accepts reason and kind only');
+        if (typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('goal-conflict requires a bounded reason');
+        if (args.kind !== undefined && args.kind !== 'built-in-goal') deny('goal-conflict kind must be built-in-goal');
+        p.goalActive = false;
+        p.goalSource = null;
+        p.goalConflict = { at: new Date().toISOString(), reason: args.reason.trim(), kind: 'built-in-goal' };
+        p.paused = { at: new Date().toISOString(), reason: 'registration invalidated by built-in goal' };
       } else if (action === 'escalate') {
         const prior = p.history.at(-1);
         if (c || p.complete || p.escalation || !prior || prior.verdict === 'BOOTSTRAP' || prior.chain < p.records.maxRounds || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('explicit escalation requires a completed capped review and a bounded reason');
@@ -2058,14 +2115,15 @@ export class Harness {
         return this.status(p, s);
       } else if (action === 'preserve') {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('preserve requires one bounded reason');
-        if (!c?.sealed || c.verdict !== 'BLOCKED' || c.blockingKind !== 'tooling') deny('preserve requires a sealed tooling-blocked change');
+        const toolingBlocked = c?.sealed && c.verdict === 'BLOCKED' && c.blockingKind === 'tooling';
+        if (!c || (!toolingBlocked && !p.goalConflict)) deny('preserve requires a sealed tooling-blocked change or a goal conflict');
         if (c.preserved) deny('change is already preserved');
         c.preserved = { reason: args.reason.trim(), at: new Date().toISOString() };
         c.wip = true;
         c.verdict = 'WIP';
         c.blockingKind = null;
         this.updateManifest(p);
-        this.autoCommit(p, c, `chore: preserve tooling-blocked ${c.round ?? 'review'}`);
+        this.autoCommit(p, c, toolingBlocked ? `chore: preserve tooling-blocked ${c.round ?? 'review'}` : 'chore: preserve change after goal conflict', { review: toolingBlocked });
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
@@ -2082,7 +2140,7 @@ export class Harness {
         if (!bootstrap && !wip && !documentOnly && (!c.verdict || !c.inspected || this.reviewPending(p, c) || c.pending || (failedReview && p.records.workflow === 'Partially Autonomous' && c.approval?.label !== 'Request revision') || partialApprovalRequired)) deny('review commit and runtime-captured approval required before checkpoint');
         if (this.head() === c.base) deny('commit missing; commit exact scoped files first');
         const changed = gitText(this.root, ['diff', '--name-only', `${c.base}..HEAD`, '--', p.project]).split(/\r?\n/).filter(Boolean);
-        const reviewed = bootstrap || documentOnly || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
+        const reviewed = bootstrap || documentOnly || p.goalConflict || (wip && !c.preserved) ? [] : this.reviewPaths(p, c);
         const allowed = new Set([...c.paths, p.scene, this.taskDocument(p), ...reviewed, ...this.taskFiles(p, c)]);
         const taskPrefix = `${p.project}/Documents/Tasks/`;
         const commandPrefix = `${p.project}/Documents/Commands/`;

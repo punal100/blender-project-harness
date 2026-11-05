@@ -7,8 +7,14 @@ import { OPERATION_NAMES } from './blender-operations.mjs';
 import { git, Harness } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
-function hooks(f, metadata) {
-  const client = { session: { get: async ({ path: p }) => ({ data: { id: p.id, ...(metadata ? { metadata } : {}) } }) } };
+function hooks(f, metadata, overrides = {}) {
+  const client = {
+    ...overrides,
+    session: {
+      get: async ({ path: p }) => ({ data: { id: p.id, ...(metadata ? { metadata } : {}) } }),
+      ...(overrides.session ?? {}),
+    },
+  };
   return createHooks(f.harness, client);
 }
 const before = (h, session, tool, args) => h['tool.execute.before']({ sessionID: session, callID: 'call_test', tool }, { args });
@@ -427,7 +433,7 @@ test('bootstrap save can be staged and committed without review', async (t) => {
     { action: 'commit', payload: JSON.stringify({ message: 'feat: bootstrap scene' }) },
     { sessionID: f.session },
   );
-  await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+  await h.tool.goal_blender.execute({ action: 'status' }, { sessionID: f.session });
 });
 
 test('registered workspace code commits are allowed through shell approval', async (t) => {
@@ -447,33 +453,47 @@ test('plugin permits matching ticket once, blocks cross-session ticket', async (
   await assert.rejects(before(h, f.session, 'blender_harness_execute', ticket), /replayed/);
 });
 
-test('blocked goal report does not require a commit', async (t) => {
-  const f = fixture(t), h = hooks(f); f.begin();
-  fs.appendFileSync(path.join(f.root, f.project, 'README.md'), 'uncommitted work\n');
-  await before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' });
+test('built-in goal clear remains available for recovery', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const output = { parts: [] };
+  await h['command.execute.before']({ command: 'goal', sessionID: f.session, arguments: 'clear' }, output);
+  assert.equal(output.parts.length, 0);
+  await assert.doesNotReject(before(h, f.session, 'goal', { action: 'clear' }));
+  const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
+  assert.equal(status.goalConflict, null);
 });
 
-test('Kilo goal state overrides status and requires resume before reporting', async (t) => {
+test('built-in goal_report is disabled and invalidates registration', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  await assert.rejects(
+    before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' }),
+    /disabled|goal-blender/,
+  );
+  const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
+  assert.equal(status.goalActive, false);
+  assert.equal(status.goalConflict.kind, 'built-in-goal');
+  assert.equal(status.nextStep.phase, 'goal-conflict');
+});
+
+test('built-in Kilo goal creates a conflict instead of activating production', async (t) => {
   const f = fixture(t);
   const h = hooks(f, { 'kilo.goal': { status: 'blocked', reason: 'A rejected tool call blocked the goal.' } });
   f.begin();
   const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
   assert.equal(status.kiloGoal.status, 'blocked');
-  assert.equal(status.nextStep.phase, 'resume-goal');
-  assert.match(status.nextStep.command, /goal \{action:"resume"\}/);
-  await assert.rejects(
-    before(h, f.session, 'goal_report', { status: 'blocked', reason: 'waiting' }),
-    /goal \{action:"resume"\}/,
-  );
+  assert.equal(status.goalActive, false);
+  assert.equal(status.goalConflict.kind, 'built-in-goal');
+  assert.equal(status.nextStep.phase, 'goal-conflict');
 });
 
-test('active Kilo goal reconciles the harness without resume', async (t) => {
+test('active Kilo goal never activates the harness mission', async (t) => {
   const f = fixture(t);
   const h = hooks(f, { 'kilo.goal': { status: 'active' } });
   f.begin();
   f.harness.transaction((s) => { s.projects[f.project].goalActive = false; });
   const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: {} }, { sessionID: f.session }));
-  assert.equal(status.goalActive, true);
+  assert.equal(status.goalActive, false);
+  assert.equal(status.goalConflict.kind, 'built-in-goal');
   assert.notEqual(status.nextStep.phase, 'resume-goal');
 });
 
@@ -493,12 +513,63 @@ test('recover reopens a failed change through the tool', async (t) => {
   assert.equal(result.nextStep.phase, 'apply');
 });
 
-test('plugin blocks early completion, fake internal commands and wrong goal', async (t) => {
+test('goal_blender blocks early completion and internal workflow actions', async (t) => {
   const f = fixture(t), h = hooks(f);
-  await assert.rejects(before(h, f.session, 'goal_report', { status: 'complete' }), /completion blocked/);
-  await assert.rejects(before(h, f.session, 'goal', { action: 'start', objective: 'fake' }), /objective/);
-  await assert.rejects(h.tool.blender_workflow.execute({ action: 'goal-active', payload: '{}' }, { sessionID: f.session }), /internal/);
-  await before(h, f.session, 'goal', { action: 'start', objective: f.objective.replace(/\n/g, '\r\n') + '\r\n' });
+  await assert.rejects(
+    h.tool.goal_blender.execute({ action: 'complete', evidence: 'not yet' }, { sessionID: f.session }),
+    /completion requires|active/,
+  );
+  await assert.rejects(
+    h.tool.blender_workflow.execute({ action: 'goal-active', payload: '{}' }, { sessionID: f.session }),
+    /internal/,
+  );
+});
+
+test('config registers goal-blender and never goal', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const config = {};
+  await h.config(config);
+  assert.ok(config.command['goal-blender']);
+  assert.match(config.command['goal-blender'].description, /Harness-owned/);
+  assert.equal(config.command.goal, undefined);
+});
+
+test('goal_blender starts, pauses, and resumes without kilo.goal', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const started = JSON.parse(await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session }));
+  assert.equal(started.goalActive, true);
+  assert.equal(started.goalSource, 'goal-blender');
+  assert.equal(started.goalMeta.autoTurns, 0);
+  await assert.doesNotReject(before(h, f.session, 'question', { questions: [] }));
+  const paused = JSON.parse(await h.tool.goal_blender.execute({ action: 'pause' }, { sessionID: f.session }));
+  assert.equal(paused.goalActive, false);
+  const resumed = JSON.parse(await h.tool.goal_blender.execute({ action: 'resume' }, { sessionID: f.session }));
+  assert.equal(resumed.goalActive, true);
+  assert.equal(resumed.goalSource, 'goal-blender');
+});
+
+test('goal-blender command runs the harness mission action', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  const output = { parts: [] };
+  await h['command.execute.before']({ command: 'goal-blender', sessionID: f.session, arguments: 'start' }, output);
+  assert.match(output.parts[0].text, /"goalActive": true/);
+  assert.match(output.parts[0].text, /"goalSource": "goal-blender"/);
+  const statusOutput = { parts: [] };
+  await h['command.execute.before']({ command: 'goal-blender', sessionID: f.session, arguments: '' }, statusOutput);
+  assert.match(statusOutput.parts[0].text, /"goalActive": true/);
+});
+
+test('goal-blender auto-continues once per idle up to the cap', async (t) => {
+  const f = fixture(t);
+  const calls = [];
+  const h = hooks(f, undefined, { session: { promptAsync: async (args) => calls.push(args) } });
+  await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session });
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 1);
+  assert.equal(f.harness.command(f.session, 'status').goalMeta.autoTurns, 1);
+  f.harness.transaction((s) => { s.projects[f.project].goalMeta.autoTurns = 25; });
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 1);
 });
 
 test('plugin injects compact durable recovery context', async (t) => {
@@ -506,7 +577,7 @@ test('plugin injects compact durable recovery context', async (t) => {
   const output = { context: [] };
   await h['experimental.session.compacting']({ sessionID: f.session }, output);
   assert.match(output.context[0], /Create fixture composition/);
-  assert.match(output.context[0], /do not repeat goal start/);
+  assert.match(output.context[0], /do not repeat mission start/);
 });
 
 test('development mode bypasses all workflow hooks', async (t) => {

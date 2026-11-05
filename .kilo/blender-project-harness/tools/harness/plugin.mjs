@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, normalizeGoal, stable } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -16,6 +16,7 @@ const PUBLIC_ACTIONS = new Set(['status', 'launch', 'stop', 'begin', 'extend', '
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
+const MAX_AUTO_TURNS = 25;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
   'README.md',
@@ -77,7 +78,8 @@ const capabilities = () => ({
     { name: 'forget', actor: 'orchestrator', phase: 'stale registration', payload: '{project,reason}' },
     { name: 'preserve', actor: 'orchestrator', phase: 'sealed tooling-blocked change', payload: '{reason}' },
   ],
-  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH },
+  limits: { appliesBeforeCheckpoint: 20, hardApplyCap: 20, maxChangeObjects: 20, maxChangeScenes: 32, ticketTtlMinutes: 10, minutesWithoutApply: 15, wipEveryApplies: 3, maxRounds: 'configured 1-4', batchOperations: MAX_BATCH, autoTurns: 25 },
+  goalPolicy: 'Use goal_blender or the /goal-blender command. The built-in goal and goal_report tools are disabled and invalidate the registration. question remains available for clarifications and Partially Autonomous approvals.',
   commitPolicy: 'Project documents are created with bootstrap-document/document. Every successful apply batch commits atomically; the review produces the final commit. A non-scene change containing only documentation, source-only scripts, references, or assets commits and checkpoints without apply, seal, or review. A failed or expired change may use commit {mode:"wip"} then checkpoint; an expired change with no applies also closes with abandon {reason} or an empty WIP commit. A sealed tooling block uses preserve {reason} then checkpoint. Manual project git add or git commit is blocked.',
   mediaPolicy: 'Media generation is blocked until the project is registered, the initial scene is saved and checkpointed, a post-registration bounded change is open, and media-request has recorded the purpose, tool, model, prompt, seed, and credit estimate. Image, texture, and HDRI requests use the configured Media MCP image tools; video, audio, and model generation are not enabled yet. One generation call is allowed per request. Generated files stay under .temp. Call media-complete with the returned path, then intake with the media id and generated metadata. Scene work is blocked while the request is requested, generating, or generated. Retry at most twice with media-fail; a recorded failure can close with commit. Generated media is reference or asset input, never an automatic texture or licensed third-party asset.',
   shellPolicy: 'Read-only and trusted harness commands run directly. Any other non-project shell command requires a warning acknowledgement: repeat the exact command with description "Reason: ... [HARNESS_SHELL:<id>]". The command and reason are committed atomically under <project>/Documents/Commands/ or root Commands/; command output is never captured or committed. Blender launches, project mutations, and command substitution stay blocked.',
@@ -114,19 +116,30 @@ function kiloGoal(info) {
   };
 }
 
+function invalidateBuiltInGoal(harness, session, reason) {
+  harness.transaction((s) => {
+    const p = Object.values(s.projects).find((item) => item.orchestrator === session);
+    if (!p || p.complete || p.goalConflict) return;
+    const at = new Date().toISOString();
+    p.goalActive = false;
+    p.goalSource = null;
+    p.goalConflict = { at, reason: reason.slice(0, 1000), kind: 'built-in-goal' };
+    p.paused = { at, reason: 'registration invalidated by built-in goal' };
+  });
+}
+
 function withKiloGoal(result, info) {
   if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
   const goal = kiloGoal(info);
   if (!goal) return result;
   result.kiloGoal = goal;
-  if (['blocked', 'paused'].includes(goal.status)
-    && (result.goalActive || ['goal', 'goal_report'].includes(result.nextStep?.action))) {
+  if (goal.status === 'active' && !result.complete && !result.goalConflict) {
     result.nextStep = {
-      phase: 'resume-goal',
+      phase: 'goal-conflict',
       actor: 'orchestrator',
-      action: 'goal',
-      command: 'goal {action:"resume"}',
-      reason: `Kilo marks the goal ${goal.status}; resume it before the next workflow step or goal_report.`,
+      action: 'reregister',
+      command: 'blender_workflow {action:"reregister",payload:"{\\"reason\\":\\"Built-in /goal invalidated the registration.\\"}"}',
+      reason: 'Kilo is running a built-in goal. Use /goal-blender instead; the Blender registration is invalidated. Run /goal clear, close any open change, then reregister.',
     };
     result.next = result.nextStep.reason;
   }
@@ -136,18 +149,9 @@ function withKiloGoal(result, info) {
 function reconcileGoal(harness, session, info) {
   const goal = kiloGoal(info);
   if (!goal) return goal;
-  harness.transaction((s) => {
-    const p = Object.values(s.projects).find((item) => item.orchestrator === session);
-    if (!p || p.complete) return;
-    if (goal.status === 'active' && !p.goalActive) {
-      p.goalActive = true;
-      p.paused = null;
-      p.goalSync = { source: 'kilo', status: goal.status, at: new Date().toISOString() };
-    } else if (['paused', 'blocked', 'complete'].includes(goal.status) && p.goalActive) {
-      p.goalActive = false;
-      p.goalSync = { source: 'kilo', status: goal.status, at: new Date().toISOString() };
-    }
-  });
+  if (['active', 'paused', 'blocked'].includes(goal.status)) {
+    invalidateBuiltInGoal(harness, session, `Kilo session goal is ${goal.status}; this workspace uses /goal-blender.`);
+  }
   return goal;
 }
 
@@ -228,9 +232,11 @@ function guardShell(harness, session, project, command, args = {}) {
   fs.rmSync(file, { force: true });
 }
 
-export function createHooks(harness, client) {
+export function createHooks(harness, client, directory = harness.root) {
   const questions = new Map();
   const taskArgs = new Map();
+  const questionPending = new Set();
+  const continuations = new Set();
   async function identity(id) {
     // PluginInput.client is SDK v1, whose request shape differs from SDK v2.
     const result = await client.session.get({ path: { id }, query: { directory: harness.root }, throwOnError: true });
@@ -268,6 +274,64 @@ export function createHooks(harness, client) {
     reconcileGoal(harness, session, info);
     return withKiloGoal(harness.command(session, 'status'), info);
   }
+  async function goalBlenderAction(sessionID, args) {
+    const info = await identity(sessionID);
+    reconcileGoal(harness, sessionID, info);
+    const p = stateFor(sessionID);
+    if (!p) deny('register the project with blender_workflow prepare before starting /goal-blender');
+    const action = args.action ?? 'status';
+    if (action === 'status') return JSON.stringify(harness.command(sessionID, 'status'), null, 2);
+    if (action === 'start' || action === 'resume') {
+      if (p.goalConflict) deny(`goal conflict: ${p.goalConflict.reason}; run /goal clear, close any open change, and reregister`);
+      if (p.complete) deny('the mission is complete; reregister before starting another mission');
+      return JSON.stringify(harness.command(sessionID, 'goal-active', { source: 'goal-blender', mode: action === 'resume' ? 'resume' : 'start' }), null, 2);
+    }
+    if (action === 'pause') return JSON.stringify(harness.command(sessionID, 'goal-inactive', { reason: 'Paused by /goal-blender' }), null, 2);
+    if (action === 'clear') {
+      if (p.complete) deny('the mission is complete; reregister instead of clearing it');
+      return JSON.stringify(harness.command(sessionID, 'goal-inactive', { clear: true }), null, 2);
+    }
+    if (action === 'complete') {
+      if (typeof args.evidence !== 'string' || !args.evidence.trim()) deny('completion requires evidence');
+      return JSON.stringify(harness.command(sessionID, 'goal-complete', { reason: args.evidence.trim().slice(0, 2000) }), null, 2);
+    }
+    deny('goal_blender action must be start, status, pause, resume, complete, or clear');
+  }
+  async function continueGoalBlender(sessionID) {
+    if (continuations.has(sessionID) || questionPending.has(sessionID)) return;
+    const project = stateFor(sessionID);
+    if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) return;
+    if ((project.goalMeta?.autoTurns ?? 0) >= MAX_AUTO_TURNS) return;
+    let info;
+    try { info = await identity(sessionID); } catch { return; }
+    const builtIn = kiloGoal(info);
+    if (builtIn && ['active', 'paused', 'blocked'].includes(builtIn.status)) {
+      invalidateBuiltInGoal(harness, sessionID, 'Kilo session goal is present; this workspace uses /goal-blender.');
+      return;
+    }
+    continuations.add(sessionID);
+    try {
+      harness.transaction((s) => {
+        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
+        if (!current?.goalMeta) return;
+        current.goalMeta = { ...current.goalMeta, autoTurns: (current.goalMeta.autoTurns ?? 0) + 1, lastTurnAt: new Date().toISOString() };
+      });
+      if (typeof client.session.promptAsync !== 'function') return;
+      await client.session.promptAsync({
+        path: { id: sessionID },
+        query: { directory },
+        body: {
+          parts: [{
+            type: 'text',
+            synthetic: true,
+            text: 'Continue the active /goal-blender mission. Inspect status, make the next safe step, and do not complete without the harness checks.',
+          }],
+        },
+      });
+    } catch {} finally {
+      continuations.delete(sessionID);
+    }
+  }
   function editPaths(tool, args) {
     if (tool === 'apply_patch') {
       const text = args.patchText ?? args.patch ?? '';
@@ -287,7 +351,26 @@ export function createHooks(harness, client) {
     return name;
   }
   return {
+    config: async (config) => {
+      config.command ??= {};
+      config.command['goal-blender'] = {
+        description: 'Harness-owned Blender mission. Use instead of /goal.',
+        template: 'Use goal_blender for the harness-owned Blender mission with arguments: $ARGUMENTS. Do not call the built-in goal or goal_report tools.',
+      };
+    },
     tool: {
+      goal_blender: {
+        description: 'Harness-owned Blender mission lifecycle. Use instead of the built-in goal tool. Actions: start, status, pause, resume, complete, clear.',
+        args: {
+          action: z.enum(['start', 'status', 'pause', 'resume', 'complete', 'clear']),
+          evidence: z.string().optional(),
+        },
+        async execute(args, context) {
+          const session = await identity(context.sessionID);
+          if (session.parentID) deny('goal_blender belongs to the root orchestrator');
+          return goalBlenderAction(context.sessionID, args);
+        },
+      },
       blender_workflow: {
         description: 'Mandatory Blender workflow gate. capabilities, status, bootstrap-document, bootstrap-commit, intake, download, media-request, media-complete, media-fail, prepare, reregister, launch, stop, begin, extend, finalize, document, ticket, grader-ticket, grader-fail, self-review, review, commit, approval, checkpoint, recover, abandon, escalate, preserve, reclaim, forget. payload is a JSON object or JSON string. Follow status.nextStep for the exact next call. Project documents and commits are harness-owned; never invoke Blender or legacy scripts from the shell.',
         args: { action: z.string(), payload: z.union([z.string(), z.record(z.unknown())]).default('{}') },
@@ -330,6 +413,41 @@ export function createHooks(harness, client) {
           deny('document action must be read, write, or ledger');
         },
       },
+    },
+    async 'command.execute.before'(input, output) {
+      if (input.command === 'goal-blender') {
+        const raw = String(input.arguments ?? '').trim();
+        const [action = 'status', ...rest] = raw ? raw.split(/\s+/) : [];
+        const text = await goalBlenderAction(input.sessionID, { action, evidence: rest.join(' ').trim() || undefined });
+        output.parts = [{ type: 'text', text }];
+        return;
+      }
+      if (input.command === 'goal') {
+        const action = String(input.arguments ?? '').trim().split(/\s+/)[0];
+        if (['pause', 'clear'].includes(action)) return;
+        invalidateBuiltInGoal(harness, input.sessionID, 'Built-in /goal was used; this workspace requires /goal-blender.');
+        output.parts = [{
+          type: 'text',
+          text: 'Built-in /goal is disabled in this workspace. Use /goal-blender. The Blender registration is invalidated; run /goal clear, close any open change, then reregister.',
+        }];
+      }
+    },
+    async 'chat.message'(input, output) {
+      const parts = output.parts ?? [];
+      const text = parts.filter((part) => part.type === 'text' && part.text).map((part) => part.text).join('\n').trim();
+      if (/^\/goal(?:\s|$)/.test(text) && !/^\/goal-blender(?:\s|$)/.test(text)
+        && !/^\/goal\s+(?:pause|clear)\b/.test(text)) {
+        invalidateBuiltInGoal(harness, input.sessionID, 'Built-in /goal was used; this workspace requires /goal-blender.');
+      }
+      if (!input.sessionID || parts.some((part) => part.type === 'text' && part.synthetic)) return;
+      harness.transaction((s) => {
+        const project = Object.values(s.projects).find((item) => item.orchestrator === input.sessionID);
+        if (project?.goalMeta) project.goalMeta = { ...project.goalMeta, autoTurns: 0 };
+      });
+    },
+    event: async ({ event }) => {
+      if (event.type !== 'session.idle') return;
+      await continueGoalBlender(event.properties.sessionID);
     },
     async 'tool.execute.before'(input, output) {
       if (harness.developmentMode(input.sessionID)) return;
@@ -386,7 +504,7 @@ export function createHooks(harness, client) {
       if (session.parentID && harness.transaction((s) => Object.values(s.projects).some((p) => p.orchestrator === session.parentID))) {
         const child = await childAssignment(input.sessionID);
         if (child?.worker) {
-          if (ORCHESTRATOR_ONLY.has(tool) || ['write', 'edit', 'apply_patch', 'bash', 'task', 'agent_manager', 'question', 'goal', 'goal_report'].includes(tool)
+          if (ORCHESTRATOR_ONLY.has(tool) || ['write', 'edit', 'apply_patch', 'bash', 'task', 'agent_manager', 'question', 'goal', 'goal_report', 'goal_blender'].includes(tool)
             || (tool.startsWith('blender_') && !WORKER_BLENDER_READ.has(tool))
             || (!READ_ONLY.has(tool) && !WORKER_BLENDER_READ.has(tool) && !tool.startsWith('context7_'))) deny('worker child is read-only and cannot use this tool');
           return;
@@ -421,7 +539,15 @@ export function createHooks(harness, client) {
         } else if (!READ_ONLY.has(tool) && !tool.startsWith('context7_')) deny('grader tool outside read-only scope');
         return;
       }
-      if (tool === 'question') questions.set(input.callID, structuredClone(args));
+      if (tool === 'question') {
+        questions.set(input.callID, structuredClone(args));
+        questionPending.add(input.sessionID);
+      }
+      if (tool === 'goal' || tool === 'goal_report') {
+        if (tool === 'goal' && ['pause', 'clear'].includes(args.action)) return;
+        invalidateBuiltInGoal(harness, input.sessionID, `${tool} is disabled; this workspace uses /goal-blender.`);
+        deny('The built-in goal tools are disabled in this workspace. Use /goal-blender (goal_blender) instead. The Blender registration is now invalidated; run /goal clear, close any open change, then reregister.');
+      }
       if (!p) {
         if (ORCHESTRATOR_ONLY.has(tool)) deny('scheduler and process tools require a registered active goal');
         if (tool.startsWith('blender_') && !BLENDER_READ.has(tool) && tool !== 'blender_workflow') deny('production tool requires a registered project; run blender_workflow prepare and complete its registration question first');
@@ -457,26 +583,7 @@ export function createHooks(harness, client) {
         guardShell(harness, input.sessionID, p.project, command, args);
         return;
       }
-      if (tool === 'blender_workflow' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
-      if (tool === 'goal') {
-        if (args.action === 'start' && normalizeGoal(args.objective) !== normalizeGoal(p.records.goalText)) deny('goal objective must equal registered prompt');
-        harness.fresh(p, { allowRosterDrift: true }); return;
-      }
-      if (tool === 'goal_report') {
-        const goal = kiloGoal(session);
-        if (goal && ['blocked', 'paused'].includes(goal.status)) deny(`Kilo marks the goal ${goal.status}; run goal {action:"resume"} before goal_report`);
-        if (args.status === 'complete') {
-          const missing = [];
-          if (p.change) missing.push('open change');
-          if (!['PASS', 'DOCUMENT'].includes(p.history.at(-1)?.verdict)) missing.push('applicable PASS/DOCUMENT checkpoint');
-          if (!p.lastRender) missing.push('inspected sealed render');
-          else if (harness.hash(p.lastRender.path) !== p.lastRender.hash) missing.push('unchanged inspected render');
-          if (!p.history.some((item) => item.final && item.verdict === 'PASS')) missing.push('final full-spec PASS');
-          if (missing.length) deny(`completion blocked by ${missing.join(', ')}; fix the checkpoint, then run goal {action:"resume"} before goal_report`);
-          harness.assertCommitted(p.project, harness.snapshot(p.project));
-        }
-        return;
-      }
+      if (tool === 'blender_workflow' || tool === 'goal_blender' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
       if (tool === 'task') {
         if (args.background) deny('production delegation must be foreground');
         if (args.subagent_type === 'blender-worker') {
@@ -535,15 +642,17 @@ export function createHooks(harness, client) {
       const tool = input.tool.replace(/^functions\./, '');
       if (tool === 'question') {
         const args = questions.get(input.callID); questions.delete(input.callID);
+        questionPending.delete(input.sessionID);
         if (args && !output.metadata?.dismissed && output.metadata?.answers) harness.question(input.sessionID, args, output.metadata.answers);
+      }
+      if (tool === 'goal' || tool === 'goal_report') {
+        if (successful(output) && !(tool === 'goal' && ['pause', 'clear'].includes(input.args?.action))) {
+          invalidateBuiltInGoal(harness, input.sessionID, `${tool} succeeded; this workspace uses /goal-blender.`);
+        }
+        return;
       }
       const p = stateFor(input.sessionID);
       if (!p) return;
-      if (tool === 'goal' && successful(output)) {
-        if (['start', 'resume'].includes(input.args.action)) harness.command(input.sessionID, 'goal-active', { objective: input.args.action === 'start' ? input.args.objective : undefined });
-        else if (['pause', 'clear'].includes(input.args.action)) harness.command(input.sessionID, 'goal-inactive');
-      }
-      if (tool === 'goal_report' && input.args.status === 'complete' && successful(output)) harness.command(input.sessionID, 'goal-complete');
       if (tool === 'blender_look' && input.args.image) {
         const imageResult = output.content?.some((c) => c.type === 'image') || output.attachments?.some((a) => a.mime?.startsWith('image/'));
         harness.inspect(input.sessionID, path.resolve(harness.root, input.args.image), Boolean(successful(output) && imageResult));
@@ -573,14 +682,14 @@ export function createHooks(harness, client) {
       if (harness.developmentMode(input.sessionID)) return;
       if (!input.sessionID) return;
       const p = stateFor(input.sessionID);
-      if (p) output.system.push(`Runtime workflow state: ${JSON.stringify(await statusFor(input.sessionID))}. Use blender_workflow; never bypass missing gates.`);
+      if (p) output.system.push(`Runtime workflow state: ${JSON.stringify(await statusFor(input.sessionID))}. Use blender_workflow; never bypass missing gates. Use /goal-blender, never the built-in goal or goal_report; using /goal invalidates the registration.`);
     },
     async 'experimental.session.compacting'(input, output) {
       if (harness.developmentMode(input.sessionID)) return;
       const p = stateFor(input.sessionID);
-      if (p) output.context.push(`Durable Blender workflow: ${JSON.stringify(await statusFor(input.sessionID))}. Continue current phase; do not repeat goal start or begin.`);
+      if (p) output.context.push(`Durable Blender workflow: ${JSON.stringify(await statusFor(input.sessionID))}. Continue the active /goal-blender mission; do not repeat mission start or begin.`);
     },
   };
 }
 
-export async function server(context) { return createHooks(new Harness(context.worktree), context.client); }
+export async function server(context) { return createHooks(new Harness(context.worktree), context.client, context.directory); }
