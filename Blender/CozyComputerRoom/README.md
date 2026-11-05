@@ -1,6 +1,6 @@
 # CozyComputerRoom
 
-Status: Draft
+Status: Delivered
 Last updated: 2026-11-05
 
 ## Purpose
@@ -9,7 +9,7 @@ Semi-realistic stylized cozy computer room at warm sunset with a cool dusk windo
 
 ## What this project is
 
-An enclosed 3.6 x 3.2 m room with a 2.6 m ceiling, built as a complete lived-in evening interior around a desktop computer. The hero view is a wide three-quarter corner shot that shows the desk and computer, the cool dusk window, the bed, bookshelf, rug, plant, and warm lamp light. Everything is modeled and shaded procedurally in Blender.
+An enclosed 3.6 x 3.2 m room with a 2.6 m ceiling, built as a complete lived-in evening interior around a desktop computer. The hero view is a wide three-quarter corner shot that shows the desk and computer, the cool dusk window, the bed, bookshelf, rug, plant, wall art, and warm lamp light. Everything is modeled and shaded procedurally in Blender.
 
 ## Requirements
 
@@ -27,14 +27,14 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 - Style: Semi-realistic stylized interior with clean readable forms and believable proportions.
 - Mood / references: Calm, lived-in, intimate evening study; no external references.
 - Colour and lighting: Warm amber lamps and desk glow against cool blue dusk from the window; soft shadows.
-- Camera / framing: Eye level near 1.5 m, wide three-quarter view of the desk corner and window, 16:9.
+- Camera / framing: Eye level near 1.6 m, 20 mm wide three-quarter view of the desk corner and window, 16:9.
 - Scale and units: Metric; room 3.6 x 3.2 m, ceiling 2.6 m; furniture at real-world scale.
 
 ## Deliverables
 
-- Main Blender file: `cozycomputerroom.blend` (planned at project root until first save)
-- Final renders: `renders/final/`
-- Exports: `exports/` (none planned)
+- Main Blender file: `cozycomputerroom.blend`
+- Final renders: `renders/final/R06-20261105T060316Z.png` (1920x1080 hero)
+- Exports: none
 - Documentation: `Documents/`
 - External assets: none
 
@@ -79,7 +79,7 @@ CozyComputerRoom/
 - Launch and stop with `blender_workflow` `launch`/`stop`; never invoke Blender from the shell.
 - Before launch, require confirmed requirements, selected workflow and review records, and an active filled goal.
 - Each launch writes `logs/blender-<timestamp>.log`; `logs/` is ignored.
-- Main file: save the first scene as `cozycomputerroom.blend` in the project root, then replace the planned status above.
+- Main file: `cozycomputerroom.blend` in the project root; the final saved scene is the delivered file.
 - Only one Blender project spawned by this workspace may be open at a time.
 
 ## Workflow
@@ -107,11 +107,11 @@ See [`Documents/ASSETS.md`](Documents/ASSETS.md).
 
 ## Open questions
 
-- None. Requirements, workflow, and review mode are confirmed.
+- None. Requirements, workflow, review mode, and delivery state are current.
 
 ## Next steps
 
-- [ ] Commit the scaffold records and register the project.
-- [ ] Build the room shell, furniture, computer workstation, and props.
-- [ ] Light, frame, render, and complete All-grader review.
-- [ ] Finalize the documented delivered state.
+- [x] Commit the scaffold records and register the project.
+- [x] Build the room shell, furniture, computer workstation, and props.
+- [x] Light, frame, render, and complete All-grader review.
+- [x] Finalize the documented delivered state.

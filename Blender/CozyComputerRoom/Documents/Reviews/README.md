@@ -38,6 +38,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R03-20261105T051224Z | 20261105T051224Z | da17d024a168 | All milestone | visual, technical, spec | PASS | [R03-20261105T051224Z/REVIEW.md](R03-20261105T051224Z/REVIEW.md) |
 | R04-20261105T053219Z | 20261105T053219Z | df8878a61dcf | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R04-20261105T053219Z/REVIEW.md](R04-20261105T053219Z/REVIEW.md) |
 | R05-20261105T054516Z | 20261105T054516Z | df7449846cac | All milestone | visual, technical, spec | PASS | [R05-20261105T054516Z/REVIEW.md](R05-20261105T054516Z/REVIEW.md) |
+| R06-20261105T060316Z | 20261105T060316Z | 27c4d05e1052 | All final | visual, technical, spec | BLOCKED | [R06-20261105T060316Z/REVIEW.md](R06-20261105T060316Z/REVIEW.md) |
 
 ## Rules
 
@@ -60,3 +61,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R04-20261105T053219Z: Furnish the room with the bed, bookshelf and books, rug, shelf plant, wall art, mug, and papers.; evidence 5c22c097c8312660cf0dc4c1be149d014c6b458c034400e9e7b79103683bf433
 
 - R05-20261105T054516Z: Revise furnishing: support the plant on a shelf top, add rug border, layered bedding, curtain rod, desk mat, art inset, chair cushion, book stack, and richer shelf and plant tones.; evidence 6f5356afe98c26d7180cfda3fc3a182601e06176790e278bf5558fad75fe4554
+
+- R06-20261105T060316Z: Final pass: fix camera framing, warm desk-lamp spill, screen glow, desk-leg gap, curtain rod attachment, art motif, and delivery docs.; evidence d5279e1bf0c935eaf4cdd381d685feaee504769657101b95be7071e03c984b18
