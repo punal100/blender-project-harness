@@ -11,6 +11,9 @@ non-rendering viewport Empty. Use `image_texture` when the image is a material t
 shipping or embedding a third-party reference image, register it in `../ASSETS.md` and verify its
 licence permits the intended use and redistribution.
 
+Record the confirmed requirements answer here first: exact paths, links, or `none`. A "no external
+assets" answer does not imply "no visual references"; ask explicitly.
+
 ## Index
 
 | Reference | Source | What it informs | Notes |

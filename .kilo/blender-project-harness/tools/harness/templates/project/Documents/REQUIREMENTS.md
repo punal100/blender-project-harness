@@ -36,6 +36,7 @@ then fill and start the goal before launch.
 - File format / resolution:
 - Performance / delivery limits:
 - External assets:
+- Reference images / links: (record paths, links, or `none`; mirror them in `References/README.md`)
 
 ## Deferred
 
