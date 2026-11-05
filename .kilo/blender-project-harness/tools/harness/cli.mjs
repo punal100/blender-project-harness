@@ -58,6 +58,32 @@ function checkUpstream() {
   if (!version.includes('mcp-for-blender')) fail('pinned mcp-for-blender command did not return expected help');
 }
 
+const REQUIRED_IGNORES = [
+  '/.kilo/blender-project-harness/config.json',
+  '.temp/',
+  '**/logs/**',
+  '**/renders/wip/**',
+  '**/Documents/Reviews/**/_evidence/',
+  '**/*.blend1',
+  '**/__pycache__/',
+  '**/node_modules/',
+];
+
+function checkGitignore() {
+  const file = path.join(root, '.gitignore');
+  const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+  const lines = new Set(text.split(/\r?\n/));
+  const missing = REQUIRED_IGNORES.filter((line) => !lines.has(line));
+  return { path: '.gitignore', ok: missing.length === 0, missing };
+}
+
+function gitStatus(project) {
+  const result = spawnSync('git', ['status', '--porcelain', '--untracked-files=all', '--', project], { cwd: root, encoding: 'utf8', windowsHide: true });
+  if (result.error || result.status !== 0) return { error: result.error?.message ?? result.stderr?.trim() ?? `exit ${result.status}` };
+  const dirty = result.stdout.split(/\r?\n/).filter(Boolean);
+  return { clean: dirty.length === 0, dirty: dirty.slice(0, 50) };
+}
+
 function doctor({ project } = {}) {
   const node = process.versions.node;
   if (Number.parseInt(node, 10) < 22) fail(`Node ${node} is too old; Node 22 or newer required`);
@@ -69,7 +95,8 @@ function doctor({ project } = {}) {
   const blender = findBlender();
   const instance = instanceStatus(stateHome());
   const projectState = project ? new Harness(root).projectDoctor(project) : null;
-  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6', blender, instance, project: projectState }, null, 2) + '\n');
+  const workspace = { gitignore: checkGitignore(), git: gitStatus(project ?? 'Blender') };
+  process.stdout.write(JSON.stringify({ ok: true, root, node, upstream: 'mcp-for-blender==2.2.6', blender, instance, workspace, project: projectState }, null, 2) + '\n');
 }
 
 function parseOptions(args) {
