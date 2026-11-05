@@ -203,6 +203,7 @@ export function git(root, args, { binary = false, allowExitOne = false } = {}) {
     result = spawnSync('git', args, { cwd: root, encoding: binary ? undefined : 'utf8', windowsHide: true, timeout: GIT_TIMEOUT_MS, maxBuffer: 128 * 1024 * 1024 });
     const failed = result.error || (result.status !== 0 && !(allowExitOne && result.status === 1));
     if (!failed) return binary ? result.stdout : result.stdout;
+    if (attempt > 1 && args[0] === 'commit' && /nothing to commit|no changes added to commit/i.test(result.stderr?.toString() ?? '')) return binary ? Buffer.alloc(0) : '';
     if (!transientGitFailure(result) || attempt === GIT_ATTEMPTS) break;
     if (headBefore) {
       const headAfter = headHash(root);
