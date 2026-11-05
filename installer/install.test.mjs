@@ -68,6 +68,8 @@ test('installs the harness, config, and workspace surfaces', (t) => {
   assert.equal(fs.existsSync(path.join(root, 'AGENTS.md')), true);
   assert.equal(fs.existsSync(path.join(root, '.kilo', 'skills', 'test-skill', 'SKILL.md')), true);
   assert.match(fs.readFileSync(path.join(root, '.gitignore'), 'utf8'), /\.kilo\/blender-project-harness\/config\.json/);
+  assert.match(fs.readFileSync(path.join(root, '.gitignore'), 'utf8'), /\*\*\/logs\/\*\*/);
+  assert.match(fs.readFileSync(path.join(root, '.gitignore'), 'utf8'), /\*\*\/Documents\/Reviews\/\*\*\/_evidence\//);
   assert.equal(status({ root }).installed, true);
 });
 

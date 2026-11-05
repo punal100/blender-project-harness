@@ -11,7 +11,17 @@ export const SERVER_RELATIVE = `${INSTALL_RELATIVE}/tools/harness/server.mjs`;
 
 const FORMAT = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
 const GITIGNORE_HEADER = '# Blender project harness';
-const GITIGNORE_LINES = ['/.kilo/blender-project-harness/config.json', '.temp/'];
+const GITIGNORE_LINES = [
+  '/.kilo/blender-project-harness/config.json',
+  '.temp/',
+  '**/logs/**',
+  '**/renders/wip/**',
+  '**/Documents/Reviews/**/_evidence/',
+  '**/*.blend1',
+  '**/*.blend2',
+  '**/__pycache__/',
+  '**/node_modules/',
+];
 
 function exists(file) {
   try { fs.lstatSync(file); return true; } catch { return false; }
@@ -145,8 +155,10 @@ function preparePlugin() {
 function prepareGitignore(root) {
   const file = path.join(root, '.gitignore');
   const text = exists(file) ? fs.readFileSync(file, 'utf8') : '';
-  if (text.includes(GITIGNORE_HEADER)) return text;
-  const lines = [GITIGNORE_HEADER, ...GITIGNORE_LINES];
+  const existing = new Set(text.split(/\r?\n/));
+  const missing = GITIGNORE_LINES.filter((line) => !existing.has(line));
+  if (text.includes(GITIGNORE_HEADER) && !missing.length) return text;
+  const lines = text.includes(GITIGNORE_HEADER) ? missing : [GITIGNORE_HEADER, ...GITIGNORE_LINES];
   const separator = text && !text.endsWith('\n') ? '\n\n' : text ? '\n' : '';
   return `${text}${separator}${lines.join('\n')}\n`;
 }
