@@ -1099,7 +1099,7 @@ test('failed review approval excludes the impossible approve option', (t) => {
   assert.doesNotMatch(approval.question, /Approve change/);
   gate(() => f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.slice().reverse().map((label) => ({ label })), custom: false, multiple: false }],
-  }, [['Request revision']]), /labels exactly.*Request revision.*Pause.*default "Request revision"/);
+  }, [['Request revision']]), /not recorded.*still pending.*labels exactly.*Request revision.*Pause.*default "Request revision"/);
 });
 
 test('partial approval ignores forged JSON and Pause, then accepts only actual labels', (t) => {

@@ -1243,9 +1243,11 @@ export class Harness {
         this.fresh(p);
         const spec = approvalSpec(p.change);
         if (stable(q.options.map((o) => o.label)) !== stable(spec.labels)) {
-          deny(`approval options changed. Use labels exactly ${JSON.stringify(spec.labels)} in that order and default "${spec.defaultLabel}"`);
+          deny(`approval answer was not recorded and approval is still pending. Use labels exactly ${JSON.stringify(spec.labels)} in that order and default "${spec.defaultLabel}"; then re-ask the exact approval question`);
         }
-        if (answers[0][0] === 'Approve change' && p.change.verdict !== 'PASS') deny('failed review cannot be approved; request revision or pause');
+        if (answers[0][0] === 'Approve change' && p.change.verdict !== 'PASS') {
+          deny(`approval answer "Approve change" was not recorded and approval is still pending because the verdict is ${p.change.verdict}. Re-ask with labels ${JSON.stringify(spec.labels)} and default "${spec.defaultLabel}"`);
+        }
         p.change.approval = ['Approve change', 'Request revision'].includes(answers[0][0]) ? { label: answers[0][0], evidence: p.change.evidenceKey } : null;
       }
     });
