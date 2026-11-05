@@ -1175,7 +1175,8 @@ export class Harness {
       contained(this.projectPath(args.project), args.scene, true);
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       const reference = s.references?.[session];
-      if (!reference?.answer) deny('reference question must be asked and answered before registration; call blender_workflow reference first');
+      if (!reference) deny('Reference question has not been issued. Call blender_workflow {action:"reference"} first.');
+      if (!reference.answer) deny('Reference question is unanswered. Ask the exact question returned by blender_workflow {action:"reference"}, including the HARNESS REFERENCE token, with all four labels exactly.');
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
       if (s.challenge) {
         const c = s.challenge;

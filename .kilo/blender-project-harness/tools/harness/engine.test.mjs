@@ -268,8 +268,10 @@ test('prepare requires a runtime reference answer', (t) => {
   const f = useFixture(t);
   const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
   f.harness.transaction((s) => { delete s.references.orchestrator; });
-  gate(() => f.harness.prepare('orchestrator', args), /reference question/);
+  gate(() => f.harness.prepare('orchestrator', args), /reference question has not been issued/i);
   const reference = f.harness.command('orchestrator', 'reference');
+  gate(() => f.harness.prepare('orchestrator', args), /reference question is unanswered.*HARNESS REFERENCE token/is);
+  assert.equal(reference.answered, false);
   f.harness.question('orchestrator', registrationQuestion(reference), [['None']]);
   assert.ok(f.harness.prepare('orchestrator', args).question);
 });
