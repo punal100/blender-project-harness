@@ -1248,6 +1248,13 @@ export class Harness {
         if (answers[0][0] === 'Approve change' && p.change.verdict !== 'PASS') {
           deny(`approval answer "Approve change" was not recorded and approval is still pending because the verdict is ${p.change.verdict}. Re-ask with labels ${JSON.stringify(spec.labels)} and default "${spec.defaultLabel}"`);
         }
+        if (answers[0][0] === 'Pause') {
+          p.change.approval = null;
+          p.goalActive = false;
+          p.goalSource = null;
+          p.paused = { at: new Date().toISOString(), reason: 'Paused at change approval; resume with /goal-blender resume.' };
+          return;
+        }
         p.change.approval = ['Approve change', 'Request revision'].includes(answers[0][0]) ? { label: answers[0][0], evidence: p.change.evidenceKey } : null;
       }
     });

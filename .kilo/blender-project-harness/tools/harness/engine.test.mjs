@@ -1117,7 +1117,7 @@ test('commit requires runtime approval for a reviewable Partially Autonomous cha
   assert.doesNotThrow(() => f.harness.command('orchestrator', 'commit', { message: 'change fixture' }));
 });
 
-test('partial approval ignores forged JSON and Pause, then accepts only actual labels', (t) => {
+test('partial approval pauses on Pause and accepts only exact labels', (t) => {
   const f = useFixture(t, { workflow: 'Partially Autonomous' });
   activate(f);
   begin(f);
@@ -1131,7 +1131,11 @@ test('partial approval ignores forged JSON and Pause, then accepts only actual l
   f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.map((label) => ({ label })), custom: false, multiple: false }],
   }, [['Pause']]);
-  assert.equal(f.harness.command('orchestrator', 'status').change.approved, false);
+  const paused = f.harness.command('orchestrator', 'status');
+  assert.equal(paused.change.approved, false);
+  assert.equal(paused.goalActive, false);
+  assert.match(paused.paused.reason, /Paused at change approval/);
+  f.harness.command('orchestrator', 'goal-active', { source: 'goal-blender', mode: 'resume' });
   gate(() => f.harness.command('orchestrator', 'checkpoint'));
   gate(() => begin(f));
   const forged = registrationQuestion(approval);
