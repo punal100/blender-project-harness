@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Requirements discovery now asks for reference images or links as a mandatory standalone question
+  before the brief confirmation; declining external assets no longer skips it.
+
 ## 1.0.4 - 2026-11-05
 
 ### Fixed

@@ -30,6 +30,10 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
   start or resume the goal. Do not launch before that sequence. Never start a goal to ask questions or
   run discovery; `question` is unavailable during an active goal. Read-only questions and workspace
   maintenance need no goal, records, or review render and must not launch or modify Blender.
+- Requirements discovery MUST ask for reference images or links as its own question before the
+  `Confirm requirements` question. It MUST accept supplied paths/URLs, a generated or web reference,
+  or an explicit `none`; "fully modeled / no external assets" does not answer it. Record the answer in
+  `REQUIREMENTS.md` and `Documents/References/README.md`.
 - Requirements, workflow mode, review mode, and the active goal are frozen after registration.
   Changes stop production and require explicit re-registration. Never edit registration documents
   inside a bounded change.

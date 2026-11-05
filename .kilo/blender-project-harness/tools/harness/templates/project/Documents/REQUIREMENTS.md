@@ -10,7 +10,8 @@ Confirmed requirements are the source of truth. Add or change them only after ex
 Persist the exact confirmed brief or revision and the user's actual confirmation response after
 scaffolding. Replace draft status and empty confirmation fields only from that evidence; do not invent
 approval. Collect workflow and review answers before scaffolding, persist their records afterward,
-then fill and start the goal before launch.
+then fill and start the goal before launch. Confirm only after the user has answered the reference
+question explicitly; "fully modeled / no external assets" does not mean "no references".
 
 ## Core value
 

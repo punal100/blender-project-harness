@@ -19,12 +19,14 @@ template is under `../../../.kilo/blender-project-harness/tools/harness/template
 Requirements, workflow mode, review mode, and scaffolding happen in ordinary chat before a goal
 starts. Kilo removes `question` during an active goal.
 
-1. Confirm requirements with `blender-project-requirements`.
-2. Ask the optional-workflow intake questions: generated media after registration versus supplied,
-   downloaded, browser/provider, or user-assisted assets; reference images or links, including an
-   explicit "none"; scripts as none or source-only; required deliverable formats. Use
-   `intake {scan:true}` for supplied paths; it does not write the project. Do not generate paid media
-   during discovery.
+1. Discuss requirements with `blender-project-requirements`. Before confirming the brief, ask the
+   mandatory reference-images/links question as its own `question` call: use my references, generate
+   one (deferred until after registration), use web references, or none. "Fully modeled / no external
+   assets" does not answer it. Use `intake {scan:true}` for supplied paths; it does not write the
+   project.
+2. Ask the remaining intake questions: generated media after registration versus supplied, downloaded,
+   browser/provider, or user-assisted assets; scripts as none or source-only; required deliverable
+   formats. Do not generate paid media during discovery. Then confirm the requirements brief.
 3. Collect workflow mode with `blender-project-workflow` and review mode with
    `blender-project-grading`. Check `capabilities` against the confirmed visual requirements before
    scaffolding; drop, approximate, or defer anything the operations cannot express.
@@ -34,7 +36,8 @@ starts. Kilo removes `question` during an active goal.
 6. Commit the exact scaffold with `bootstrap-commit`. Never stage or commit project paths manually.
 7. Call `prepare {project,goal,scene}`; pass its exact question and labels to `question`. Only the
    runtime answer registers.
- 8. Start or resume the goal with the entire filled prompt: `goal(action="start", objective=<filled prompt>)`. End the turn after a successful start.
+8. Start or resume the goal with the entire filled prompt:
+   `goal(action="start", objective=<filled prompt>)`. End the turn after a successful start.
 9. On the next goal turn, inspect `status` and continue with `nextStep`.
 
 Never start a goal to ask questions. Never create project documents outside the harness. Update

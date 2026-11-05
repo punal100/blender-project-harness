@@ -160,13 +160,16 @@ Ask only questions that change the result or the rights:
 - What should the scene contain?
 - What style, mood, and lighting?
 - What deliverables?
-- Are references generated, supplied, or omitted?
+- Are references supplied, generated, web, or omitted? Ask this as its own question before the
+  requirements confirmation, even when external assets are declined.
 - Are external assets supplied, downloaded, or avoided?
 - Are scripts needed?
 - Fully Autonomous or Partially Autonomous?
 - Review Off, Single, or All?
 
-Record confirmed answers before scaffolding. Do not ask the user to understand harness internals.
+Record confirmed answers before scaffolding. Do not present the requirements confirmation until the
+reference answer is explicit; `none` is valid, but "fully modeled / no external assets" does not
+answer it. Do not ask the user to understand harness internals.
 
 ### Phase 2 — Scaffold, documents, registration, and goal
 

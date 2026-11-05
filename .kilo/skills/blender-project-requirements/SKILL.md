@@ -20,23 +20,27 @@ necessary question during production, follow `blender-project-goal` for the requ
 4. Challenge vague terms. Convert abstract ideas into observable outcomes. Put future work under
    `Deferred` and explicit exclusions under `Out of scope`.
 5. Cover purpose, audience, visual outcome, deliverables, acceptance, constraints, external assets,
-   reference images or links, and exclusions. Ask the reference question even when the user says
-   "fully modeled, no external assets": assets answer sourcing, not visual reference. Require an
-   explicit answer, including "none". Do not walk a generic checklist.
-6. Reflect a concise draft back to the user. Ask `Confirm requirements`, `Keep discussing`, or
+   and exclusions.
+6. Ask the reference question as its own `question` call before any brief confirmation. Offer
+   `Use my references`, `Generate one`, `Use web references`, or `None`; collect exact paths or URLs
+   for supplied references. Generation is deferred until after registration. Ask even when the user
+   says "fully modeled, no external assets"; that answers sourcing, not visual reference. Use
+   `intake {scan:true}` for supplied paths. Do not show `Confirm requirements` until it is answered.
+7. Reflect a concise draft back to the user. The draft MUST include
+   `Reference images / links: <answer or none>`. Ask `Confirm requirements`, `Keep discussing`, or
    `Change something`.
-7. Loop until the user explicitly confirms. Silence, a new topic, or an unrelated `ok` is not
+8. Loop until the user explicitly confirms. Silence, a new topic, or an unrelated `ok` is not
    confirmation.
-8. On confirmation, record the exact user words and scope. Create or update
+9. On confirmation, record the exact user words and scope. Create or update
    `Documents/REQUIREMENTS.md` with `Status: Confirmed`, `Confirmed: YYYY-MM-DD`,
    `Confirmation: <exact response and scope>`, and a change-log row. Record the reference answer under
    `Constraints` (`Reference images / links:`) and in `Documents/References/README.md` (paths, links,
    or `none`). Use `bootstrap-document` before registration. After registration, requirements are
    frozen; do not use `document` for them.
-9. New project: collect workflow mode with `blender-project-workflow` and review mode with
-   `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
-   `prepare` and start the goal.
-10. Existing project: registration documents are frozen after registration. If the user requests a
+10. New project: collect workflow mode with `blender-project-workflow` and review mode with
+    `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
+    `prepare` and start the goal.
+11. Existing project: registration documents are frozen after registration. If the user requests a
     requirements change, stop and report the need for explicit re-registration. Do not edit
     `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, or the active goal
     inside a bounded change.
