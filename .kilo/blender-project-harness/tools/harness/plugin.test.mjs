@@ -293,7 +293,11 @@ test('worker children stay read-only after delegation', async (t) => {
       ] }),
     },
   });
-  await assert.rejects(before(wrong, 'ses_wrong_worker', 'blender_get_scene_info', {}), /configured worker/);
+  await before(wrong, 'ses_wrong_worker', 'blender_get_scene_info', {});
+  await assert.rejects(
+    before(wrong, 'ses_wrong_worker', 'blender_harness_execute', { token: '00000000-0000-0000-0000-000000000000', operation: 'apply', payload: {} }),
+    /configured worker/,
+  );
 });
 
 test('apply execution is delegated to worker children', async (t) => {
@@ -431,7 +435,7 @@ test('registered workspace code commits are allowed through shell approval', asy
   const code = path.join(f.root, 'tools', 'harness', 'scratch.txt');
   fs.mkdirSync(path.dirname(code), { recursive: true });
   fs.writeFileSync(code, 'scratch\n');
-  git(f.root, ['add', '--', '.kilo/blender-project-harness/tools/harness/scratch.txt']);
+  git(f.root, ['add', '--', 'tools/harness/scratch.txt']);
   await approveShell(h, f.session, 'git commit -m "chore: scratch workspace file"');
 });
 
