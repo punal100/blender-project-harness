@@ -166,6 +166,21 @@ export class BlenderProxy {
          scenes.push({ name, render: projectRender, camera: preflight.camera, use_sequencer: preflight.use_sequencer, resolution: preflight.resolution, facts: factsPath });
          for (const pathName of [projectRender, cameraPath, factsPath, textPath]) evidenceNames.add(pathName);
        }
+       const referenceRoot = path.join(this.harness.root, context.project, 'Documents', 'References');
+       if (fs.existsSync(referenceRoot)) {
+         const referenceFiles = fs.readdirSync(referenceRoot, { withFileTypes: true })
+           .filter((entry) => entry.isFile() && /\.(?:png|jpe?g|webp)$/i.test(entry.name))
+           .map((entry) => entry.name)
+           .sort();
+         for (const name of referenceFiles) {
+           const source = contained(this.harness.root, `${context.project}/Documents/References/${name}`);
+           const safeName = name.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-').slice(0, 120) || `reference-${referenceFiles.indexOf(name) + 1}`;
+           const target = `${roundRoot}/_evidence/references/${safeName}`;
+           fs.mkdirSync(path.dirname(contained(this.harness.root, target, true)), { recursive: true });
+           fs.copyFileSync(source, contained(this.harness.root, target, true));
+           evidenceNames.add(target);
+         }
+       }
       const evidence = Object.fromEntries([...evidenceNames].map((name) => [name, this.harness.hash(name)]));
       const evidenceKey = digest(stable({ scene: this.harness.hash(context.scene), specs: context.records.specs, evidence }));
       const manifest = { round, created: new Date().toISOString(), previous_round: context.previousRound, active_goal: `${context.project}/${context.goal}`,

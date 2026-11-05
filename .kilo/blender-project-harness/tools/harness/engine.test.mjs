@@ -1157,6 +1157,7 @@ test('All review mode freezes grader evidence and rejects stale reports', (t) =>
   assert.match(reviewed.grader.prompt, /HARNESS_GRADER:/);
   assert.match(reviewed.grader.prompt, /Report path: .*REPORT\.md/);
   assert.match(reviewed.grader.prompt, /Scene hash|saved scene SHA-256/);
+  assert.match(reviewed.grader.prompt, /Reference evidence.*compare composition/i);
   const report = path.join(f.root, reviewed.grader.report);
   fs.appendFileSync(report, 'tampered\n');
   gate(() => f.harness.command('orchestrator', 'review', { notes: 'retry' }));

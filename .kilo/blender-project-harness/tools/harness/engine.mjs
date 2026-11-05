@@ -2086,6 +2086,11 @@ export class Harness {
           if (!fs.existsSync(absolute(name)) || this.hash(name) !== c.evidence[name]) deny(`frozen evidence missing or changed: ${name}`);
         }
         const evidenceLines = evidenceFiles.map((name) => `- ${absolute(name)} (sha256 ${c.evidence[name]})`);
+        const referenceEvidence = evidenceFiles.filter((name) => /\/_evidence\/references\//.test(name));
+        const referenceLines = referenceEvidence.length
+          ? referenceEvidence.map((name) => `- ${absolute(name)} (sha256 ${c.evidence[name]})`)
+          : ['- none supplied']; 
+
         const manifestPath = absolute(c.manifestPath);
         if (!fs.existsSync(manifestPath)) deny('frozen review manifest missing');
         const reportPath = absolute(report);
@@ -2110,6 +2115,8 @@ export class Harness {
           `Evidence key: ${c.evidenceKey}`,
           'Evidence files (read these exact paths):',
           ...evidenceLines,
+          'Reference evidence (visual direction; compare composition, framing, palette, and major props):',
+          ...referenceLines,
           `Manifest: ${manifestPath}`,
           `Report path: ${reportPath}`,
           `Prior round: ${p.history.at(-1)?.round ?? 'none'}`,
