@@ -1461,7 +1461,7 @@ export class Harness {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
-       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
+       change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), reviewScope: c.final ? 'final' : 'milestone', readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p) {
@@ -2018,7 +2018,7 @@ export class Harness {
         this.mediaGate(p, c, { allowIntaken: true });
         c.verdict = 'PASS'; c.notes = args.notes;
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
-        const text = `# Orchestrator Self-review\n\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nScenes: ${(c.scenes ?? []).join(', ') || 'active'}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
+        const text = `# Orchestrator Self-review\n\nReview scope: ${c.final ? 'final' : 'milestone'}${c.final ? '' : ' (not final)'}\nVerdict: PASS\nScene SHA-256: ${c.sceneHash}\nScenes: ${(c.scenes ?? []).join(', ') || 'active'}\nEvidence key: ${c.evidenceKey}\n\n${args.notes}\n`;
         fs.writeFileSync(contained(this.root, name, true), text, { flag: 'wx' });
         c.reports[name] = digest(text);
         this.updateManifest(p);
@@ -2168,6 +2168,7 @@ export class Harness {
         const name = `${p.project}/Documents/Reviews/${c.round}/REVIEW.md`;
         const text = [
           '# Review aggregate',
+          `Review scope: ${c.final ? 'final' : 'milestone'}${c.final ? '' : ' (not final)'}`,
           `Verdict: ${c.verdict}`,
           `Scene SHA-256: ${c.sceneHash}`,
           `Scenes: ${(c.scenes ?? []).join(', ') || 'active'}`,

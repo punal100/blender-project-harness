@@ -1151,9 +1151,10 @@ test('partial approval pauses on Pause and accepts only exact labels', (t) => {
 test('All review mode freezes grader evidence and rejects stale reports', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
-  begin(f);
+  begin(f, 'orchestrator', { final: false });
   const reviewed = reviewAll(f);
   assert.equal(reviewed.status.change.verdict, 'PASS');
+  assert.equal(reviewed.status.change.reviewScope, 'milestone');
   assert.match(reviewed.grader.prompt, /HARNESS_GRADER:/);
   assert.match(reviewed.grader.prompt, /Report path: .*REPORT\.md/);
   assert.match(reviewed.grader.prompt, /Scene hash|saved scene SHA-256/);

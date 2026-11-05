@@ -142,9 +142,10 @@ grader its own prior report, new frozen evidence, new report path, and dispositi
 each prior finding `FIXED`, `OPEN`, or `REGRESSED` with evidence, then adds new findings.
 NEVER permit peer report reads or rewrite sealed metadata.
 
-Partially Autonomous completion requires review then `approval`; pass its exact question and labels
-to `question`. For `CHANGES_REQUIRED`, choose `Request revision`, commit the failed round, checkpoint,
-then begin with `revision:true`; never approve a failed review. Findings do not authorize fixes; a
-correction needs a new bounded `begin` with `revision:true`. Completion requires a clean `checkpoint`, current records, inspected sealed render,
+A milestone PASS is not final acceptance; the final full-spec review must include the frozen reference
+evidence. Partially Autonomous completion requires review then `approval`; pass its exact question and
+labels to `question`. For `CHANGES_REQUIRED`, choose `Request revision`, commit the failed round,
+checkpoint, then begin with `revision:true`; never approve a failed review. Findings do not authorize
+fixes; a correction needs a new bounded `begin` with `revision:true`. Completion requires a clean `checkpoint`, current records, inspected sealed render,
 and final applicable `PASS` or recorded `Off` self-review with no unresolved blocker or major. Commit
 policy and recovery are in `blender-workflow-harness`; manual project Git is blocked.
