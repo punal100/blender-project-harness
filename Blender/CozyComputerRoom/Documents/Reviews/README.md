@@ -39,6 +39,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R04-20261105T053219Z | 20261105T053219Z | df8878a61dcf | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R04-20261105T053219Z/REVIEW.md](R04-20261105T053219Z/REVIEW.md) |
 | R05-20261105T054516Z | 20261105T054516Z | df7449846cac | All milestone | visual, technical, spec | PASS | [R05-20261105T054516Z/REVIEW.md](R05-20261105T054516Z/REVIEW.md) |
 | R06-20261105T060316Z | 20261105T060316Z | 27c4d05e1052 | All final | visual, technical, spec | BLOCKED | [R06-20261105T060316Z/REVIEW.md](R06-20261105T060316Z/REVIEW.md) |
+| R07-20261105T061908Z | 20261105T061908Z | 0ceca1eb4941 | All final | visual, technical, spec | PASS | [R07-20261105T061908Z/REVIEW.md](R07-20261105T061908Z/REVIEW.md) |
 
 ## Rules
 
@@ -63,3 +64,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R05-20261105T054516Z: Revise furnishing: support the plant on a shelf top, add rug border, layered bedding, curtain rod, desk mat, art inset, chair cushion, book stack, and richer shelf and plant tones.; evidence 6f5356afe98c26d7180cfda3fc3a182601e06176790e278bf5558fad75fe4554
 
 - R06-20261105T060316Z: Final pass: fix camera framing, warm desk-lamp spill, screen glow, desk-leg gap, curtain rod attachment, art motif, and delivery docs.; evidence d5279e1bf0c935eaf4cdd381d685feaee504769657101b95be7071e03c984b18
+
+- R07-20261105T061908Z: Final review round R07: reseal the unchanged delivered scene for a clean full-spec pass.; evidence 074faccf1892eb432575007fc5c0112d99912e3a9fee8fb2a33fd85de681da46
