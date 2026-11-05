@@ -1096,6 +1096,7 @@ test('failed review approval excludes the impossible approve option', (t) => {
   assert.deepEqual(approval.labels, ['Request revision', 'Pause']);
   assert.equal(approval.defaultLabel, 'Request revision');
   assert.match(approval.instruction, /default to "Request revision"/);
+  assert.match(approval.afterApproval, /commit the failed round.*begin a bounded revision/i);
   assert.doesNotMatch(approval.question, /Approve change/);
   gate(() => f.harness.question('orchestrator', {
     questions: [{ question: approval.question, options: approval.labels.slice().reverse().map((label) => ({ label })), custom: false, multiple: false }],

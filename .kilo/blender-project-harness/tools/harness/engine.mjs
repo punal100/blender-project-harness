@@ -2215,6 +2215,9 @@ export class Harness {
           ...spec,
           orderSensitive: true,
           instruction: `Pass this exact question and labels in this order; set default to "${spec.defaultLabel}".`,
+          afterApproval: c.verdict === 'PASS'
+            ? 'Commit the exact reviewed change, then checkpoint.'
+            : 'Commit the failed round, checkpoint, then begin a bounded revision with revision:true.',
           outcome: c.outcome,
           verdict: c.verdict,
         };
