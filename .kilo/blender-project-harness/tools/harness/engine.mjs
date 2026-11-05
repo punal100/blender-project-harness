@@ -34,6 +34,7 @@ const CHANGE_WINDOW_MS = 900000;
 const TICKET_TTL_MS = 10 * 60000;
 const MAX_CHANGE_OBJECTS = 20;
 const MAX_CHANGE_SCENES = 32;
+const GRADER_STEP_CEILING = 24;
 const MAX_DOWNLOADS_PER_PROJECT = 20;
 const MAX_MEDIA_REQUESTS = 20;
 const MAX_MEDIA_ATTEMPTS = 2;
@@ -286,7 +287,7 @@ export class Harness {
       const names = new Set();
       const graderSteps = this.agentSteps('blender-grader');
       for (const g of cfg.graders) {
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(g.name ?? '') || names.has(g.name) || typeof g.focus !== 'string' || !g.focus.trim() || !Number.isInteger(g.max_steps) || g.max_steps < 1 || g.max_steps > 12 || !Number.isInteger(g.max_minutes) || g.max_minutes < 1) deny('invalid grader roster');
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(g.name ?? '') || names.has(g.name) || typeof g.focus !== 'string' || !g.focus.trim() || !Number.isInteger(g.max_steps) || g.max_steps < 1 || g.max_steps > GRADER_STEP_CEILING || !Number.isInteger(g.max_minutes) || g.max_minutes < 1) deny('invalid grader roster');
         const choice = modelChoice(g, `grader ${g.name ?? '<unknown>'}`, { requireBackup: true });
         g.provider = choice.provider; g.model = choice.model; g.variant = choice.variant;
         if (choice.backup) g.backup = choice.backup; else delete g.backup;
@@ -1850,11 +1851,11 @@ export class Harness {
           `Manifest: ${manifestPath}`,
           `Report path: ${reportPath}`,
           `Prior round: ${p.history.at(-1)?.round ?? 'none'}`,
-          'Live inspection: not allowed',
+          'Live inspection: not allowed; the only Blender tool a grader may call is blender_look {image:"<absolute assigned evidence image>"}',
           'User prompt: <verbatim user words for permitted live Blender calls>',
           'Prior findings / dispositions: <orchestrator-supplied re-review context or none>',
-          `Budget: ${g.max_minutes} minutes, ${g.max_steps} steps`,
-          'Report timing: read the required evidence and spec documents, then write the assigned REPORT.md immediately; do not defer the write until the end.',
+          `Budget: ${g.max_minutes} minutes, ${g.max_steps} steps; reserve at least one step for the report write`,
+          'Report timing: read REQUIREMENTS.md, the goal brief, the named prior report, and the assigned evidence only; skip optional docs. Write the assigned REPORT.md before your final step. A denied optional look or a nearly exhausted budget is not a reason to stop without a report: write the verdict from the evidence you have.',
           `Deadline UTC / rounds already used: ${new Date(deadline).toISOString()}`,
           'Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached',
           'Output: verdict, findings, <= 20 lines',

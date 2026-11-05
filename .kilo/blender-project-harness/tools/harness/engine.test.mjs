@@ -606,6 +606,26 @@ test('records reject invalid modes and grader configurations before registration
   }
 });
 
+test('grader step ceiling accepts 20 and rejects 25', (t) => {
+  const accepted = validGraderConfig();
+  accepted.blender_subagents.graders.graders[0].max_steps = 20;
+  const ok = useFixture(t, { review: 'All', configValue: accepted });
+  assert.doesNotThrow(() => ok.harness.prepare('orchestrator', {
+    project: ok.project,
+    goal: ok.goal.slice(ok.project.length + 1),
+    scene: ok.sceneName,
+  }));
+
+  const rejected = validGraderConfig();
+  rejected.blender_subagents.graders.graders[0].max_steps = 25;
+  const bad = useFixture(t, { review: 'All', configValue: rejected });
+  gate(() => bad.harness.prepare('orchestrator', {
+    project: bad.project,
+    goal: bad.goal.slice(bad.project.length + 1),
+    scene: bad.sceneName,
+  }), /invalid grader roster/);
+});
+
 test('worker and grader backups validate and bind as the configured fallback', (t) => {
   const config = validGraderConfig();
   config.blender_subagents.workers = {
@@ -632,6 +652,8 @@ test('worker and grader backups validate and bind as the configured fallback', (
   assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.modelRole), 'backup');
   assert.equal(f.harness.command('orchestrator', 'status').models.graders[0].backup.model, 'backup-model');
   assert.equal(sealed.round, ticket.round);
+  assert.match(ticket.prompt, /blender_look \{image:"<absolute assigned evidence image>"\}/);
+  assert.match(ticket.prompt, /reserve at least one step for the report write/);
 });
 
 test('partial backup configuration is rejected before registration', (t) => {

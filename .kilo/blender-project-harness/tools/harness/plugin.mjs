@@ -413,7 +413,7 @@ export function createHooks(harness, client) {
           if (!assignmentState?.p?.change?.evidence) deny('grader evidence is unavailable');
           if (tool === 'blender_look') {
             const image = args.image;
-            if (typeof image !== 'string') deny('grader look requires exact frozen evidence image');
+            if (typeof image !== 'string') deny('grader look requires an exact frozen evidence image; call blender_look {image:"<assigned evidence path>"}');
             const full = path.resolve(harness.root, image);
             const relative = full.startsWith(harness.root + path.sep) ? path.relative(harness.root, full).replaceAll('\\', '/') : null;
             if (!relative || !Object.hasOwn(assignmentState.p.change.evidence, relative)) deny('grader look limited to frozen evidence image');

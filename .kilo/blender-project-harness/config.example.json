@@ -34,8 +34,8 @@
             "model": "anthropic/claude-sonnet-5",
             "variant": "max"
           },
-          "max_minutes": 5,
-          "max_steps": 10
+          "max_minutes": 8,
+          "max_steps": 16
         },
         {
           "name": "technical",
@@ -48,8 +48,8 @@
             "model": "anthropic/claude-sonnet-5",
             "variant": "max"
           },
-          "max_minutes": 5,
-          "max_steps": 10
+          "max_minutes": 8,
+          "max_steps": 16
         },
         {
           "name": "spec",
@@ -62,8 +62,8 @@
             "model": "anthropic/claude-sonnet-5",
             "variant": "max"
           },
-          "max_minutes": 5,
-          "max_steps": 12
+          "max_minutes": 10,
+          "max_steps": 20
         }
       ]
     }
