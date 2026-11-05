@@ -1,7 +1,7 @@
 # Task Tracker — CozyLaundromat
 
 Status: Active
-Last updated: 2026-11-05T15:07:27.751Z
+Last updated: 2026-11-05T15:13:51.278Z
 
 ## Tasks
 
@@ -29,3 +29,6 @@ Last updated: 2026-11-05T15:07:27.751Z
 | [T020](Tasks/T020/TASK.md) | operation | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | apply x5 | 5 | blender-worker | ses_e53e2d9e2ffe0RU4w4rFHh03my | done | 2026-11-05T15:01:47.052Z | 2026-11-05T15:02:30.850Z | ok (5 ops) |
 | [T021](Tasks/T021/TASK.md) | operation | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | wip | 0 | orchestrator |  | done | 2026-11-05T15:06:01.131Z | 2026-11-05T15:06:22.530Z | ok |
 | [T022](Tasks/T022/TASK.md) | operation | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | seal | 0 | orchestrator |  | done | 2026-11-05T15:07:05.181Z | 2026-11-05T15:07:27.750Z | ok |
+| [G023](Tasks/G023/TASK.md) | grader | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | grader:visual | 0 | visual | ses_e53bde5fbffexpLOCSnOQVhyIc | running | 2026-11-05T15:08:16.808Z |  |  |
+| [G024](Tasks/G024/TASK.md) | grader | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | grader:technical | 0 | technical | ses_e53bdd26affeoyY5KLUP57OFm5 | running | 2026-11-05T15:08:49.821Z |  |  |
+| [G025](Tasks/G025/TASK.md) | grader | 81a06459-1692-4ac1-a5d9-0ffa5e70eac1 | grader:spec | 0 | spec | ses_e53bdbd70ffeAfkbLcLOQnVECN | done | 2026-11-05T15:09:08.073Z | 2026-11-05T15:13:51.276Z | ok |
