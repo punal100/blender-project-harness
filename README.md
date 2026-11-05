@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/punal100/blender-project-harness/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/punal100/blender-project-harness?display_name=tag&sort=semver"></a>
-  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.5-CB3837?logo=npm&logoColor=white"></a>
+  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.6-CB3837?logo=npm&logoColor=white"></a>
   <a href="https://github.com/punal100/blender-project-harness/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/punal100/blender-project-harness"></a>
   <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen">
   <img alt="Blender" src="https://img.shields.io/badge/Blender-5.2-orange">
@@ -118,13 +118,13 @@ Enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**, th
 npx @punal_manalan/blender-project-harness@latest install
 ```
 
-The 1.0.5 package is the current release. If the registry does not have it yet, use the release
+The 1.0.6 package is the current release. If the registry does not have it yet, use the release
 tarball or a source checkout below.
 
 ### From the release tarball
 
 ```powershell
-npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.5/punal_manalan-blender-project-harness-1.0.5.tgz
+npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.6/punal_manalan-blender-project-harness-1.0.6.tgz
 npx blender-project-harness install
 ```
 
@@ -313,8 +313,9 @@ inspect the npm package contents without publishing.
 Current release checks:
 
 - Installer tests: `8/8` passing.
-- Python harness contract tests: `21` passing with `112` subtests.
-- Targeted engine, plugin, shell-policy, and workspace tests: passing.
+- Plugin tests: `38/38` passing.
+- Engine tests: `114/114` passing.
+- Python harness contract tests: `21` passing with `113` subtests.
 - Doctor: passing.
 - npm package: `93` files, no `node_modules`, no local `config.json`.
 

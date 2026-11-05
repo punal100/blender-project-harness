@@ -2,12 +2,46 @@
 
 ## Unreleased
 
+## 1.0.6 - 2026-11-06
+
+### Added
+
+- `blender_subagents.global_fallback` and a deterministic child-model chain: role primary, role backup,
+  global fallback, then the inherited orchestrator model. Duplicate models are allowed, the selected
+  tier is recorded, and fallback happens only after a start or bind failure.
+- `/goal-blender stop` as an emergency stop that works with an open change and aborts active worker and
+  grader children.
+- Frozen reference images in sealed review evidence, with reference paths and hashes in every grader
+  ticket and a required visual comparison.
+- Explicit `reviewScope` (`milestone` or `final`) in status, review documents, the review index, and
+  approval output.
+
+### Changed
+
+- `status.nextStep` marks generative commands as templates and tells the model to replace placeholders
+  instead of executing them literally.
+- Approval questions are verdict-aware: failed reviews no longer offer `Approve change`, the exact label
+  order and safe default are exposed, and `Pause` now pauses the mission.
+- `commit` enforces Partially Autonomous approval before creating the review commit.
+- Worker and grader tasks receive the configured primary model at dispatch; observed tier provenance is
+  recorded, and graders must use a fresh task rather than a resumed `task_id`.
+- Mission start now has an explicit turn-boundary handoff, and `begin` accepts workspace-prefixed paths
+  while reporting the corrected project-relative form.
+- Bootstrap status now provides an executable empty-scene `begin` example.
+
 ### Fixed
 
+- Reference questions now require the exact `HARNESS REFERENCE` token, and `prepare` distinguishes a
+  missing challenge from an unanswered one.
 - Supplied reference images can no longer be recorded as a path without being intaken. A
   `Use my references` answer now requires a pre-registration `intake {scan:true}`, and after bootstrap
   the harness blocks scene `begin` and apply until `intake {scan:false}` copies every scanned file
   into `Documents/References/`. `status` names the exact reference-scan or reference-intake step.
+- A user-aborted turn no longer triggers auto-continuation, and pause or clear now stops active
+  children instead of leaving them running.
+- Scene, executable, and path errors now state the resolved path and the exact correction instead of
+  sending the model to source code.
+- Failed-round recovery now names the approval, commit, checkpoint, and revision sequence.
 
 ## 1.0.5 - 2026-11-05
 
