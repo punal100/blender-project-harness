@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { Harness, contained, externalBinaryPolicy, modelRole } from './engine.mjs';
+import { Harness, contained, externalBinaryPolicy, modelRole, transientGitFailure } from './engine.mjs';
 
 const tempRoot = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempRoot, { recursive: true });
@@ -1196,7 +1196,7 @@ test('grader tickets expose exact evidence paths and refuse tampered evidence', 
   begin(first);
   const sealed = seal(first);
   const ticket = first.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
-  assert.equal(ticket.evidenceFiles.length, 3);
+  assert.equal(ticket.evidenceFiles.length, 4);
   assert.match(ticket.prompt, /camera\.png/);
   assert.match(ticket.prompt, /scene\.txt/);
   assert.match(ticket.prompt, /manifest\.json/);
@@ -1289,7 +1289,7 @@ test('missing grader report records BLOCKED and allows re-dispatch before review
   gate(() => f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' }));
 });
 
-test('retrying a collected BLOCKED report clears the stale evidence hash', (t) => {
+test('a collected BLOCKED report is archived before a replacement ticket', (t) => {
   const f = useFixture(t, { review: 'All' });
   activate(f);
   begin(f);
@@ -1301,25 +1301,29 @@ test('retrying a collected BLOCKED report clears the stale evidence hash', (t) =
     `Review assignment ${first.marker}`,
     { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
   );
-  write(f.root, first.report, [
+  const report = [
     '# Visual report',
     '- Verdict: BLOCKED',
     `Scene hash: ${first.sceneHash}`,
     `Evidence key: ${first.evidenceKey}`,
     '',
-  ].join('\n'));
+  ].join('\n');
+  write(f.root, first.report, report);
   f.harness.collectGrader('orchestrator', 'child-one');
-  assert.ok(f.harness.transaction((s) => s.projects[f.project].change.reports[first.report]));
+  const recorded = f.harness.transaction((s) => s.projects[f.project].change.reports[first.report]);
+  assert.ok(recorded);
 
   const retry = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.ok(retry.token);
   assert.equal(f.harness.transaction((s) => s.projects[f.project].change.graders.visual.attempt), 2);
-  assert.equal(fs.existsSync(path.join(f.root, retry.report)), false);
-  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.reports[retry.report]), undefined);
-  f.harness.transaction((s) => { s.projects[f.project].change.graders.visual.deadline = Date.now() - 1; });
+  assert.equal(fs.existsSync(path.join(f.root, first.report)), false);
+  const archived = first.report.replace(/\/REPORT\.md$/, '/REPORT.attempt1.md');
+  assert.equal(fs.readFileSync(path.join(f.root, archived), 'utf8').replace(/\r\n/g, '\n'), report);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].change.reports[archived]), recorded);
 
   const reviewed = f.harness.command('orchestrator', 'review', {
-    notes: 'The retry produced no report.',
-    reason: 'The grader is tooling-blocked and cannot provide a report.',
+    notes: 'The archived report remains tooling-blocked.',
+    reason: 'The grader is tooling-blocked and cannot provide a pass.',
     dispositions: 'No design finding was assessed.',
   });
   assert.equal(reviewed.change.verdict, 'BLOCKED');
@@ -1329,6 +1333,92 @@ test('retrying a collected BLOCKED report clears the stale evidence hash', (t) =
   assert.equal(preserved.nextStep.phase, 'checkpoint');
   assert.doesNotThrow(() => f.harness.command('orchestrator', 'checkpoint'));
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
+});
+
+test('a transient report commit failure preserves a valid PASS report for recovery', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${first.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  const report = [
+    '# Visual report',
+    '- Verdict: PASS',
+    `Scene hash: ${first.sceneHash}`,
+    `Evidence key: ${first.evidenceKey}`,
+    '',
+  ].join('\n');
+  write(f.root, first.report, report);
+  f.harness.transaction((s) => {
+    const change = s.projects[f.project].change;
+    change.graders.visual.error = 'spawnSync git ETIMEDOUT';
+    change.graders.visual.kind = 'tooling';
+    const task = s.projects[f.project].tasks.find((item) => item.token === change.graders.visual.token);
+    task.state = 'failed';
+    task.result = change.graders.visual.error;
+  });
+
+  const recovered = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  assert.equal(recovered.recovered, true);
+  assert.equal(recovered.verdict, 'PASS');
+  assert.equal(fs.readFileSync(path.join(f.root, first.report), 'utf8').replace(/\r\n/g, '\n'), report);
+  const grader = f.harness.command('orchestrator', 'status').change.graders.visual;
+  assert.equal(grader.verdict, 'PASS');
+  assert.equal(grader.error, undefined);
+  assert.equal(grader.attempt, 1);
+
+  const reviewed = f.harness.command('orchestrator', 'review', {
+    notes: 'The recovered PASS report is valid.',
+    reason: 'The report commit failure was transient; the report remains valid.',
+    dispositions: 'No findings; the valid report was preserved.',
+  });
+  assert.equal(reviewed.change.verdict, 'PASS');
+});
+
+test('a grader cannot overwrite an existing valid report', (t) => {
+  const f = useFixture(t, { review: 'All' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const first = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-one',
+    `Review assignment ${first.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  const pass = [
+    '# Visual report',
+    '- Verdict: PASS',
+    `Scene hash: ${first.sceneHash}`,
+    `Evidence key: ${first.evidenceKey}`,
+    '',
+  ].join('\n');
+  write(f.root, first.report, pass);
+  gate(() => f.harness.documentWrite('child-one', {
+    path: first.report.slice(f.project.length + 1),
+    content: [
+      '# Visual report',
+      '- Verdict: BLOCKED',
+      `Scene hash: ${first.sceneHash}`,
+      `Evidence key: ${first.evidenceKey}`,
+      '',
+    ].join('\n'),
+  }), /valid report already present/);
+  assert.equal(fs.readFileSync(path.join(f.root, first.report), 'utf8').replace(/\r\n/g, '\n'), pass);
+});
+
+test('transient git failures are classified for retry', () => {
+  assert.equal(transientGitFailure({ error: { code: 'ETIMEDOUT' } }), true);
+  assert.equal(transientGitFailure({ stderr: Buffer.from('fatal: Unable to create .git/index.lock: File exists') }), true);
+  assert.equal(transientGitFailure({ error: { code: 'ENOENT' } }), false);
+  assert.equal(transientGitFailure({ stderr: Buffer.from('fatal: not a git repository') }), false);
 });
 
 test('a failed grader start is recorded and exhausts the retry budget', (t) => {
