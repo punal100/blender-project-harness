@@ -8,4 +8,4 @@ Generated concept images may be inspected, but they are not scene assets until b
 
 | Reference | Source | What it informs | Notes |
 |---|---|---|---|
-| — | — | — | — |
+| Documents/References/img_20261105_195314_cozy-laundromat-reference_e1df3f-e1df3f0e.png | generated: mediamcp_generate_image | Visual reference for composition, palette, props, and lighting of the cozy laundromat interior | model gpt-image-2.5-sunburst; prompt Wide eye-level interior photograph of a small cozy neighborhood laundromat in the evening, looking along a row of six white front-loading washing machines with round dark glass doors, a warm wooden folding counter with wire baskets and detergent bottles, two teal |
