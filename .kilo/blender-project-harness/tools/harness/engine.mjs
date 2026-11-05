@@ -27,6 +27,10 @@ const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
 const nonScenePath = (name) => documentOnlyPath(name) || /(?:^|\/)(?:assets|Documents\/References)\//i.test(name);
 const projectRelativePath = (project, name) => name.startsWith(`${project}/`) ? name.slice(project.length + 1) : name;
+const executableScopeMessage = (project, scene, name, clean) => {
+  const sceneName = path.basename(scene);
+  return `"${name}" resolves to "${project}/${clean}", which is not the registered scene "${sceneName}". A scene path must be exactly "${sceneName}"; other executable files are allowed only as scripts/*.py or scripts/*.pyw`;
+};
 const checkAssetsStrict = (payload) => {
   const operations = Array.isArray(payload?.operations) ? payload.operations : [payload];
   return operations.some((operation) => operation?.operation === 'check_assets' && operation.strict === true);
@@ -1868,7 +1872,7 @@ export class Harness {
           const relative = projectRelativePath(p.project, name);
           const full = contained(this.projectPath(p.project), relative, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
-          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
+          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny(executableScopeMessage(p.project, p.scene, name, clean));
           return `${p.project}/${clean}`;
         }))];
         if (stable(this.snapshot(p.project)) !== stable(p.snapshot)) deny('project changed since checkpoint');
@@ -1907,7 +1911,7 @@ export class Harness {
           const relative = projectRelativePath(p.project, name);
           const full = contained(this.projectPath(p.project), relative, true);
           const clean = path.relative(this.projectPath(p.project), full).replaceAll('\\', '/');
-          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny('production scope cannot add executable files except source-only scripts');
+          if (/\.(?:py|js|mjs|ts|cmd|ps1|exe|dll|blend\d*)$/i.test(clean) && !/^scripts\/.*\.(?:py|pyw)$/i.test(clean) && `${p.project}/${clean}` !== p.scene) deny(executableScopeMessage(p.project, p.scene, name, clean));
           return `${p.project}/${clean}`;
         }))];
         c.objects = [...new Set([...c.objects, ...(args.objects ?? [])])];

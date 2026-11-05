@@ -734,6 +734,7 @@ test('command and public method schemas reject malformed lifecycle input and pat
   gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'bad paths', objects: ['FixtureCube'], paths: [] }));
   gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'escape', objects: ['FixtureCube'], paths: ['../outside.txt'] }));
   gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'drive', objects: ['FixtureCube'], paths: ['C:outside.txt'] }));
+  gate(() => f.harness.command('orchestrator', 'begin', { outcome: 'wrong scene', objects: ['FixtureCube'], paths: ['other.blend'] }), /not the registered scene.*other executable files/i);
   begin(f);
   gate(() => f.harness.issue('orchestrator', 'unknown', ticketPayload(f)));
   gate(() => f.harness.command('orchestrator', 'unknown-action'));
