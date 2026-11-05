@@ -749,6 +749,19 @@ test('begin normalizes workspace-prefixed paths to project-relative paths', (t) 
   assert.deepEqual(started.change.paths, [`${f.project}/notes.txt`]);
 });
 
+test('status gives an executable bootstrap begin example when the scene is missing', (t) => {
+  const f = useFixture(t);
+  git(f.root, ['rm', '--quiet', '--', f.scene]);
+  git(f.root, ['commit', '--quiet', '-m', 'test: remove scene for bootstrap']);
+  activate(f);
+  const step = f.harness.command('orchestrator', 'status').nextStep;
+  assert.equal(step.phase, 'begin');
+  assert.match(step.command, /Save the initial empty scene/);
+  assert.match(step.command, /objects/);
+  assert.match(step.command, /\[\]/);
+  assert.match(step.command, /scene\.blend/);
+});
+
 test('tickets require hook authorization and reject forged, replayed, cross-session, and expired use', (t) => {
   const f = useFixture(t);
   activate(f);

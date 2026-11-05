@@ -1264,6 +1264,16 @@ export class Harness {
       return { phase: 'goal-blender', actor: 'orchestrator', action: 'goal_blender', command: 'goal_blender {action:"start"}', reason: 'Start the registered /goal-blender mission before production work.' };
     }
     const c = p.change;
+    if (!c && !fs.existsSync(path.join(this.root, p.scene))) {
+      const sceneName = path.basename(p.scene);
+      return {
+        phase: 'begin',
+        actor: 'orchestrator',
+        action: 'begin',
+        command: this.wire('begin', { outcome: 'Save the initial empty scene', objects: [], paths: [sceneName] }),
+        reason: `Bootstrap save: begin with outcome "Save the initial empty scene", objects [], and paths ["${sceneName}"], then execute the save ticket.`,
+      };
+    }
     const media = c ? this.mediaForChange(p, c.id) : [];
     const openMedia = media.find((request) => MEDIA_OPEN_STATUSES.has(request.status));
     if (c?.mediaRequired && !media.length) {

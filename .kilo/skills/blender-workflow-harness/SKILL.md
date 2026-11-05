@@ -41,7 +41,9 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
   `__pycache__` stay out of the snapshot. If `begin` reports "project changed since checkpoint", a
   runtime file is untracked and unignored: commit the exact scope or ask for an approved shell fix,
   then retry.
-- Bootstrap save: ticketed `save`, `commit`, `checkpoint`; never seal, render, or grade it.
+- Bootstrap save: begin with `objects:[]` and `paths:["<scene>.blend"]`, then ticketed `save`, `commit`,
+  `checkpoint`; never seal, render, or grade it. Paths are relative to `Blender/<Project>/`; never
+  prepend `Blender/<Project>/`.
 - Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
   Partially Autonomous needs approval before the review commit.
 
