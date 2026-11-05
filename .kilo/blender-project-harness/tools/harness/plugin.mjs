@@ -285,7 +285,9 @@ export function createHooks(harness, client, directory = harness.root) {
     if (action === 'start' || action === 'resume') {
       if (p.goalConflict) deny(`goal conflict: ${p.goalConflict.reason}; run /goal clear, close any open change, and reregister`);
       if (p.complete) deny('the mission is complete; reregister before starting another mission');
-      return JSON.stringify(harness.command(sessionID, 'goal-active', { source: 'goal-blender', mode: action === 'resume' ? 'resume' : 'start' }), null, 2);
+      const result = harness.command(sessionID, 'goal-active', { source: 'goal-blender', mode: action === 'resume' ? 'resume' : 'start' });
+      result.handoff = 'End this turn now. The mission loop starts the next turn; call status and nextStep there.';
+      return JSON.stringify(result, null, 2);
     }
     if (action === 'pause') return JSON.stringify(harness.command(sessionID, 'goal-inactive', { reason: 'Paused by /goal-blender' }), null, 2);
     if (action === 'clear') {

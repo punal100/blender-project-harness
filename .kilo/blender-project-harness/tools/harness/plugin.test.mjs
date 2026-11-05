@@ -549,6 +549,7 @@ test('goal_blender starts, pauses, and resumes without kilo.goal', async (t) => 
   assert.equal(started.goalActive, true);
   assert.equal(started.goalSource, 'goal-blender');
   assert.equal(started.goalMeta.autoTurns, 0);
+  assert.match(started.handoff, /End this turn now/i);
   f.harness.transaction((s) => { s.projects[f.project].goalMeta.autoTurns = 7; });
   const restarted = JSON.parse(await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session }));
   assert.equal(restarted.goalMeta.autoTurns, 7);
