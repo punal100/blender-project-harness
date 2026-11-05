@@ -1154,7 +1154,13 @@ export class Harness {
       };
       s.references[session] = reference;
     }
-    return { question: reference.question, labels: reference.labels, answered: Boolean(reference.answer), answer: reference.answer ?? null };
+    return {
+      question: reference.question,
+      labels: reference.labels,
+      answered: Boolean(reference.answer),
+      answer: reference.answer ?? null,
+      instruction: 'Pass this exact question including the HARNESS REFERENCE token to question; use all four labels exactly.',
+    };
   }
   reference(session) {
     return this.transaction((s) => this.referenceState(s, session));

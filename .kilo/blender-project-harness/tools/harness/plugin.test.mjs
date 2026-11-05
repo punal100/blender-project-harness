@@ -540,6 +540,7 @@ test('reference action opens the runtime reference gate', async (t) => {
   const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'reference', payload: {} }, { sessionID: f.session }));
   assert.match(result.question, /HARNESS REFERENCE/);
   assert.deepEqual(result.labels, ['Use my references', 'Generate one', 'Use web references', 'None']);
+  assert.match(result.instruction, /exact question.*HARNESS REFERENCE token/i);
 });
 
 test('goal_blender starts, pauses, and resumes without kilo.goal', async (t) => {

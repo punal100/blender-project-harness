@@ -23,8 +23,9 @@ create scene work during the discussion. For a necessary question during product
 5. Cover purpose, audience, visual outcome, deliverables, acceptance, constraints, external assets,
    and exclusions.
 6. Call `blender_workflow {action:"reference"}` and ask its exact question and labels before any brief
-   confirmation. The labels are `Use my references`, `Generate one`, `Use web references`, and `None`;
-   collect exact paths or URLs for supplied references. Generation is deferred until after
+   confirmation. Pass the returned question verbatim, including the `HARNESS REFERENCE <uuid>` suffix;
+   do not strip or paraphrase it. The labels are `Use my references`, `Generate one`, `Use web
+   references`, and `None`; collect exact paths or URLs for supplied references. Generation is deferred until after
    registration. Ask even when the user says "fully modeled, no external assets"; that answers
    sourcing, not visual reference. Use `intake {scan:true}` for supplied paths. Do not show
    `Confirm requirements` until the runtime answer exists; `prepare` rejects without it.
