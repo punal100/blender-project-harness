@@ -1,7 +1,7 @@
 # Task Tracker — CozyLaundromat
 
 Status: Active
-Last updated: 2026-11-05T14:38:16.701Z
+Last updated: 2026-11-05T14:42:00.788Z
 
 ## Tasks
 
@@ -17,3 +17,6 @@ Last updated: 2026-11-05T14:38:16.701Z
 | [T008](Tasks/T008/TASK.md) | operation | 7b66c3bd-db56-404a-a174-7877668a01f8 | apply | 1 | blender-worker | ses_e53e2d9e2ffe0RU4w4rFHh03my | done | 2026-11-05T14:35:52.315Z | 2026-11-05T14:36:19.271Z | ok (1 ops) |
 | [T009](Tasks/T009/TASK.md) | operation | 7b66c3bd-db56-404a-a174-7877668a01f8 | wip | 0 | orchestrator |  | done | 2026-11-05T14:37:02.184Z | 2026-11-05T14:37:13.748Z | ok |
 | [T010](Tasks/T010/TASK.md) | operation | 7b66c3bd-db56-404a-a174-7877668a01f8 | seal | 0 | orchestrator |  | done | 2026-11-05T14:37:56.149Z | 2026-11-05T14:38:16.700Z | ok |
+| [G011](Tasks/G011/TASK.md) | grader | 7b66c3bd-db56-404a-a174-7877668a01f8 | grader:visual | 0 | visual | ses_e53d92cf8ffeTh4l0si1ERD0zI | running | 2026-11-05T14:38:46.461Z |  |  |
+| [G012](Tasks/G012/TASK.md) | grader | 7b66c3bd-db56-404a-a174-7877668a01f8 | grader:technical | 0 | technical | ses_e53d91b7effe29mvv6c9IoEWaB | running | 2026-11-05T14:39:03.652Z |  |  |
+| [G013](Tasks/G013/TASK.md) | grader | 7b66c3bd-db56-404a-a174-7877668a01f8 | grader:spec | 0 | spec | ses_e53d90aecffeN2F5j2wV61HU3I | done | 2026-11-05T14:39:20.470Z | 2026-11-05T14:42:00.787Z | ok |
