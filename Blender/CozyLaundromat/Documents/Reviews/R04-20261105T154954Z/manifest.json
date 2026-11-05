@@ -1,0 +1,363 @@
+{
+  "round": "R04-20261105T154954Z",
+  "created": "2026-11-05T15:49:55.365Z",
+  "previous_round": "R03-20261105T153033Z",
+  "active_goal": "Blender/CozyLaundromat/Documents/Goals/01-project-brief.md",
+  "base_commit": "a113404799ea8c9dd380c16fa4eec13efcdab9e2",
+  "dirty": "M Blender/CozyLaundromat/Documents/TASKSTRACKER.md\n M Blender/CozyLaundromat/cozylaundromat.blend\n?? Blender/CozyLaundromat/Documents/Tasks/T039/\n?? Blender/CozyLaundromat/renders/final/R04-20261105T154954Z.png",
+  "scene": {
+    "path": "Blender/CozyLaundromat/cozylaundromat.blend",
+    "sha256": "1e18eb7f122687f0bd82abab0075a2113908aeb6fadddad97a0d75489aa3d0d4"
+  },
+  "primary_scene": "Scene",
+  "scenes": [
+    {
+      "name": "Scene",
+      "render": "Blender/CozyLaundromat/renders/final/R04-20261105T154954Z.png",
+      "camera": "Camera_Hero",
+      "use_sequencer": true,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "facts": "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/_evidence/scenes/Scene/scene-facts.json"
+    }
+  ],
+  "scene_requirements": {},
+  "specs": {
+    "Blender/CozyLaundromat/Documents/REQUIREMENTS.md": "7032b269abdc29fe2061b4a49afed95349ca7432b86178cb029a13a610d0f558",
+    "Blender/CozyLaundromat/Documents/WORKFLOW.md": "c5c795a34dcd69c8f443b3c4a5f90ab9979a2e60c81f0f8eb1f0e0992e7f3f79",
+    "Blender/CozyLaundromat/Documents/REVIEW.md": "4976fd50004ea10570905f43d95fe18d9284affd0df0df1bf31afa31ac4d0272",
+    "Blender/CozyLaundromat/Documents/Goals/01-project-brief.md": "a800af09e3d5fa4f9eadb8f868f48b47c1e7004ddcda0a29e683ff564c4c9fb9"
+  },
+  "asset_check": null,
+  "evidence": {
+    "Blender/CozyLaundromat/renders/final/R04-20261105T154954Z.png": "5f136bc07815065269384fe8529b55417e976490da306c7cd7d1689f6c5393fb",
+    "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/_evidence/scenes/Scene/camera.png": "5f136bc07815065269384fe8529b55417e976490da306c7cd7d1689f6c5393fb",
+    "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/_evidence/scenes/Scene/scene-facts.json": "b8f8f231df790f17957d67aae227ad5cba74ff96ef525e0c3e84d864c52ee2c5",
+    "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/_evidence/scenes/Scene/scene.txt": "b8f8f231df790f17957d67aae227ad5cba74ff96ef525e0c3e84d864c52ee2c5"
+  },
+  "evidence_key": "3da7d4c5e8cf259dd5b8d4abe989be05e29dafddcde5a98dca4e46a366cd2998",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "layso/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 8,
+      "max_steps": 16
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 8,
+      "max_steps": 16
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "codex-everywhere/gpt-6.1-sol",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 10,
+      "max_steps": 20
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "aafc865e-9cc6-4170-9974-7efee8a8893b",
+      "report": "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793894316714,
+      "steps": 9,
+      "child": "ses_e53950dd3ffeO41uUEOROWcHGP",
+      "modelRole": "backup",
+      "verdict": "PASS",
+      "kind": "review"
+    },
+    "technical": {
+      "token": "ae9f760a-b8d4-4cfc-8028-95bfe9c50bd7",
+      "report": "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/technical/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793894332697,
+      "steps": 9,
+      "child": "ses_e5394f2a4ffebdqtMTt6JPr4GU",
+      "modelRole": "backup",
+      "verdict": "PASS",
+      "kind": "review"
+    },
+    "spec": {
+      "token": "1004c6d2-ebb5-4fe6-b408-c67ba09a0741",
+      "report": "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/spec/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793894466112,
+      "steps": 10,
+      "child": "ses_e5394d4e4ffeDpyLAMi7uEB2jV",
+      "modelRole": "backup",
+      "verdict": "PASS",
+      "kind": "review"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T035",
+      "kind": "operation",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "apply x4",
+      "objects": [
+        "Light_Window_Fill",
+        "Light_Ceiling_1",
+        "Light_Ceiling_2",
+        "Ceiling_Cream"
+      ],
+      "paths": [
+        "Blender/CozyLaundromat/cozylaundromat.blend",
+        "Blender/CozyLaundromat/README.md",
+        "Blender/CozyLaundromat/Documents/DECISIONS.md"
+      ],
+      "tokenHash": "df312a949d62",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e53e2d9e2ffe0RU4w4rFHh03my",
+      "state": "done",
+      "created": "2026-11-05T15:44:42.278Z",
+      "finished": "2026-11-05T15:45:18.966Z",
+      "result": "ok (4 ops)",
+      "deadline": 1793894082278,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/T035/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/T035/SUMMARY.md"
+    },
+    {
+      "id": "T036",
+      "kind": "operation",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/cozylaundromat.blend",
+        "Blender/CozyLaundromat/README.md",
+        "Blender/CozyLaundromat/Documents/DECISIONS.md"
+      ],
+      "tokenHash": "5ff74dcdc1b1",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-05T15:46:25.563Z",
+      "finished": "2026-11-05T15:46:41.017Z",
+      "result": "ok",
+      "deadline": 1793894185563,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/T036/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/T036/SUMMARY.md"
+    },
+    {
+      "id": "T037",
+      "kind": "operation",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "apply x3",
+      "objects": [
+        "Light_Ceiling_1",
+        "Light_Ceiling_2",
+        "Ceiling_Cream"
+      ],
+      "paths": [
+        "Blender/CozyLaundromat/cozylaundromat.blend",
+        "Blender/CozyLaundromat/README.md",
+        "Blender/CozyLaundromat/Documents/DECISIONS.md"
+      ],
+      "tokenHash": "a46cbf804dd0",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e53e2d9e2ffe0RU4w4rFHh03my",
+      "state": "done",
+      "created": "2026-11-05T15:47:21.185Z",
+      "finished": "2026-11-05T15:47:56.600Z",
+      "result": "ok (3 ops)",
+      "deadline": 1793894241185,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/T037/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/T037/SUMMARY.md"
+    },
+    {
+      "id": "T038",
+      "kind": "operation",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/cozylaundromat.blend",
+        "Blender/CozyLaundromat/README.md",
+        "Blender/CozyLaundromat/Documents/DECISIONS.md"
+      ],
+      "tokenHash": "19880e30d58b",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-05T15:48:45.131Z",
+      "finished": "2026-11-05T15:49:01.380Z",
+      "result": "ok",
+      "deadline": 1793894325131,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/T038/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/T038/SUMMARY.md"
+    },
+    {
+      "id": "T039",
+      "kind": "operation",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "seal",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/cozylaundromat.blend",
+        "Blender/CozyLaundromat/README.md",
+        "Blender/CozyLaundromat/Documents/DECISIONS.md"
+      ],
+      "tokenHash": "0ede59c6024e",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "seal",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-05T15:49:39.523Z",
+      "finished": "2026-11-05T15:49:55.502Z",
+      "result": "ok",
+      "deadline": 1793894379523,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/T039/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/T039/SUMMARY.md"
+    },
+    {
+      "id": "G040",
+      "kind": "grader",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/visual/REPORT.md"
+      ],
+      "tokenHash": "92b3a24e6633",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e53950dd3ffeO41uUEOROWcHGP",
+      "state": "done",
+      "created": "2026-11-05T15:50:36.714Z",
+      "finished": "2026-11-05T15:58:20.975Z",
+      "result": "ok",
+      "deadline": 1793894316714,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/G040/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/G040/SUMMARY.md"
+    },
+    {
+      "id": "G041",
+      "kind": "grader",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "grader:technical",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/technical/REPORT.md"
+      ],
+      "tokenHash": "9557e71c3ab4",
+      "worker": "technical",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5394f2a4ffebdqtMTt6JPr4GU",
+      "state": "done",
+      "created": "2026-11-05T15:50:52.697Z",
+      "finished": "2026-11-05T16:04:59.152Z",
+      "result": "ok",
+      "deadline": 1793894332697,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/G041/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/G041/SUMMARY.md"
+    },
+    {
+      "id": "G042",
+      "kind": "grader",
+      "change": "20be4178-8aa0-4469-915b-edef454d0e1c",
+      "operation": "grader:spec",
+      "objects": [],
+      "paths": [
+        "Blender/CozyLaundromat/Documents/Reviews/R04-20261105T154954Z/spec/REPORT.md"
+      ],
+      "tokenHash": "8df01e98473d",
+      "worker": "spec",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e5394d4e4ffeDpyLAMi7uEB2jV",
+      "state": "done",
+      "created": "2026-11-05T15:51:06.112Z",
+      "finished": "2026-11-05T15:58:17.241Z",
+      "result": "ok",
+      "deadline": 1793894466112,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyLaundromat/Documents/Tasks/G042/TASK.md",
+      "summaryDoc": "Blender/CozyLaundromat/Documents/Tasks/G042/SUMMARY.md"
+    }
+  ],
+  "verdict": "PASS"
+}

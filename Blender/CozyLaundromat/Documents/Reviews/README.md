@@ -36,6 +36,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R01-20261105T143815Z | 20261105T143815Z | bdf5b9c6897f | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261105T143815Z/REVIEW.md](R01-20261105T143815Z/REVIEW.md) |
 | R02-20261105T150726Z | 20261105T150726Z | bbba0dc62c78 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R02-20261105T150726Z/REVIEW.md](R02-20261105T150726Z/REVIEW.md) |
 | R03-20261105T153033Z | 20261105T153033Z | 34f4d125f3ef | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R03-20261105T153033Z/REVIEW.md](R03-20261105T153033Z/REVIEW.md) |
+| R04-20261105T154954Z | 20261105T154954Z | 1e18eb7f1226 | All milestone | visual, technical, spec | PASS | [R04-20261105T154954Z/REVIEW.md](R04-20261105T154954Z/REVIEW.md) |
 
 ## Rules
 
@@ -54,3 +55,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R02-20261105T150726Z: Fix R01 findings: reframe the full window, shape the warm practical lighting, add floor detail and matched ceiling fixtures; evidence 9513efd49190ae6733faf993ef2c6112d11bb23d630883862a04266a1f6b9a74
 
 - R03-20261105T153033Z: Fix R02 findings: give the window clear margin, refine the floor grid, place the runner, and support the pendants; evidence 958425adac3d77f2fa8aeeaec2f4c65f72648e977fcc175e454842abd463784c
+
+- R04-20261105T154954Z: Fix the cool mottled ceiling: lower the cool fill, lower the pendant bulbs, and make the ceiling warm cream; evidence 3da7d4c5e8cf259dd5b8d4abe989be05e29dafddcde5a98dca4e46a366cd2998
