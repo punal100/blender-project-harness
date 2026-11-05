@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/punal100/blender-project-harness/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/punal100/blender-project-harness?display_name=tag&sort=semver"></a>
-  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.4-CB3837?logo=npm&logoColor=white"></a>
+  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.5-CB3837?logo=npm&logoColor=white"></a>
   <a href="https://github.com/punal100/blender-project-harness/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/punal100/blender-project-harness"></a>
   <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen">
   <img alt="Blender" src="https://img.shields.io/badge/Blender-5.2-orange">
@@ -118,13 +118,13 @@ Enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**, th
 npx @punal_manalan/blender-project-harness@latest install
 ```
 
-The 1.0.4 package is the current release. If the registry does not have it yet, use the release
+The 1.0.5 package is the current release. If the registry does not have it yet, use the release
 tarball or a source checkout below.
 
 ### From the release tarball
 
 ```powershell
-npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.4/punal_manalan-blender-project-harness-1.0.4.tgz
+npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.5/punal_manalan-blender-project-harness-1.0.5.tgz
 npx blender-project-harness install
 ```
 
@@ -143,7 +143,7 @@ npm run doctor --prefix .kilo/blender-project-harness/tools/harness
 - Writes `VERSION`, `install.json`, `config.json`, and a copy of the package `AGENTS.md`.
 - Runs `npm ci` for the installed harness.
 - Updates `.kilo/kilo.jsonc` and `.kilo/plugins/blender-workflow.js`.
-- Adds missing `AGENTS.md`, `.kilo/skills/`, `.kilo/agent/`, and `Blender/README.md`.
+- Adds missing `AGENTS.md`, `README.md`, `.kilo/skills/`, `.kilo/agent/`, and `Blender/README.md`.
 - Adds the local config and backups to `.gitignore`.
 
 Run the same command to update. The previous installation is moved to:
@@ -154,8 +154,10 @@ Run the same command to update. The previous installation is moved to:
 
 The old copy is preserved, not deleted. The new version keeps `config.json` unless you pass
 `--reset-config`. The package `AGENTS.md` is always available at
-`.kilo/blender-project-harness/AGENTS.md`; the root `AGENTS.md` is only installed when missing and is
-never overwritten.
+`.kilo/blender-project-harness/AGENTS.md`. A missing root `AGENTS.md` or `README.md` is added. On
+update, an existing root `AGENTS.md` or `README.md` is refreshed only when it is identical to the
+previous install; locally modified files are preserved, and the replaced file is backed up under
+`.temp/blender-project-harness-backups/`.
 
 ---
 
@@ -310,11 +312,11 @@ inspect the npm package contents without publishing.
 
 Current release checks:
 
-- Installer tests: `6/6` passing.
+- Installer tests: `8/8` passing.
 - Python harness contract tests: `21` passing with `112` subtests.
 - Targeted engine, plugin, shell-policy, and workspace tests: passing.
 - Doctor: passing.
-- npm package: `91` files, no `node_modules`, no local `config.json`.
+- npm package: `93` files, no `node_modules`, no local `config.json`.
 
 ---
 

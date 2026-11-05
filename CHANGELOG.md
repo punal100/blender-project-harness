@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.5 - 2026-11-05
+
 ### Added
 
 - Harness-owned `/goal-blender` mission lifecycle with `goal_blender` start, status, pause, resume,
@@ -13,6 +15,9 @@
 - The built-in `goal` and `goal_report` tools are disabled. Using `/goal` invalidates the Blender
   registration and requires `/goal clear`, closing any open change, and re-registration.
 - `question` is available during `/goal-blender` for clarifications and Partially Autonomous approvals.
+- Root `AGENTS.md` and `README.md` are refreshed on update only when they are identical to the previous
+  install; locally modified files are preserved, and the replaced file is backed up under
+  `.temp/blender-project-harness-backups/`.
 
 ### Fixed
 
