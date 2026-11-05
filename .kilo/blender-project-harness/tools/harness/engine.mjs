@@ -102,6 +102,14 @@ export const deny = (message) => {
 };
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 const DOCS = ['README.md', 'Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', 'Documents/ASSETS.md', 'Documents/DECISIONS.md'];
+const approvalSpec = (change) => {
+  const passed = change.verdict === 'PASS';
+  const labels = passed ? ['Approve change', 'Request revision', 'Pause'] : ['Request revision', 'Pause'];
+  const question = passed
+    ? `${change.outcome} Review verdict: PASS. Approve this change, request a revision, or pause? HARNESS CHANGE ${change.id} ${change.evidenceKey}`
+    : `${change.outcome} Review verdict: ${change.verdict}. Request a revision or pause? HARNESS CHANGE ${change.id} ${change.evidenceKey}`;
+  return { question, labels };
+};
 
 function modelFields(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) deny(`${label} must be an object`);
@@ -1233,7 +1241,8 @@ export class Harness {
         const p = Object.values(s.projects).find((p) => p.orchestrator === session && p.change?.approvalQuestion === q.question);
         if (!p) return;
         this.fresh(p);
-        if (stable(q.options.map((o) => o.label)) !== stable(['Approve change', 'Request revision', 'Pause'])) deny('approval options changed');
+        const spec = approvalSpec(p.change);
+        if (stable(q.options.map((o) => o.label)) !== stable(spec.labels)) deny('approval options changed');
         if (answers[0][0] === 'Approve change' && p.change.verdict !== 'PASS') deny('failed review cannot be approved; request revision or pause');
         p.change.approval = ['Approve change', 'Request revision'].includes(answers[0][0]) ? { label: answers[0][0], evidence: p.change.evidenceKey } : null;
       }
@@ -2196,8 +2205,9 @@ export class Harness {
         if (dirty) this.autoCommit(p, c, toolingBlocked ? `chore: preserve tooling-blocked ${c.round ?? 'review'}` : 'chore: preserve change after goal conflict', { review: Boolean(c.sealed) });
       } else if (action === 'approval') {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
-        c.approvalQuestion ??= `${c.outcome} Review verdict: ${c.verdict}. Approve change or request revision? HARNESS CHANGE ${c.id} ${c.evidenceKey}`;
-        return { question: c.approvalQuestion, labels: ['Approve change', 'Request revision', 'Pause'], outcome: c.outcome, verdict: c.verdict };
+        const spec = approvalSpec(c);
+        c.approvalQuestion = spec.question;
+        return { ...spec, outcome: c.outcome, verdict: c.verdict };
       } else if (action === 'checkpoint') {
         if (!c) deny('no open change to checkpoint');
         this.mediaGate(p, c);

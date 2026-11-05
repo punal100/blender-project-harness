@@ -1080,6 +1080,23 @@ test('stale scene, evidence, and specification freeze review state', (t) => {
   }
 });
 
+test('failed review approval excludes the impossible approve option', (t) => {
+  const f = useFixture(t, { workflow: 'Partially Autonomous', review: 'Single' });
+  activate(f);
+  begin(f);
+  seal(f);
+  simulationGrader(f, 'visual', 'CHANGES_REQUIRED');
+  f.harness.command('orchestrator', 'review', {
+    notes: 'The visual grader found a confirmed major issue.',
+    reason: 'The sealed change requires a correction.',
+    dispositions: 'The major finding is accepted.',
+  });
+  const approval = f.harness.command('orchestrator', 'approval');
+  assert.equal(approval.verdict, 'CHANGES_REQUIRED');
+  assert.deepEqual(approval.labels, ['Request revision', 'Pause']);
+  assert.doesNotMatch(approval.question, /Approve change/);
+});
+
 test('partial approval ignores forged JSON and Pause, then accepts only actual labels', (t) => {
   const f = useFixture(t, { workflow: 'Partially Autonomous' });
   activate(f);
