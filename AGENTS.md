@@ -37,6 +37,10 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
   paths/URLs, a generated or web reference, or an explicit `none`; "fully modeled / no external
   assets" does not answer it. `prepare` rejects registration without the runtime answer. Record the
   answer in `REQUIREMENTS.md` and `Documents/References/README.md`.
+- When the reference answer is `Use my references`, `prepare` also requires a pre-registration
+  `intake {scan:true}` of the exact supplied paths. After bootstrap, the harness records a pending
+  reference intake and blocks scene `begin` and apply until `intake {scan:false}` copies every scanned
+  file into `Documents/References/`; follow `status.nextStep` for the exact reference-intake change.
 - Requirements, workflow mode, review mode, and the active goal document are frozen after registration.
   Changes stop production and require explicit re-registration. Never edit registration documents
   inside a bounded change.

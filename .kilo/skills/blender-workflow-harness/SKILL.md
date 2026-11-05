@@ -44,6 +44,10 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
 - Bootstrap save: begin with `objects:[]` and `paths:["<scene>.blend"]`, then ticketed `save`, `commit`,
   `checkpoint`; never seal, render, or grade it. Paths are relative to `Blender/<Project>/`; never
   prepend `Blender/<Project>/`.
+- Supplied references: `prepare` requires `intake {scan:true}` when the answer is `Use my references`.
+  After bootstrap, the harness records a pending reference gate. Open the non-scene reference-intake
+  change and call `intake {scan:false}`; scene `begin` and apply are blocked until every scanned file is
+  copied into `Documents/References/`.
 - Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
   Partially Autonomous needs approval before the review commit.
 

@@ -27,8 +27,10 @@ create scene work during the discussion. For a necessary question during product
    do not strip or paraphrase it. The labels are `Use my references`, `Generate one`, `Use web
    references`, and `None`; collect exact paths or URLs for supplied references. Generation is deferred until after
    registration. Ask even when the user says "fully modeled, no external assets"; that answers
-   sourcing, not visual reference. Use `intake {scan:true}` for supplied paths. Do not show
-   `Confirm requirements` until the runtime answer exists; `prepare` rejects without it.
+   sourcing, not visual reference. For `Use my references`, `intake {scan:true}` the exact supplied
+   paths before `prepare`; `prepare` rejects without a scanned reference. For a URL, download it to
+   staging first, then scan that staged path. Do not show `Confirm requirements` until the runtime
+   answer exists; `prepare` rejects without it.
 7. Reflect a concise draft back to the user. The draft MUST include
    `Reference images / links: <answer or none>`. Ask `Confirm requirements`, `Keep discussing`, or
    `Change something`.
@@ -42,7 +44,9 @@ create scene work during the discussion. For a necessary question during product
    frozen; do not use `document` for them.
 10. New project: collect workflow mode with `blender-project-workflow` and review mode with
     `blender-project-grading`, scaffold, fill all records, commit with `bootstrap-commit`, then
-    `prepare` and start `/goal-blender`.
+    `prepare` and start `/goal-blender`. After bootstrap, a `Use my references` answer becomes a
+    pending reference intake; follow `status` and copy the scanned files with `intake {scan:false}`
+    before any scene change.
 11. Existing project: registration documents are frozen after registration. If the user requests a
     requirements change, stop and report the need for explicit re-registration. Do not edit
     `Documents/REQUIREMENTS.md`, `Documents/WORKFLOW.md`, `Documents/REVIEW.md`, or the active goal

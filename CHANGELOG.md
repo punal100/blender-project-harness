@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- Supplied reference images can no longer be recorded as a path without being intaken. A
+  `Use my references` answer now requires a pre-registration `intake {scan:true}`, and after bootstrap
+  the harness blocks scene `begin` and apply until `intake {scan:false}` copies every scanned file
+  into `Documents/References/`. `status` names the exact reference-scan or reference-intake step.
+
 ## 1.0.5 - 2026-11-05
 
 ### Added

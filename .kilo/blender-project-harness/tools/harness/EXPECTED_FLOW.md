@@ -172,7 +172,9 @@ Ask only questions that change the result or the rights:
 
 Record confirmed answers before scaffolding. Do not present the requirements confirmation until the
 reference answer is explicit; `none` is valid, but "fully modeled / no external assets" does not
-answer it. Do not ask the user to understand harness internals.
+answer it. When the answer is `Use my references`, scan the exact supplied paths with
+`intake {scan:true}` before `prepare`; `prepare` rejects without an accepted reference image.
+Do not ask the user to understand harness internals.
 
 ### Phase 2 — Scaffold, documents, registration, and mission
 
@@ -191,6 +193,9 @@ Expected sequence:
 10. Verify the addon and scene path.
 11. Save the bootstrap scene.
 12. Commit and checkpoint the bootstrap save without review.
+13. For `Use my references`, open the non-scene reference-intake change and call
+    `intake {scan:false}` to copy every scanned reference into `Documents/References/`, then commit and
+    checkpoint it. Scene work cannot begin until this gate clears.
 
 Example scaffold outcome:
 

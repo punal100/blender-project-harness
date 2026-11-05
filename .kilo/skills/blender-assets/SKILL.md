@@ -23,10 +23,13 @@ registered before use. The user does not need to create folders or copy files; `
 ## Intake and media
 
 - `intake {scan:true}` inspects explicit files or folders without writing the project. Use it during
-  requirements discovery.
+  requirements discovery. A reference answer of `Use my references` is not complete until the exact
+  supplied paths are scanned; `prepare` rejects without that scan.
 - `intake {scan:false}` copies accepted files into an open bounded change, adds exact paths, and
   writes sidecars, `Documents/INTAKE.md`, `Documents/ASSETS.md`, and reference registers as
-  applicable. It reports hashes, duplicates, and rejections; originals are never moved.
+  applicable. It reports hashes, duplicates, and rejections; originals are never moved. After
+  bootstrap, a scanned supplied reference becomes a pending gate that blocks scene work until every
+  scanned file is copied.
 - `download` fetches a public HTTPS asset into ignored `.temp/Intake/<project>/...` staging. It does
   not import or register; pass the path to `intake` with source and licence. No credentials, private
   hosts, authentication bypass, CAPTCHA bypass, or unlimited scope.

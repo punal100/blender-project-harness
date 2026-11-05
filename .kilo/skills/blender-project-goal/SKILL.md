@@ -21,8 +21,10 @@ starts. `question` remains available during `/goal-blender`.
 1. Discuss requirements with `blender-project-requirements`. Before confirming the brief, call
    `blender_workflow {action:"reference"}` and ask its exact question and labels: use my references,
    generate one (deferred until after registration), use web references, or none. "Fully modeled / no
-   external assets" does not answer it. `prepare` rejects without the runtime answer. Use
-   `intake {scan:true}` for supplied paths; it does not write the project.
+   external assets" does not answer it. `prepare` rejects without the runtime answer. For `Use my
+   references`, `intake {scan:true}` the exact supplied paths before `prepare`; it does not write the
+   project. After bootstrap, follow `status` and copy the scanned files with `intake {scan:false}`
+   before any scene change.
 2. Ask the remaining intake questions: generated media after registration versus supplied, downloaded,
    browser/provider, or user-assisted assets; scripts as none or source-only; required deliverable
    formats. Do not generate paid media during discovery. Then confirm the requirements brief.
