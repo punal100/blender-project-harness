@@ -153,6 +153,15 @@ function modelSummary(choice) {
   };
 }
 
+function graderReportVerdict(text, change) {
+  const verdicts = [...text.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
+  if (verdicts.length !== 1) return { error: 'verdict' };
+  if (!text.includes(change.sceneHash) || !text.includes(change.evidenceKey)) return { error: 'hashes' };
+  const verdict = verdicts[0][1];
+  if (verdict === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) return { error: 'blocker' };
+  return { verdict };
+}
+
 export function contained(root, relative, missing = false) {
   if (typeof relative !== 'string' || !relative || path.isAbsolute(relative) || relative.includes(':') || relative.includes('\0')) deny('relative path required');
   const full = path.resolve(root, relative);
@@ -174,10 +183,37 @@ function documentPath(root, requested) {
   return { full: contained(root, clean, true), clean };
 }
 
+const GIT_TIMEOUT_MS = 30000;
+const GIT_ATTEMPTS = 3;
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+export function transientGitFailure(result) {
+  if (['ETIMEDOUT', 'EAGAIN', 'EBUSY', 'EMFILE', 'ENFILE', 'ENOMEM'].includes(result?.error?.code)) return true;
+  return /index\.lock|Unable to create .*\.lock|File exists/i.test(result?.stderr?.toString?.() ?? '');
+}
+function headHash(root) {
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 5000 });
+  return result.status === 0 ? result.stdout.trim() : '';
+}
 export function git(root, args, { binary = false, allowExitOne = false } = {}) {
-  const result = spawnSync('git', args, { cwd: root, encoding: binary ? undefined : 'utf8', windowsHide: true, timeout: 30000, maxBuffer: 128 * 1024 * 1024 });
-  if (result.error || (result.status !== 0 && !(allowExitOne && result.status === 1))) deny(`git ${args[0]} failed: ${result.error?.message ?? result.stderr?.toString().trim()}`);
-  return binary ? result.stdout : result.stdout;
+  const headBefore = args[0] === 'commit' ? headHash(root) : '';
+  let result;
+  for (let attempt = 1; attempt <= GIT_ATTEMPTS; attempt += 1) {
+    result = spawnSync('git', args, { cwd: root, encoding: binary ? undefined : 'utf8', windowsHide: true, timeout: GIT_TIMEOUT_MS, maxBuffer: 128 * 1024 * 1024 });
+    const failed = result.error || (result.status !== 0 && !(allowExitOne && result.status === 1));
+    if (!failed) return binary ? result.stdout : result.stdout;
+    if (!transientGitFailure(result) || attempt === GIT_ATTEMPTS) break;
+    if (headBefore) {
+      const headAfter = headHash(root);
+      if (headAfter && headAfter !== headBefore) return binary ? Buffer.alloc(0) : '';
+    }
+    sleepSync(250 * attempt);
+  }
+  const failure = result.error?.message ?? result.stderr?.toString().trim() ?? `exit ${result.status}`;
+  const error = new Error(`Workflow gate: git ${args[0]} failed: ${failure}. Next: call blender_workflow {action:"status"} and follow nextStep; never bypass the harness.`);
+  error.gitTransient = transientGitFailure(result);
+  throw error;
 }
 const gitText = (root, args) => git(root, args).trim();
 function committableFiles(root, files) {
@@ -281,7 +317,9 @@ export class Harness {
     if (goalText.includes('{{') || goalText.trim().length < 100) deny('goal prompt not filled');
     let roster = [], maxParallel = 1, maxRounds = 2;
     if (review !== 'Off') {
-      const config = readJson(configPath(this.root));
+      const file = configPath(this.root);
+      if (!fs.existsSync(file)) deny('grader config missing; copy config.example.json and confirm it before registration');
+      const config = readJson(file);
       const cfg = config.blender_subagents?.graders;
       if (config.blender_graders || config.workers || !cfg || cfg.enabled !== true || cfg.agent !== 'blender-grader' || !Array.isArray(cfg.graders) || !cfg.graders.length) deny('grader config missing, legacy, or disabled');
       const names = new Set();
@@ -1286,7 +1324,7 @@ export class Harness {
     }
     if (c.verdict === 'BLOCKED' && c.blockingKind === 'tooling') {
       const blocked = p.records.roster.find((g) => c.graders[g.name]?.verdict === 'BLOCKED')?.name ?? '<grader>';
-      if ((c.graders[blocked]?.attempt ?? 0) >= 2) {
+      if ((c.graders[blocked]?.attempt ?? 0) >= 2 || c.graders[blocked]?.recovered) {
         return { phase: 'preserve', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: '<why the tooling block cannot be resolved now>' }), reason: 'The grader retry budget is exhausted. Preserve the sealed evidence and task records as WIP, then checkpoint and pause or reregister.' };
       }
       return { phase: 'retry-grader', actor: 'orchestrator', action: 'grader-ticket', command: this.wire('grader-ticket', { name: blocked }), reason: 'This is a tooling/evidence block, not a design failure. Retry the blocked grader; do not open a scene revision.' };
@@ -1422,6 +1460,10 @@ export class Harness {
       const verdicts = [...args.content.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
       if (verdicts.length !== 1) deny('grader report requires exactly one - Verdict: PASS|CHANGES_REQUIRED|BLOCKED line');
       if (!args.content.includes(p.change.sceneHash) || !args.content.includes(p.change.evidenceKey)) deny('grader report must cite the assigned scene hash and evidence key');
+      if (fs.existsSync(full)) {
+        const existing = graderReportVerdict(fs.readFileSync(full, 'utf8'), p.change);
+        if (existing.verdict) deny(`valid report already present at ${g.report}; collect it instead of overwriting it`);
+      }
       fs.mkdirSync(path.dirname(full), { recursive: true });
       fs.writeFileSync(full, args.content);
       return { project: p.project, path: g.report, verdict: verdicts[0][1], bytes: args.content.length, next: 'Return the report facts; the orchestrator validates and aggregates.' };
@@ -1478,6 +1520,15 @@ export class Harness {
     c.commits.push(this.head());
     p.lastCommit = this.head();
     return p.lastCommit;
+  }
+  tryCommitTaskArtifacts(p, c, task, message, options) {
+    try {
+      return this.commitTaskArtifacts(p, c, message, options);
+    } catch (error) {
+      if (!error?.gitTransient) throw error;
+      task.commitPending = true;
+      return null;
+    }
   }
   commitShellApproval(session, project, record) {
     return this.transaction((s) => {
@@ -1806,10 +1857,45 @@ export class Harness {
         const attempt = existing ? (existing.attempt ?? 1) : 0;
         const retryable = existing && (existing.error || existing.kind === 'tooling' || existing.verdict === 'BLOCKED' || (!existing.verdict && Date.now() > existing.deadline));
         if (existing && !retryable) deny('grader already dispatched');
+        let archivedReport = null;
+        if (retryable) {
+          const full = contained(this.root, existing.report, true);
+          if (fs.existsSync(full)) {
+            const text = fs.readFileSync(full, 'utf8');
+            const parsed = graderReportVerdict(text, c);
+            if (parsed.verdict && parsed.verdict !== 'BLOCKED') {
+              existing.verdict = parsed.verdict;
+              existing.kind = 'review';
+              existing.recovered = new Date().toISOString();
+              delete existing.error;
+              c.reports ??= {};
+              c.reports[existing.report] = digest(text);
+              const task = p.tasks?.find((item) => item.token === existing.token);
+              if (task && task.state === 'failed') this.recordTaskFinished(p, existing.token, { ok: true });
+              this.updateManifest(p);
+              return { recovered: true, report: existing.report, verdict: parsed.verdict, taskId: task?.id ?? null, next: 'Existing valid report recovered; aggregate it with review and do not overwrite it.' };
+            }
+            if (parsed.verdict === 'BLOCKED') {
+              archivedReport = existing.report.replace(/\/REPORT\.md$/, `/REPORT.attempt${attempt}.md`);
+              let suffix = 2;
+              while (fs.existsSync(contained(this.root, archivedReport, true))) {
+                archivedReport = existing.report.replace(/\/REPORT\.md$/, `/REPORT.attempt${attempt}-${suffix}.md`);
+                suffix += 1;
+              }
+            }
+          }
+        }
         if (retryable && attempt >= 2) deny('grader retry budget exhausted; aggregate the round as blocked');
         if (Object.values(c.graders).filter((g) => g.child && !g.verdict && !g.error && Date.now() <= g.deadline).length >= p.records.maxParallel) deny('grader parallel limit reached');
         const token = crypto.randomUUID();
         const report = existing?.report ?? `${p.project}/Documents/Reviews/${c.round}/${g.name}/REPORT.md`;
+        if (archivedReport) {
+          const from = contained(this.root, report);
+          const to = contained(this.root, archivedReport, true);
+          fs.renameSync(from, to);
+          c.reports ??= {};
+          c.reports[archivedReport] = digest(fs.readFileSync(to, 'utf8'));
+        }
         if (c.reports) delete c.reports[report];
         fs.mkdirSync(path.dirname(contained(this.root, report, true)), { recursive: true });
         const full = contained(this.root, report, true);
@@ -1877,7 +1963,7 @@ export class Harness {
         const task = p.tasks?.find((item) => item.token === assignment.token);
         if (task) this.recordTaskFinished(p, assignment.token, { ok: false, error: assignment.error });
         this.updateManifest(p);
-        if (task) this.commitTaskArtifacts(p, c, `task: ${task.id} ${task.state}`, { manifest: false });
+        if (task) this.tryCommitTaskArtifacts(p, c, task, `task: ${task.id} ${task.state}`, { manifest: false });
         return this.status(p, s);
       } else if (action === 'review') {
         if (!c?.inspected || p.records.review === 'Off' || c.verdict) deny('sealed inspection required once before review');
@@ -2244,7 +2330,7 @@ export class Harness {
       const task = p.tasks?.find((item) => item.token === token);
       if (task) this.recordTaskFinished(p, token, { ok: false, error: g.error });
       this.updateManifest(p);
-      if (task && p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`);
+      if (task && p.change) this.tryCommitTaskArtifacts(p, p.change, task, `task: ${task.id} ${task.state}`);
     });
   }
   graderStep(child, tool, args) {
@@ -2269,25 +2355,25 @@ export class Harness {
         g.verdict = 'BLOCKED'; g.error = error; g.kind = 'tooling';
         const task = p.tasks?.find((item) => item.token === g.token);
         if (task) this.recordTaskFinished(p, g.token, { ok: false, error });
-        if (task) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`, { manifest: false });
+        if (task) this.tryCommitTaskArtifacts(p, p.change, task, `task: ${task.id} ${task.state}`, { manifest: false });
         this.updateManifest(p); return this.status(p, s);
       };
       const full = contained(this.root, g.report, true);
       if (!fs.existsSync(full)) return fail(`grader report missing: ${g.report}`);
       const text = fs.readFileSync(full, 'utf8');
-      const verdicts = [...text.matchAll(/^- Verdict: (PASS|CHANGES_REQUIRED|BLOCKED)\s*$/gm)];
-      if (verdicts.length !== 1 || !text.includes(p.change.sceneHash) || !text.includes(p.change.evidenceKey)) return fail(`grader report invalid: ${g.report}`);
+      const parsed = graderReportVerdict(text, p.change);
+      if (parsed.error === 'blocker') return fail(`PASS report contains blocker/major finding: ${g.report}`);
+      if (parsed.error) return fail(`grader report invalid: ${g.report}`);
       const missingScene = (p.change.scenes ?? []).length > 1 ? p.change.scenes.find((name) => !text.includes(name)) : null;
       if (missingScene) return fail(`grader report does not cite scene ${missingScene}: ${g.report}`);
-      if (verdicts[0][1] === 'PASS' && /\|\s*(blocker|major)\s*\|/i.test(text)) return fail(`PASS report contains blocker/major finding: ${g.report}`);
-      g.verdict = verdicts[0][1];
+      g.verdict = parsed.verdict;
       g.kind = g.verdict === 'BLOCKED' ? 'tooling' : 'review';
       p.change.reports ??= {};
       delete p.change.reports[g.report];
       p.change.reports[g.report] = digest(text);
       const task = p.tasks?.find((item) => item.token === g.token);
       if (task) this.recordTaskFinished(p, g.token, { ok: g.verdict !== 'BLOCKED', error: g.verdict === 'BLOCKED' ? 'grader returned BLOCKED' : undefined });
-      if (task) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`, { manifest: false });
+      if (task) this.tryCommitTaskArtifacts(p, p.change, task, `task: ${task.id} ${task.state}`, { manifest: false });
       this.updateManifest(p);
       return this.status(p, s);
     });
