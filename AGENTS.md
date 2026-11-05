@@ -128,8 +128,9 @@ not list workspace-local skills, read the file directly.
 
 ## Goal state
 
-- `/goal-blender` is the only goal lifecycle for Blender production. Start, inspect, pause, resume,
-  complete, or clear it through `goal_blender`; never call the built-in `goal` or `goal_report` tools.
+- `/goal-blender` is the only goal lifecycle for Blender production. Start, inspect, pause, stop,
+  resume, complete, or clear it through `goal_blender`; `/goal-blender stop` is the emergency stop and
+  aborts active children. Never call the built-in `goal` or `goal_report` tools.
   A built-in `/goal` invalidates the Blender registration: stop production, run `/goal clear`, close
   any open change, and re-register. `status` exposes `goalSource`, `goalMeta`, `goalConflict`, and
   `goalReport`.

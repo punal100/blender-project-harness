@@ -406,6 +406,32 @@ export class Harness {
       }
     });
   }
+  cancelChildren(session, childIds, reason) {
+    return this.transaction((s) => {
+      const p = this.owner(s, session);
+      const ids = new Set(childIds.filter(Boolean));
+      const at = new Date().toISOString();
+      const text = String(reason ?? 'Mission stopped').slice(0, 300);
+      for (const task of p.tasks ?? []) {
+        if (!ids.has(task.child) || ['done', 'failed', 'cancelled'].includes(task.state)) continue;
+        task.state = 'cancelled';
+        task.finished = at;
+        task.result = text;
+        this.writeTaskDocument(p, task);
+        this.writeTaskSummary(p, task);
+      }
+      for (const g of Object.values(p.change?.graders ?? {})) {
+        if (!ids.has(g.child) || g.verdict) continue;
+        g.cancelled = at;
+        g.error = text;
+        g.kind = 'cancelled';
+      }
+      if (p.change) p.change.cancelled = { at, reason: text };
+      this.writeTaskLedger(p);
+      this.updateManifest(p);
+      return [...ids];
+    });
+  }
   workerConfig() {
     const file = configPath(this.root);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
@@ -1859,6 +1885,7 @@ export class Harness {
         p.goalActive = true;
         p.goalSource = 'goal-blender';
         p.paused = null;
+        if (p.change) p.change.cancelled = null;
       } else if (action === 'goal-inactive') {
         const keys = Object.keys(args);
         if (keys.some((key) => !['reason', 'clear'].includes(key))) deny('goal-inactive accepts reason and clear only');
@@ -2525,7 +2552,7 @@ export class Harness {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
       const task = p.tasks?.find((item) => item.token === token);
-      if (!task || task.state === 'done' || task.state === 'failed') return;
+      if (!task || ['done', 'failed', 'cancelled'].includes(task.state)) return;
       task.state = 'failed';
       task.finished = new Date().toISOString();
       task.result = String(error ?? 'worker task failed').slice(0, 300);
@@ -2541,7 +2568,7 @@ export class Harness {
       const entry = Object.entries(p.change?.graders ?? {}).find(([, g]) => g.token === token);
       if (!entry) return;
       const g = entry[1];
-      if (g.verdict) return;
+      if (g.verdict || g.cancelled) return;
       g.verdict = 'BLOCKED'; g.error = String(error ?? 'grader task failed'); g.kind = 'tooling';
       const task = p.tasks?.find((item) => item.token === token);
       if (task) this.recordTaskFinished(p, token, { ok: false, error: g.error });
@@ -2554,6 +2581,7 @@ export class Harness {
       const assignment = this.graderAssignment(s, child);
       if (!assignment) deny('grader session has no bound assignment');
       const { p, g, name } = assignment;
+      if (!p.goalActive || p.paused) deny('mission is stopped; resume before running grader tools');
       this.fresh(p);
       const cfg = p.records.roster.find((v) => v.name === name);
       const reportWrite = tool === 'blender_document' && args?.action === 'write';
@@ -2566,7 +2594,10 @@ export class Harness {
     return this.transaction((s) => {
       const assignment = this.graderAssignment(s, child);
       if (!assignment || assignment.p.orchestrator !== orchestrator) deny('completed task has no assigned grader');
-      const { p, g } = assignment; this.fresh(p);
+      const { p, g } = assignment;
+      if (!p.goalActive || p.paused) deny('mission is stopped; resume before collecting grader results');
+      if (g.cancelled) deny('grader child was cancelled by a mission stop; resume and retry the grader');
+      this.fresh(p);
       const fail = (error) => {
         g.verdict = 'BLOCKED'; g.error = error; g.kind = 'tooling';
         const task = p.tasks?.find((item) => item.token === g.token);

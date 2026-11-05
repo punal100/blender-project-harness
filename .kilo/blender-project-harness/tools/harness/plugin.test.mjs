@@ -652,6 +652,21 @@ test('an aborted turn pauses the mission instead of auto-continuing', async (t) 
   assert.match(status.paused.reason, /Stopped by the user/);
 });
 
+test('goal_blender stop aborts active children and records the stop', async (t) => {
+  const f = fixture(t, { review: 'Single' });
+  const aborted = [];
+  const h = hooks(f, undefined, { session: { abort: async ({ path: p }) => aborted.push(p.id) } });
+  f.begin();
+  f.harness.transaction((s) => {
+    s.projects[f.project].change.graders.visual = { child: 'ses_active_grader' };
+  });
+  const stopped = JSON.parse(await h.tool.goal_blender.execute({ action: 'stop' }, { sessionID: f.session }));
+  assert.equal(stopped.goalActive, false);
+  assert.deepEqual(stopped.abortedChildren, ['ses_active_grader']);
+  assert.deepEqual(aborted, ['ses_active_grader']);
+  assert.match(stopped.paused.reason, /Stopped by \/goal-blender/);
+});
+
 test('plugin injects compact durable recovery context', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const output = { context: [] };

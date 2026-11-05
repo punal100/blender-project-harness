@@ -69,15 +69,17 @@ may close with `commit`. Requirements stay frozen.
 - If a worker child fails before executing, the ticket is still `issued`; dispatch a fresh worker and
   it rebinds. A ticket already authorized or running stays bound to that child.
 - Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
-- To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause {reason}`, then
-  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`; it is denied when
+- To stop immediately, use `/goal-blender stop`; it works with an open change and aborts active
+  worker/grader children. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call
+  `pause {reason}`, then stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`; it is denied when
   the registration's checkpoint or snapshot does not match this checkout. Discard such a stale
   registration with `forget {project,reason}` before scaffolding or preparing that name again.
 - `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
   question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
 - `schedule_wakeup`, cron, and `background_process` are orchestrator-only.
-- Harness mission state is authoritative. Use `goal_blender` for start, status, pause, resume, complete,
-  and clear. If `nextStep.phase` is `goal-blender`, call `/goal-blender resume` before continuing. If
+- Harness mission state is authoritative. Use `goal_blender` for start, status, pause, stop, resume,
+  complete, and clear. `/goal-blender stop` aborts active children and works with an open change. If
+  `nextStep.phase` is `goal-blender`, call `/goal-blender resume` before continuing. If
   `status.goalConflict` is present, stop production, run `/goal clear`, close any open change, and
   reregister.
 

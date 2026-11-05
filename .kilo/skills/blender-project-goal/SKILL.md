@@ -71,9 +71,11 @@ configured graders; and the done state.
 
 ## Mission state and input handoffs
 
-Harness state is authoritative. `goal_blender` actions are `start`, `status`, `pause`, `resume`,
-`complete`, and `clear`; status exposes `goalActive`, `goalSource`, `goalMeta`, `goalConflict`, and
-`goalReport`. A mission started by `/goal-blender` never sets `kilo.goal`. If Kilo reports a built-in
+Harness state is authoritative. `goal_blender` actions are `start`, `status`, `pause`, `stop`,
+`resume`, `complete`, and `clear`; status exposes `goalActive`, `goalSource`, `goalMeta`, `goalConflict`,
+and `goalReport`. `/goal-blender stop` is the emergency stop: it works with an open change, aborts
+active children, and pauses the mission. Resume with `/goal-blender resume`; `/goal-blender clear`
+clears the mission and reports whether the open change remains. A mission started by `/goal-blender` never sets `kilo.goal`. If Kilo reports a built-in
 goal active, paused, or blocked, the harness marks a conflict, stops production, and requires
 `/goal clear`, closing any open change, and re-registration. A harness deny is not permission to bypass
 the gate.

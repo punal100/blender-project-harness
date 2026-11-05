@@ -282,6 +282,26 @@ export function createHooks(harness, client, directory = harness.root) {
       return false;
     }
   }
+  async function abortChildren(project, reason) {
+    if (!project) return [];
+    const ids = new Set();
+    for (const task of project.tasks ?? []) {
+      if (task.child && !['done', 'failed', 'cancelled'].includes(task.state)) ids.add(task.child);
+    }
+    for (const g of Object.values(project.change?.graders ?? {})) {
+      if (g.child && !g.verdict && !g.cancelled) ids.add(g.child);
+    }
+    const children = [...ids];
+    if (typeof client.session.abort === 'function') {
+      for (const child of children) {
+        try {
+          await client.session.abort({ path: { id: child }, query: { directory: harness.root } });
+        } catch { /* Mark the child cancelled even if the runtime abort is unavailable. */ }
+      }
+    }
+    if (children.length) harness.cancelChildren(project.orchestrator, children, reason);
+    return children;
+  }
   async function childAssignment(session) {
     const info = await identity(session);
     if (!info.parentID) return null;
@@ -333,16 +353,24 @@ export function createHooks(harness, client, directory = harness.root) {
       result.handoff = 'End this turn now. The mission loop starts the next turn; call status and nextStep there.';
       return JSON.stringify(result, null, 2);
     }
-    if (action === 'pause') return JSON.stringify(harness.command(sessionID, 'goal-inactive', { reason: 'Paused by /goal-blender' }), null, 2);
-    if (action === 'clear') {
-      if (p.complete) deny('the mission is complete; reregister instead of clearing it');
-      return JSON.stringify(harness.command(sessionID, 'goal-inactive', { clear: true }), null, 2);
+    if (action === 'pause' || action === 'stop' || action === 'clear') {
+      if (action === 'clear' && p.complete) deny('the mission is complete; reregister instead of clearing it');
+      const reason = action === 'clear'
+        ? 'Cleared by /goal-blender'
+        : action === 'stop' ? 'Stopped by /goal-blender' : 'Paused by /goal-blender';
+      const result = action === 'clear'
+        ? harness.command(sessionID, 'goal-inactive', { clear: true, reason })
+        : harness.command(sessionID, 'goal-inactive', { reason });
+      const abortedChildren = await abortChildren(p, reason);
+      if (action === 'clear') result.openChange = Boolean(p.change);
+      result.abortedChildren = abortedChildren;
+      return JSON.stringify(result, null, 2);
     }
     if (action === 'complete') {
       if (typeof args.evidence !== 'string' || !args.evidence.trim()) deny('completion requires evidence');
       return JSON.stringify(harness.command(sessionID, 'goal-complete', { reason: args.evidence.trim().slice(0, 2000) }), null, 2);
     }
-    deny('goal_blender action must be start, status, pause, resume, complete, or clear');
+    deny('goal_blender action must be start, status, pause, stop, resume, complete, or clear');
   }
   async function continueGoalBlender(sessionID) {
     if (continuations.has(sessionID) || questionPending.has(sessionID)) return;
@@ -350,12 +378,15 @@ export function createHooks(harness, client, directory = harness.root) {
     if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) return;
     if ((project.goalMeta?.autoTurns ?? 0) >= MAX_AUTO_TURNS) return;
     if (await lastTurnAborted(sessionID)) {
+      const reason = 'Stopped by the user (session aborted); resume with /goal-blender resume.';
+      await abortChildren(project, reason);
       harness.transaction((s) => {
         const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
         if (!current || current.complete) return;
         current.goalActive = false;
         current.goalSource = null;
-        current.paused = { at: new Date().toISOString(), reason: 'Stopped by the user (session aborted); resume with /goal-blender resume.' };
+        current.paused = { at: new Date().toISOString(), reason };
+        if (current.change) current.change.cancelled = { at: new Date().toISOString(), reason };
       });
       return;
     }
@@ -413,15 +444,15 @@ export function createHooks(harness, client, directory = harness.root) {
     config: async (config) => {
       config.command ??= {};
       config.command['goal-blender'] = {
-        description: 'Harness-owned Blender mission. Use instead of /goal.',
+        description: 'Harness-owned Blender mission. Use instead of /goal. Actions: start, status, pause, stop, resume, complete, clear.',
         template: 'Use goal_blender for the harness-owned Blender mission with arguments: $ARGUMENTS. Do not call the built-in goal or goal_report tools.',
       };
     },
     tool: {
       goal_blender: {
-        description: 'Harness-owned Blender mission lifecycle. Use instead of the built-in goal tool. Actions: start, status, pause, resume, complete, clear.',
+        description: 'Harness-owned Blender mission lifecycle. Use instead of the built-in goal tool. Actions: start, status, pause, stop, resume, complete, clear.',
         args: {
-          action: z.enum(['start', 'status', 'pause', 'resume', 'complete', 'clear']),
+          action: z.enum(['start', 'status', 'pause', 'stop', 'resume', 'complete', 'clear']),
           evidence: z.string().optional(),
         },
         async execute(args, context) {
