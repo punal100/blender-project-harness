@@ -227,7 +227,11 @@ test('production worker delegation requires valid read-only limits', async (t) =
   };
   f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ blender_subagents: { workers: worker } }));
   f.write('.kilo/agent/blender-worker.md', '---\nsteps: 20\n---\n');
-  await before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false });
+  const primaryArgs = { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false };
+  await before(h, f.session, 'task', primaryArgs);
+  assert.equal(primaryArgs.provider, 'fixture-provider');
+  assert.equal(primaryArgs.model, 'fixture-model');
+  assert.equal(primaryArgs.variant, 'fixture-variant');
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: true }),
     /foreground/,

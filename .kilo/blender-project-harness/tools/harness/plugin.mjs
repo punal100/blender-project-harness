@@ -596,7 +596,8 @@ export function createHooks(harness, client, directory = harness.root) {
         if (args.subagent_type === 'blender-worker') {
           if (!p.goalActive || !args.prompt?.trim()) deny('worker delegation requires an active goal and a task prompt');
           if (/HARNESS_GRADER:/.test(args.prompt)) deny('worker task cannot carry a grader marker');
-          harness.workerConfig();
+          const cfg = harness.workerConfig();
+          Object.assign(args, { provider: cfg.provider, model: cfg.model, variant: cfg.variant });
           return;
         }
         if (args.subagent_type !== 'blender-grader' || !/HARNESS_GRADER:[a-f0-9-]{36}/.test(args.prompt ?? '')) deny('production delegation requires foreground assigned grader');
@@ -605,6 +606,10 @@ export function createHooks(harness, client, directory = harness.root) {
         }
         const token = args.prompt.match(/HARNESS_GRADER:([a-f0-9-]{36})/)[1];
         if (!p.change?.inspected || !Object.values(p.change.graders).some((g) => g.token === token)) deny('grader ticket missing');
+        const graderName = Object.entries(p.change.graders).find(([, g]) => g.token === token)?.[0];
+        const cfg = p.records.roster.find((g) => g.name === graderName);
+        if (!cfg) deny('grader model configuration missing');
+        Object.assign(args, { provider: cfg.provider, model: cfg.model, variant: cfg.variant });
         taskArgs.set(input.callID, args); return;
       }
       if (['write', 'edit', 'apply_patch'].includes(tool)) {
