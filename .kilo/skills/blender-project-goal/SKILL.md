@@ -18,11 +18,11 @@ template is under `../../../.kilo/blender-project-harness/tools/harness/template
 Requirements, workflow mode, review mode, and scaffolding happen in ordinary chat before a mission
 starts. `question` remains available during `/goal-blender`.
 
-1. Discuss requirements with `blender-project-requirements`. Before confirming the brief, ask the
-   mandatory reference-images/links question as its own `question` call: use my references, generate
-   one (deferred until after registration), use web references, or none. "Fully modeled / no external
-   assets" does not answer it. Use `intake {scan:true}` for supplied paths; it does not write the
-   project.
+1. Discuss requirements with `blender-project-requirements`. Before confirming the brief, call
+   `blender_workflow {action:"reference"}` and ask its exact question and labels: use my references,
+   generate one (deferred until after registration), use web references, or none. "Fully modeled / no
+   external assets" does not answer it. `prepare` rejects without the runtime answer. Use
+   `intake {scan:true}` for supplied paths; it does not write the project.
 2. Ask the remaining intake questions: generated media after registration versus supplied, downloaded,
    browser/provider, or user-assisted assets; scripts as none or source-only; required deliverable
    formats. Do not generate paid media during discovery. Then confirm the requirements brief.

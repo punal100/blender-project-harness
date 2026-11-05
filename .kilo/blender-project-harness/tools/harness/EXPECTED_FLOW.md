@@ -162,8 +162,9 @@ Ask only questions that change the result or the rights:
 - What should the scene contain?
 - What style, mood, and lighting?
 - What deliverables?
-- Are references supplied, generated, web, or omitted? Ask this as its own question before the
-  requirements confirmation, even when external assets are declined.
+- Are references supplied, generated, web, or omitted? Call `blender_workflow {action:"reference"}`
+  and ask its exact question before the requirements confirmation, even when external assets are
+  declined.
 - Are external assets supplied, downloaded, or avoided?
 - Are scripts needed?
 - Fully Autonomous or Partially Autonomous?

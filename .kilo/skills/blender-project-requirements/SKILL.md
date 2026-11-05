@@ -22,11 +22,12 @@ create scene work during the discussion. For a necessary question during product
    `Deferred` and explicit exclusions under `Out of scope`.
 5. Cover purpose, audience, visual outcome, deliverables, acceptance, constraints, external assets,
    and exclusions.
-6. Ask the reference question as its own `question` call before any brief confirmation. Offer
-   `Use my references`, `Generate one`, `Use web references`, or `None`; collect exact paths or URLs
-   for supplied references. Generation is deferred until after registration. Ask even when the user
-   says "fully modeled, no external assets"; that answers sourcing, not visual reference. Use
-   `intake {scan:true}` for supplied paths. Do not show `Confirm requirements` until it is answered.
+6. Call `blender_workflow {action:"reference"}` and ask its exact question and labels before any brief
+   confirmation. The labels are `Use my references`, `Generate one`, `Use web references`, and `None`;
+   collect exact paths or URLs for supplied references. Generation is deferred until after
+   registration. Ask even when the user says "fully modeled, no external assets"; that answers
+   sourcing, not visual reference. Use `intake {scan:true}` for supplied paths. Do not show
+   `Confirm requirements` until the runtime answer exists; `prepare` rejects without it.
 7. Reflect a concise draft back to the user. The draft MUST include
    `Reference images / links: <answer or none>`. Ask `Confirm requirements`, `Keep discussing`, or
    `Change something`.

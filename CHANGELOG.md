@@ -16,8 +16,12 @@
 
 ### Fixed
 
-- Requirements discovery now asks for reference images or links as a mandatory standalone question
-  before the brief confirmation; declining external assets no longer skips it.
+- Requirements discovery now requires the runtime reference question and answer before registration;
+  declining external assets no longer skips it, and `prepare` rejects without the receipt.
+- Goal-conflict recovery now preserves applied and reviewed changes safely, rejects recovery while a
+  worker ticket is pending, and blocks new ticket authorization.
+- Auto-continuation metadata is initialized on reclaim and is not reset by starting an already-active
+  mission.
 
 ## 1.0.4 - 2026-11-05
 

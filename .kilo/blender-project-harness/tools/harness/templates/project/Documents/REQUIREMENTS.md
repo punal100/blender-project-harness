@@ -11,7 +11,8 @@ Persist the exact confirmed brief or revision and the user's actual confirmation
 scaffolding. Replace draft status and empty confirmation fields only from that evidence; do not invent
 approval. Collect workflow and review answers before scaffolding, persist their records afterward,
 then fill the goal and start `/goal-blender` before launch. Confirm only after the user has answered
-the reference question explicitly; "fully modeled / no external assets" does not mean "no references".
+the reference question through `blender_workflow {action:"reference"}`; "fully modeled / no external
+assets" does not mean "no references". `prepare` rejects registration without the runtime answer.
 
 ## Core value
 

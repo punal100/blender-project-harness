@@ -31,10 +31,11 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
   questions or run discovery. `question` remains available during `/goal-blender` for clarifications
   and approvals. Read-only questions and workspace maintenance need no mission, records, or review
   render and must not launch or modify Blender.
-- Requirements discovery MUST ask for reference images or links as its own question before the
-  `Confirm requirements` question. It MUST accept supplied paths/URLs, a generated or web reference,
-  or an explicit `none`; "fully modeled / no external assets" does not answer it. Record the answer in
-  `REQUIREMENTS.md` and `Documents/References/README.md`.
+- Requirements discovery MUST call `blender_workflow {action:"reference"}` and ask its exact
+  reference-images/links question before the `Confirm requirements` question. It MUST accept supplied
+  paths/URLs, a generated or web reference, or an explicit `none`; "fully modeled / no external
+  assets" does not answer it. `prepare` rejects registration without the runtime answer. Record the
+  answer in `REQUIREMENTS.md` and `Documents/References/README.md`.
 - Requirements, workflow mode, review mode, and the active goal document are frozen after registration.
   Changes stop production and require explicit re-registration. Never edit registration documents
   inside a bounded change.
