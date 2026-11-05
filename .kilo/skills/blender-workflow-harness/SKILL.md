@@ -36,6 +36,10 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
   foreground `blender-worker`. The orchestrator never executes apply.
 - A non-scene change (markdown, source-only `scripts/`, references, assets) commits and checkpoints
   without apply, seal, or review.
+- A scaffolded project ships `.gitignore`; `logs/`, WIP renders, `_evidence/`, `.blend1`, and
+  `__pycache__` stay out of the snapshot. If `begin` reports "project changed since checkpoint", a
+  runtime file is untracked and unignored: commit the exact scope or ask for an approved shell fix,
+  then retry.
 - Bootstrap save: ticketed `save`, `commit`, `checkpoint`; never seal, render, or grade it.
 - Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
   Partially Autonomous needs approval before the review commit.
@@ -54,12 +58,18 @@ may close with `commit`. Requirements stay frozen.
 - `capabilities.limits` is authoritative: 20 applies per change, 10-minute tickets, 15-minute idle
   window, WIP every 3 applies.
 - Failed or expired reviewable change: `recover {reopen:true}` for repairs, or `commit {mode:"wip"}`
-  then `checkpoint`.
-- `recover` releases only an expired or dead ticket. If the writer started, inspect the live scene,
-  save, and reseal; never release a live writer.
+  then `checkpoint`. An expired change with zero applies closes with `abandon {reason}` (no commit);
+  `commit {mode:"wip"}` also closes an empty change without a commit.
+- `recover` releases only an expired or dead ticket. A bound ticket is live only for its 10-minute
+  window after the writer starts; an unstarted ticket expires on its ticket TTL. Never release a live
+  writer.
+- If a worker child fails before executing, the ticket is still `issued`; dispatch a fresh worker and
+  it rebinds. A ticket already authorized or running stays bound to that child.
 - Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
 - To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call `pause {reason}`, then
-  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`.
+  stop Blender. Transfer a stale expired owner only with `reclaim {project,reason}`; it is denied when
+  the registration's checkpoint or snapshot does not match this checkout. Discard such a stale
+  registration with `forget {project,reason}` before scaffolding or preparing that name again.
 - `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
   question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
 - `schedule_wakeup`, cron, and `background_process` are orchestrator-only.
