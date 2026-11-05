@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.4 - 2026-11-05
+
 ### Fixed
 
 - Harness Git operations now retry transient timeouts and lock contention with backoff, recognize a commit that landed before its timeout, and keep a grader's verdict when task-metadata commit fails transiently.
