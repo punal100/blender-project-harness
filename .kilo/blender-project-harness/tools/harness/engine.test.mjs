@@ -1094,7 +1094,12 @@ test('failed review approval excludes the impossible approve option', (t) => {
   const approval = f.harness.command('orchestrator', 'approval');
   assert.equal(approval.verdict, 'CHANGES_REQUIRED');
   assert.deepEqual(approval.labels, ['Request revision', 'Pause']);
+  assert.equal(approval.defaultLabel, 'Request revision');
+  assert.match(approval.instruction, /default to "Request revision"/);
   assert.doesNotMatch(approval.question, /Approve change/);
+  gate(() => f.harness.question('orchestrator', {
+    questions: [{ question: approval.question, options: approval.labels.slice().reverse().map((label) => ({ label })), custom: false, multiple: false }],
+  }, [['Request revision']]), /labels exactly.*Request revision.*Pause.*default "Request revision"/);
 });
 
 test('partial approval ignores forged JSON and Pause, then accepts only actual labels', (t) => {

@@ -108,7 +108,7 @@ const approvalSpec = (change) => {
   const question = passed
     ? `${change.outcome} Review verdict: PASS. Approve this change, request a revision, or pause? HARNESS CHANGE ${change.id} ${change.evidenceKey}`
     : `${change.outcome} Review verdict: ${change.verdict}. Request a revision or pause? HARNESS CHANGE ${change.id} ${change.evidenceKey}`;
-  return { question, labels };
+  return { question, labels, defaultLabel: passed ? 'Approve change' : 'Request revision' };
 };
 
 function modelFields(value, label) {
@@ -1242,7 +1242,9 @@ export class Harness {
         if (!p) return;
         this.fresh(p);
         const spec = approvalSpec(p.change);
-        if (stable(q.options.map((o) => o.label)) !== stable(spec.labels)) deny('approval options changed');
+        if (stable(q.options.map((o) => o.label)) !== stable(spec.labels)) {
+          deny(`approval options changed. Use labels exactly ${JSON.stringify(spec.labels)} in that order and default "${spec.defaultLabel}"`);
+        }
         if (answers[0][0] === 'Approve change' && p.change.verdict !== 'PASS') deny('failed review cannot be approved; request revision or pause');
         p.change.approval = ['Approve change', 'Request revision'].includes(answers[0][0]) ? { label: answers[0][0], evidence: p.change.evidenceKey } : null;
       }
@@ -2207,7 +2209,13 @@ export class Harness {
         if (!c?.verdict || p.records.workflow !== 'Partially Autonomous') deny('complete review before approval');
         const spec = approvalSpec(c);
         c.approvalQuestion = spec.question;
-        return { ...spec, outcome: c.outcome, verdict: c.verdict };
+        return {
+          ...spec,
+          orderSensitive: true,
+          instruction: `Pass this exact question and labels in this order; set default to "${spec.defaultLabel}".`,
+          outcome: c.outcome,
+          verdict: c.verdict,
+        };
       } else if (action === 'checkpoint') {
         if (!c) deny('no open change to checkpoint');
         this.mediaGate(p, c);

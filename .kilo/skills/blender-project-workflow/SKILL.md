@@ -41,8 +41,9 @@ Never auto-confirm, raise `max_rounds` without `escalate`, or continue with the 
 
 - Obtain approval after every reviewable change and before its commit.
 - After `seal` and `look`, complete required review and record every finding disposition.
-- Call `approval {}` and pass its exact question and labels to `question`: `Approve change`,
-  `Request revision`, `Pause`. `question` is available during the mission.
+- Call `approval {}` and pass its exact question and returned labels, in order, to `question`; set the
+  question default to `defaultLabel`. A failed review omits `Approve change`. `question` is available
+  during the mission.
 - Only a runtime answer counts. Never self-approve or record approval the user did not give.
 - `Approve change`: `commit` the exact reviewed change, then `checkpoint`.
 - `Request revision`: obtain concrete direction with `question`; commit the failed round; resume only
