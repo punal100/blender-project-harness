@@ -272,6 +272,16 @@ export function createHooks(harness, client, directory = harness.root) {
     if (!result.data?.id || result.data.id !== id) deny('session identity unavailable');
     return result.data;
   }
+  async function lastTurnAborted(sessionID) {
+    if (typeof client.session.messages !== 'function') return false;
+    try {
+      const messages = await client.session.messages({ path: { id: sessionID }, query: { limit: 20 }, throwOnError: true });
+      const last = messages.data?.findLast?.((message) => message.info?.role === 'assistant');
+      return last?.info?.error?.name === 'MessageAbortedError';
+    } catch {
+      return false;
+    }
+  }
   async function childAssignment(session) {
     const info = await identity(session);
     if (!info.parentID) return null;
@@ -339,6 +349,16 @@ export function createHooks(harness, client, directory = harness.root) {
     const project = stateFor(sessionID);
     if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) return;
     if ((project.goalMeta?.autoTurns ?? 0) >= MAX_AUTO_TURNS) return;
+    if (await lastTurnAborted(sessionID)) {
+      harness.transaction((s) => {
+        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
+        if (!current || current.complete) return;
+        current.goalActive = false;
+        current.goalSource = null;
+        current.paused = { at: new Date().toISOString(), reason: 'Stopped by the user (session aborted); resume with /goal-blender resume.' };
+      });
+      return;
+    }
     let info;
     try { info = await identity(sessionID); } catch { return; }
     const builtIn = kiloGoal(info);

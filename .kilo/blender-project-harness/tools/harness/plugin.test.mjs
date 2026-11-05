@@ -635,6 +635,23 @@ test('goal-blender auto-continues once per idle up to the cap', async (t) => {
   assert.equal(calls.length, 1);
 });
 
+test('an aborted turn pauses the mission instead of auto-continuing', async (t) => {
+  const f = fixture(t);
+  const calls = [];
+  const h = hooks(f, undefined, {
+    session: {
+      promptAsync: async (args) => calls.push(args),
+      messages: async () => ({ data: [{ info: { role: 'assistant', error: { name: 'MessageAbortedError' } } }] }),
+    },
+  });
+  await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session });
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 0);
+  const status = f.harness.command(f.session, 'status');
+  assert.equal(status.goalActive, false);
+  assert.match(status.paused.reason, /Stopped by the user/);
+});
+
 test('plugin injects compact durable recovery context', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const output = { context: [] };
