@@ -42,10 +42,10 @@ of editing it inside a bounded change.
 Read `blender_subagents.graders` from `.kilo/blender-project-harness/config.json`; the tracked
 `.kilo/blender-project-harness/config.example.json` is the template. The harness validates unique
 slugs, non-empty focus/model fields, one complete backup provider/model/variant per grader, positive
-budgets, `max_steps` within the grader ceiling, `max_parallel` within the roster, and `max_rounds`
-1-4. Give a final full-spec `spec` grader 12 steps. Never fabricate, drop, substitute, or borrow a
-grader or model. A primary dispatch failure may retry once with the configured backup and must record
-`modelRole`.
+budgets, `max_steps` within the 24-step grader ceiling, `max_parallel` within the roster, and `max_rounds`
+1-4. Give visual and technical graders 16 steps and a final full-spec `spec` grader 20 steps, reserving
+one step for the report write. Never fabricate, drop, substitute, or borrow a grader or model. A
+primary dispatch failure may retry once with the configured backup and must record `modelRole`.
 
 Example config with two graders and `max_parallel` equal to roster size:
 
@@ -68,7 +68,7 @@ Example config with two graders and `max_parallel` equal to roster size:
             "variant": "high"
           },
           "max_minutes": 8,
-          "max_steps": 10
+          "max_steps": 16
         },
         {
           "name": "spec",
@@ -82,7 +82,7 @@ Example config with two graders and `max_parallel` equal to roster size:
             "variant": "high"
           },
           "max_minutes": 10,
-          "max_steps": 12
+          "max_steps": 20
         }
       ],
       "max_parallel": 2,
