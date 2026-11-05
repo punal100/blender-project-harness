@@ -1,0 +1,519 @@
+{
+  "round": "R05-20261105T054516Z",
+  "created": "2026-11-05T05:45:17.682Z",
+  "previous_round": "R04-20261105T053219Z",
+  "active_goal": "Blender/CozyComputerRoom/Documents/Goals/01-project-brief.md",
+  "base_commit": "aa16a7cb1f4504eb010091bb89d95caf45d56fda",
+  "dirty": "M Blender/CozyComputerRoom/Documents/TASKSTRACKER.md\n M Blender/CozyComputerRoom/cozycomputerroom.blend\n?? Blender/CozyComputerRoom/Documents/Tasks/T047/\n?? Blender/CozyComputerRoom/renders/final/R05-20261105T054516Z.png",
+  "scene": {
+    "path": "Blender/CozyComputerRoom/cozycomputerroom.blend",
+    "sha256": "df7449846cac377bd405d4a9ea1cadeea75bcf72b0700b11e602b28a567f5953"
+  },
+  "primary_scene": "Scene",
+  "scenes": [
+    {
+      "name": "Scene",
+      "render": "Blender/CozyComputerRoom/renders/final/R05-20261105T054516Z.png",
+      "camera": "HeroCam",
+      "use_sequencer": true,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "facts": "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/_evidence/scenes/Scene/scene-facts.json"
+    }
+  ],
+  "scene_requirements": {},
+  "specs": {
+    "Blender/CozyComputerRoom/Documents/REQUIREMENTS.md": "457c5c2ae5e66221f4540426d945dfcbaed6a3db6e8bcdafcbe961e50b6e1b66",
+    "Blender/CozyComputerRoom/Documents/WORKFLOW.md": "4245759592e0d8d1403b3c28e33d5df151190a8df83aa82065de49d5afc00da3",
+    "Blender/CozyComputerRoom/Documents/REVIEW.md": "fd5516d51c6c1d90ae5f7bc83bbdb93c33b4461a02bdd0f7f0bb37f456ed9aa7",
+    "Blender/CozyComputerRoom/Documents/Goals/01-project-brief.md": "58979a6bf871c43e050737c069e517e1388296868b277008fa7aae09c9062a00"
+  },
+  "asset_check": null,
+  "evidence": {
+    "Blender/CozyComputerRoom/renders/final/R05-20261105T054516Z.png": "46468c279852f72e659f410377341ef7665e71cbf0bbacb2d20f2b6e2dbfedff",
+    "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/_evidence/scenes/Scene/camera.png": "46468c279852f72e659f410377341ef7665e71cbf0bbacb2d20f2b6e2dbfedff",
+    "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/_evidence/scenes/Scene/scene-facts.json": "ec7748a0f20c16cb0f20a6a4193d8eb7541c43b1a67d7f93da1b5a940010e1d5",
+    "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/_evidence/scenes/Scene/scene.txt": "ec7748a0f20c16cb0f20a6a4193d8eb7541c43b1a67d7f93da1b5a940010e1d5"
+  },
+  "evidence_key": "6f5356afe98c26d7180cfda3fc3a182601e06176790e278bf5558fad75fe4554",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood, detail and storytelling",
+      "provider": "punal-9router-compatable",
+      "model": "layso/claude-sonnet-5-5",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 8,
+      "max_steps": 16
+    },
+    {
+      "name": "technical",
+      "focus": "scale, geometry, topology, render settings, missing files, scene health",
+      "provider": "punal-9router-compatable",
+      "model": "ocg/deepseek-v4.1-flash",
+      "variant": "Max",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "codex-everywhere/gpt-6.1-sol",
+        "variant": "xhigh"
+      },
+      "max_minutes": 8,
+      "max_steps": 16
+    },
+    {
+      "name": "spec",
+      "focus": "requirement and acceptance fidelity, scope, deliverable completeness",
+      "provider": "punal-9router-compatable",
+      "model": "layso/gpt-6.1-sol",
+      "variant": "xhigh",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "ocg/deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 10,
+      "max_steps": 20
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "61e25c75-f756-4413-9b81-58830d16a26e",
+      "report": "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/visual/REPORT.md",
+      "attempt": 2,
+      "deadline": 1793858434895,
+      "steps": 13,
+      "child": "ses_e55bb9d9dffef0kSlB2h72fTE1",
+      "modelRole": "backup",
+      "verdict": "PASS",
+      "kind": "review"
+    },
+    "technical": {
+      "token": "ff6cfe81-9ff5-41bb-93b3-8389cef55372",
+      "report": "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/technical/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793858018366,
+      "steps": 8,
+      "child": "ses_e55c1cb24ffeK7gZsvhcnPD9OU",
+      "modelRole": "primary",
+      "verdict": "PASS",
+      "kind": "review"
+    },
+    "spec": {
+      "token": "dabdeb69-901b-455e-aba4-d8508dd988d4",
+      "report": "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/spec/REPORT.md",
+      "attempt": 1,
+      "deadline": 1793858138476,
+      "steps": 11,
+      "child": "ses_e55c1cafcffeqZwIeMrM2jZPP1",
+      "modelRole": "backup",
+      "verdict": "PASS",
+      "kind": "review"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T043",
+      "kind": "operation",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "apply x10",
+      "objects": [
+        "BookshelfTop",
+        "RugBorder",
+        "ThrowFold",
+        "Pillow2",
+        "CurtainRod",
+        "LeafCluster",
+        "DeskMat",
+        "ArtInset",
+        "ChairCushion",
+        "BookStack"
+      ],
+      "paths": [
+        "Blender/CozyComputerRoom/cozycomputerroom.blend"
+      ],
+      "tokenHash": "bb755f39485e",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e55fe28eaffezoRzhjsBy7B8zy",
+      "state": "done",
+      "created": "2026-11-05T05:41:01.316Z",
+      "finished": "2026-11-05T05:41:31.221Z",
+      "result": "ok (10 ops)",
+      "deadline": 1793857861315,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "create_mesh",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/T043/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/T043/SUMMARY.md"
+    },
+    {
+      "id": "T044",
+      "kind": "operation",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "apply x10",
+      "objects": [
+        "CurtainRod",
+        "ArtInset",
+        "Headboard",
+        "PlantPot",
+        "PlantStem",
+        "PlantFoliage",
+        "BookshelfTop",
+        "BookshelfSideA",
+        "BookshelfSideB",
+        "BookshelfShelfLow",
+        "BookshelfShelfHigh",
+        "RugBorder",
+        "ThrowFold",
+        "Pillow2"
+      ],
+      "paths": [
+        "Blender/CozyComputerRoom/cozycomputerroom.blend"
+      ],
+      "tokenHash": "ff4bfe27757a",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e55fe28eaffezoRzhjsBy7B8zy",
+      "state": "done",
+      "created": "2026-11-05T05:42:05.883Z",
+      "finished": "2026-11-05T05:42:32.504Z",
+      "result": "ok (10 ops)",
+      "deadline": 1793857925883,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "transform",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "material",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/T044/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/T044/SUMMARY.md"
+    },
+    {
+      "id": "T045",
+      "kind": "operation",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "apply x10",
+      "objects": [
+        "CurtainRod",
+        "LeafCluster",
+        "DeskMat",
+        "ArtInset",
+        "ChairCushion",
+        "BookStack",
+        "BookshelfBack",
+        "ThrowFold",
+        "Pillow2"
+      ],
+      "paths": [
+        "Blender/CozyComputerRoom/cozycomputerroom.blend"
+      ],
+      "tokenHash": "fde663f6c718",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e55fe28eaffezoRzhjsBy7B8zy",
+      "state": "done",
+      "created": "2026-11-05T05:43:08.287Z",
+      "finished": "2026-11-05T05:43:39.252Z",
+      "result": "ok (10 ops)",
+      "deadline": 1793857988287,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "material",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "modifier",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "modifier",
+          "ok": true
+        }
+      ],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/T045/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/T045/SUMMARY.md"
+    },
+    {
+      "id": "T046",
+      "kind": "operation",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/cozycomputerroom.blend"
+      ],
+      "tokenHash": "48817f364359",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-05T05:44:14.056Z",
+      "finished": "2026-11-05T05:44:26.679Z",
+      "result": "ok",
+      "deadline": 1793858054056,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/T046/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/T046/SUMMARY.md"
+    },
+    {
+      "id": "T047",
+      "kind": "operation",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "seal",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/cozycomputerroom.blend"
+      ],
+      "tokenHash": "cc5295b02337",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "seal",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-05T05:45:07.177Z",
+      "finished": "2026-11-05T05:45:17.776Z",
+      "result": "ok",
+      "deadline": 1793858107177,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/T047/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/T047/SUMMARY.md"
+    },
+    {
+      "id": "G048",
+      "kind": "grader",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/visual/REPORT.md"
+      ],
+      "tokenHash": "bbc9b90372f0",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e55c1cbf7ffeT2gufdghGNWvAu",
+      "state": "failed",
+      "created": "2026-11-05T05:45:38.257Z",
+      "finished": "2026-11-05T05:52:19.639Z",
+      "result": "grader report missing: Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/visual/REPORT.md",
+      "deadline": 1793858018257,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/G048/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/G048/SUMMARY.md"
+    },
+    {
+      "id": "G049",
+      "kind": "grader",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "grader:technical",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/technical/REPORT.md"
+      ],
+      "tokenHash": "9b03fdb92681",
+      "worker": "technical",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e55c1cb24ffeK7gZsvhcnPD9OU",
+      "state": "done",
+      "created": "2026-11-05T05:45:38.366Z",
+      "finished": "2026-11-05T05:48:21.436Z",
+      "result": "ok",
+      "deadline": 1793858018366,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/G049/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/G049/SUMMARY.md"
+    },
+    {
+      "id": "G050",
+      "kind": "grader",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "grader:spec",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/spec/REPORT.md"
+      ],
+      "tokenHash": "931a444f4b8e",
+      "worker": "spec",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e55c1cafcffeqZwIeMrM2jZPP1",
+      "state": "done",
+      "created": "2026-11-05T05:45:38.476Z",
+      "finished": "2026-11-05T05:49:35.958Z",
+      "result": "ok",
+      "deadline": 1793858138476,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/G050/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/G050/SUMMARY.md"
+    },
+    {
+      "id": "G051",
+      "kind": "grader",
+      "change": "c744eef6-172d-493e-849d-b2eedeb3ee63",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/CozyComputerRoom/Documents/Reviews/R05-20261105T054516Z/visual/REPORT.md"
+      ],
+      "tokenHash": "ad9a2e9d78ff",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e55bb9d9dffef0kSlB2h72fTE1",
+      "state": "done",
+      "created": "2026-11-05T05:52:34.895Z",
+      "finished": "2026-11-05T05:57:04.187Z",
+      "result": "ok",
+      "deadline": 1793858434895,
+      "operationResults": [],
+      "taskDoc": "Blender/CozyComputerRoom/Documents/Tasks/G051/TASK.md",
+      "summaryDoc": "Blender/CozyComputerRoom/Documents/Tasks/G051/SUMMARY.md"
+    }
+  ],
+  "verdict": "PASS"
+}

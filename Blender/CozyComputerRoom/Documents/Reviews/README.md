@@ -37,6 +37,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R02-20261105T045756Z | 20261105T045756Z | feebaf1c7e41 | All milestone | visual, technical, spec | PASS | [R02-20261105T045756Z/REVIEW.md](R02-20261105T045756Z/REVIEW.md) |
 | R03-20261105T051224Z | 20261105T051224Z | da17d024a168 | All milestone | visual, technical, spec | PASS | [R03-20261105T051224Z/REVIEW.md](R03-20261105T051224Z/REVIEW.md) |
 | R04-20261105T053219Z | 20261105T053219Z | df8878a61dcf | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R04-20261105T053219Z/REVIEW.md](R04-20261105T053219Z/REVIEW.md) |
+| R05-20261105T054516Z | 20261105T054516Z | df7449846cac | All milestone | visual, technical, spec | PASS | [R05-20261105T054516Z/REVIEW.md](R05-20261105T054516Z/REVIEW.md) |
 
 ## Rules
 
@@ -57,3 +58,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R03-20261105T051224Z: Build the wooden desk, desktop computer with monitor, tower, keyboard and mouse, office chair, and warm desk lamp.; evidence 332770b4dce244c4dd87694fcc7d124d6cc65aded71cc30ae11f0aa1908f2bf3
 
 - R04-20261105T053219Z: Furnish the room with the bed, bookshelf and books, rug, shelf plant, wall art, mug, and papers.; evidence 5c22c097c8312660cf0dc4c1be149d014c6b458c034400e9e7b79103683bf433
+
+- R05-20261105T054516Z: Revise furnishing: support the plant on a shelf top, add rug border, layered bedding, curtain rod, desk mat, art inset, chair cushion, book stack, and richer shelf and plant tones.; evidence 6f5356afe98c26d7180cfda3fc3a182601e06176790e278bf5558fad75fe4554
