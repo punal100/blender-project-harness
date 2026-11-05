@@ -43,6 +43,23 @@ const GRADER_STEP_CEILING = 24;
 const MAX_DOWNLOADS_PER_PROJECT = 20;
 const MAX_MEDIA_REQUESTS = 20;
 const MAX_MEDIA_ATTEMPTS = 2;
+const REFERENCE_USE_MY_REFERENCES = 'Use my references';
+const REFERENCE_INTAKE_PATHS = ['Documents/References/README.md', 'Documents/INTAKE.md'];
+const referenceEntries = (value) => (Array.isArray(value?.entries) ? value.entries : []).filter((entry) => entry.kind === 'reference');
+const referenceScanRecord = (project, plan, createdAt = new Date().toISOString()) => {
+  const entries = referenceEntries(plan);
+  return {
+    project,
+    files: entries.map((entry) => entry.sourcePath).filter(Boolean),
+    folders: [],
+    kind: 'reference',
+    source: plan.source ?? null,
+    generated: plan.generated ?? null,
+    entries: entries.map((entry) => ({ ...entry })),
+    rejected: plan.rejected ?? [],
+    createdAt,
+  };
+};
 export const MEDIA_GENERATION_TOOLS = new Set(['mediamcp_generate_image', 'mediamcp_edit_image', 'mediamcp_generate_video']);
 export const MEDIA_OPEN_STATUSES = new Set(['requested', 'generating', 'generated', 'intaken']);
 const MEDIA_KIND_TO_INTAKE = new Map([
@@ -707,9 +724,15 @@ export class Harness {
       const p = Object.values(s.projects).find((item) => item.project === args.project);
       if (p && p.orchestrator !== session) deny('intake requires the owning session');
       const c = p?.change;
+      const reference = s.references?.[session];
+      const pendingReference = p?.referenceIntake?.status === 'pending' ? p.referenceIntake : null;
       if (args.scan !== true && !p) deny('intake copy requires a registered project; scan first, then register and begin a change');
       if (args.scan !== true && !c) deny('intake copy requires an open bounded change; call begin with the intake document path first');
       if (args.scan !== true && (c.bootstrap || c.sealed || c.pending || c.readyToSeal)) deny('intake copy requires an unsealed, unfinished, non-bootstrap scene change with no pending operation');
+      if (args.scan !== true && pendingReference) {
+        if (args.media !== undefined) deny('reference intake is pending; copy the scanned reference files before media intake');
+        if (args.kind !== undefined && args.kind !== 'reference') deny('pending reference intake must use kind "reference"');
+      }
       let linked = null;
       if (args.media !== undefined) {
         if (!p) deny('media intake requires a registered project');
@@ -720,6 +743,9 @@ export class Harness {
       }
       let files = args.files ?? [];
       let folders = args.folders ?? [];
+      if (args.scan !== true && pendingReference && !files.length && !folders.length) {
+        files = pendingReference.entries.map((entry) => entry.sourcePath);
+      }
       if (args.scan !== true && c) {
         const generatedRequests = this.mediaForChange(p, c.id).filter((item) => item.status === 'generated');
         if (!linked) {
@@ -733,7 +759,7 @@ export class Harness {
           deny('media intake must include the staged generated file');
         }
       }
-      const generated = args.generated ?? linked?.generated;
+      const generated = args.generated ?? linked?.generated ?? pendingReference?.generated;
       if (args.generated && linked) {
         for (const key of ['tool', 'model', 'prompt', 'seed']) {
           if (args.generated[key] !== undefined && linked.generated[key] !== undefined && stable(args.generated[key]) !== stable(linked.generated[key])) {
@@ -741,8 +767,8 @@ export class Harness {
           }
         }
       }
-      const source = args.source ?? (linked ? { notes: linked.purpose } : undefined);
-      const kind = args.kind ?? (linked ? MEDIA_KIND_TO_INTAKE.get(linked.kind) : 'auto');
+      const source = args.source ?? (linked ? { notes: linked.purpose } : pendingReference?.source ?? undefined);
+      const kind = args.kind ?? (linked ? MEDIA_KIND_TO_INTAKE.get(linked.kind) : pendingReference ? 'reference' : 'auto');
       if (linked && args.kind !== undefined && args.kind !== MEDIA_KIND_TO_INTAKE.get(linked.kind)) deny('intake kind does not match the media request');
       const plan = planIntake({
         root: this.root,
@@ -755,20 +781,76 @@ export class Harness {
         home: this.home,
       });
       if (args.scan === true || !c) {
+        if (args.scan === true) {
+          const scannedReferences = referenceEntries(plan);
+          const required = reference?.answer === REFERENCE_USE_MY_REFERENCES || Boolean(pendingReference);
+          if (required && !scannedReferences.length) {
+            const rejected = plan.rejected.map((entry) => entry.path).slice(0, 5).join(', ');
+            deny(`The reference scan has no accepted reference image. Scan the exact supplied image paths with blender_workflow {action:"intake",payload:{project:"${args.project}",files:["<exact supplied reference image path>"],kind:"reference",scan:true}}${rejected ? `; rejected: ${rejected}` : ''}`);
+          }
+          if (pendingReference) {
+            p.referenceIntake = { ...pendingReference, ...referenceScanRecord(args.project, plan), status: 'pending' };
+          } else if (reference?.answer === REFERENCE_USE_MY_REFERENCES) {
+            if (p) p.referenceIntake = { ...referenceScanRecord(args.project, plan), status: 'pending' };
+            else {
+              s.referenceScans ??= {};
+              s.referenceScans[session] = referenceScanRecord(args.project, plan);
+            }
+          } else if (scannedReferences.length) {
+            s.referenceScans ??= {};
+            s.referenceScans[session] = referenceScanRecord(args.project, plan);
+          }
+        }
         return {
           project: args.project,
           scan: true,
           entries: plan.entries.map(({ sourcePath, ...entry }) => ({ source: sourcePath, ...entry })),
           rejected: plan.rejected,
-          next: c
-            ? 'Review the plan, then call intake with scan:false to copy accepted files into the open change.'
-            : p
-              ? 'Open a bounded change with begin, then call intake with scan:false.'
-              : 'Register the project and call begin with the intake document path before copying files.',
+          next: pendingReference
+            ? 'Reference scan updated. Open the reference-intake change if needed, then call intake with scan:false.'
+            : c
+              ? 'Review the plan, then call intake with scan:false to copy accepted files into the open change.'
+              : p
+                ? 'Open a bounded change with begin, then call intake with scan:false.'
+                : reference?.answer === REFERENCE_USE_MY_REFERENCES
+                  ? 'Register the project, complete bootstrap, then open the reference-intake change and call intake with scan:false.'
+                  : 'Register the project and call begin with the intake document path before copying files.',
         };
+      }
+      if (pendingReference) {
+        const pendingBySource = new Map(pendingReference.entries.map((entry) => [path.resolve(entry.sourcePath), entry]));
+        const plannedReferences = plan.entries.filter((entry) => entry.kind === 'reference');
+        const plannedBySource = new Map(plannedReferences.map((entry) => [path.resolve(entry.sourcePath), entry]));
+        const missing = pendingReference.entries.filter((entry) => {
+          const planned = plannedBySource.get(path.resolve(entry.sourcePath));
+          return !planned || planned.sha256 !== entry.sha256;
+        });
+        if (missing.length) {
+          deny(`reference intake must copy the exact scanned files; missing or changed: ${missing.map((entry) => entry.sourcePath).join(', ')}. Rescan with blender_workflow {action:"intake",payload:{project:"${args.project}",files:["<exact supplied reference image path>"],kind:"reference",scan:true}}`);
+        }
+        const extra = plannedReferences.filter((entry) => !pendingBySource.has(path.resolve(entry.sourcePath)));
+        if (extra.length) {
+          deny(`reference intake includes files outside the scanned reference set: ${extra.map((entry) => entry.sourcePath).join(', ')}. Rescan to confirm the complete reference set`);
+        }
       }
       const base = this.projectPath(args.project);
       const result = copyIntake({ projectRoot: base, plan, licenseText: plan.licenseText });
+      if (pendingReference) {
+        const copiedBySource = new Map([...result.copied, ...result.duplicates].map((entry) => [path.resolve(entry.sourcePath), entry]));
+        const missing = pendingReference.entries.filter((entry) => {
+          const copied = copiedBySource.get(path.resolve(entry.sourcePath));
+          return !copied || copied.sha256 !== entry.sha256;
+        });
+        if (missing.length) {
+          deny(`reference intake did not copy every scanned reference: ${missing.map((entry) => entry.sourcePath).join(', ')}. Rescan and retry the intake`);
+        }
+        p.referenceIntake = {
+          ...pendingReference,
+          status: 'complete',
+          completedAt: new Date().toISOString(),
+          copied: pendingReference.entries.map((entry) => copiedBySource.get(path.resolve(entry.sourcePath)).stored),
+        };
+      }
       p.intake = {
         at: new Date().toISOString(),
         copied: result.copied.length,
@@ -906,9 +988,11 @@ export class Harness {
         rejected: result.rejected,
         paths: [...paths].filter((name) => name.startsWith(`${p.project}/`)).map((name) => name.slice(p.project.length + 1)),
         media: linked ? this.mediaView(linked) : undefined,
-        next: linked
-          ? 'Generated media is intaken and recorded. Commit the change to close the media request.'
-          : 'Import copied assets with apply operations, record their use, then continue the bounded change.',
+        next: pendingReference
+          ? 'Reference intake is complete. Commit the non-scene change to close the reference gate, then checkpoint.'
+          : linked
+            ? 'Generated media is intaken and recorded. Commit the change to close the media request.'
+            : 'Import copied assets with apply operations, record their use, then continue the bounded change.',
       };
     });
   }
@@ -1229,11 +1313,32 @@ export class Harness {
       labels: reference.labels,
       answered: Boolean(reference.answer),
       answer: reference.answer ?? null,
+      intakeRequired: reference.answer === REFERENCE_USE_MY_REFERENCES,
       instruction: 'Pass this exact question including the HARNESS REFERENCE token to question; use all four labels exactly.',
     };
   }
   reference(session) {
     return this.transaction((s) => this.referenceState(s, session));
+  }
+  referenceIntakePending(p) {
+    return p?.referenceIntake?.status === 'pending';
+  }
+  referenceIntakeBeginCommand() {
+    return this.wire('begin', { outcome: 'Intake supplied reference images', objects: [], paths: [...REFERENCE_INTAKE_PATHS] });
+  }
+  referenceIntakeCopyCommand(p) {
+    return this.wire('intake', { project: p.project, scan: false });
+  }
+  referenceScanStep(project, reason = 'The reference answer is "Use my references"; scan the exact supplied image paths before prepare.') {
+    return {
+      phase: 'reference-scan',
+      actor: 'orchestrator',
+      action: 'intake',
+      command: this.wire('intake', { project, files: ['<exact supplied reference image path>'], kind: 'reference', scan: true }),
+      reason,
+      template: true,
+      instruction: 'Replace <exact supplied reference image path> with each supplied image path (or use files/folders), then call intake with scan:true.',
+    };
   }
   prepare(session, args) {
     return this.transaction((s) => {
@@ -1247,12 +1352,24 @@ export class Harness {
       const reference = s.references?.[session];
       if (!reference) deny('Reference question has not been issued. Call blender_workflow {action:"reference"} first.');
       if (!reference.answer) deny('Reference question is unanswered. Ask the exact question returned by blender_workflow {action:"reference"}, including the HARNESS REFERENCE token, with all four labels exactly.');
+      let referenceIntake = null;
+      if (reference.answer === REFERENCE_USE_MY_REFERENCES) {
+        const scan = s.referenceScans?.[session];
+        if (!scan || scan.project !== args.project) {
+          deny(`Reference answer is "Use my references" but no supplied reference has been scanned for ${args.project}. Call blender_workflow {action:"intake",payload:{project:"${args.project}",files:["<exact supplied reference image path>"],kind:"reference",scan:true}} before prepare`);
+        }
+        const entries = referenceEntries(scan);
+        if (!entries.length) {
+          deny(`The supplied-reference scan for ${args.project} has no accepted reference image. Scan the exact image paths with blender_workflow {action:"intake",payload:{project:"${args.project}",files:["<exact supplied reference image path>"],kind:"reference",scan:true}} before prepare`);
+        }
+        referenceIntake = { ...referenceScanRecord(args.project, scan, scan.createdAt), status: 'pending' };
+      }
       if (s.challenge && Date.now() - s.challenge.created > 600000) s.challenge = null;
       if (s.challenge) {
         const c = s.challenge;
         if (c.session !== session) deny(`registration for ${c.project} is pending in another session; finish it there or wait 10 minutes for it to expire before preparing again`);
-        const unchanged = c.project === args.project && c.goal === args.goal && c.scene === args.scene && this.head() === c.checkpoint && stable(this.snapshot(args.project)) === stable(c.snapshot) && stable(records) === stable(c.records);
-        if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal } };
+        const unchanged = c.project === args.project && c.goal === args.goal && c.scene === args.scene && this.head() === c.checkpoint && stable(this.snapshot(args.project)) === stable(c.snapshot) && stable(records) === stable(c.records) && stable(c.referenceIntake) === stable(referenceIntake);
+        if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal, referenceIntake: Boolean(c.referenceIntake) } };
         s.challenge = null;
       }
       if (prior && !reRegister) deny('project already registered; use status to continue it, reregister a paused project, or escalate only after a capped review');
@@ -1261,8 +1378,8 @@ export class Harness {
       const snapshot = this.snapshot(args.project);
       this.assertCommitted(args.project, snapshot);
       const question = `Register ${args.project}, scene ${args.scene}, goal ${args.goal}, workflow ${records.workflow}, review ${records.review}? HARNESS REGISTER ${crypto.randomUUID()}`;
-      s.challenge = { ...args, records, session, question, snapshot, created: Date.now(), checkpoint: this.head(), reRegister, explicitReregister: Boolean(prior?.reregistering) };
-      return { question, labels: ['Confirm registration', 'Cancel'], details: { project: args.project, workflow: records.workflow, review: records.review, scene: args.scene, goal: args.goal } };
+      s.challenge = { ...args, records, session, question, snapshot, created: Date.now(), checkpoint: this.head(), reRegister, explicitReregister: Boolean(prior?.reregistering), referenceIntake };
+      return { question, labels: ['Confirm registration', 'Cancel'], details: { project: args.project, workflow: records.workflow, review: records.review, scene: args.scene, goal: args.goal, referenceIntake: Boolean(referenceIntake) } };
     });
   }
   question(session, args, answers) {
@@ -1289,9 +1406,9 @@ export class Harness {
         const existing = s.projects[c.project];
         if (c.reRegister) {
           if (!existing || existing.orchestrator !== session || existing.change || (!existing.escalation?.requested && !existing.reregistering)) deny('explicit re-registration is no longer valid');
-          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, complete: false, escalation: null, reregistering: false, lastRender: null });
+          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, complete: false, escalation: null, reregistering: false, lastRender: null, referenceIntake: c.referenceIntake ?? null });
         } else {
-          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, history: [], complete: false, escalation: null };
+          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, history: [], complete: false, escalation: null, referenceIntake: c.referenceIntake ?? null };
         }
         s.challenge = null;
       } else {
@@ -1349,6 +1466,15 @@ export class Harness {
         action: 'begin',
         command: this.wire('begin', { outcome: 'Save the initial empty scene', objects: [], paths: [sceneName] }),
         reason: `Bootstrap save: begin with outcome "Save the initial empty scene", objects [], and paths ["${sceneName}"], then execute the save ticket.`,
+      };
+    }
+    if (!c && this.referenceIntakePending(p)) {
+      return {
+        phase: 'reference-intake',
+        actor: 'orchestrator',
+        action: 'begin',
+        command: this.referenceIntakeBeginCommand(),
+        reason: 'The confirmed supplied reference files are scanned but not yet copied. Open this non-scene reference-intake change, then call intake with scan:false; scene work is blocked until the gate clears.',
       };
     }
     const media = c ? this.mediaForChange(p, c.id) : [];
@@ -1428,6 +1554,15 @@ export class Harness {
       return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reopen: true }), reason: 'The change failed or its window expired; reopen it to repair, or commit {mode:"wip"} to preserve it.' };
     }
     if (!c.sealed && c.reopen && !c.documentOnly) return { phase: 'apply', actor: 'blender-worker', action: 'ticket', command: this.wire('ticket', { operation: 'apply', payload: '<operation or {operations:[...]}>' }), reason: 'The change was reopened; issue a repair apply batch and delegate it to blender-worker.' };
+    if (!c.sealed && !c.pending && this.referenceIntakePending(p)) {
+      return {
+        phase: 'reference-intake',
+        actor: 'orchestrator',
+        action: 'intake',
+        command: this.referenceIntakeCopyCommand(p),
+        reason: 'Copy the scanned supplied reference files into Documents/References with intake scan:false. The harness clears this gate only after every scanned reference is copied.',
+      };
+    }
     if (!c.sealed && c.nonSceneOnly && c.operations === 0) {
       return this.head() === c.base
         ? { phase: 'commit', actor: 'orchestrator', action: 'commit', command: this.wire('commit', { message: '<one bounded non-scene message>' }), reason: 'This change contains only documentation, source-only scripts, references, or assets; commit it without sealing or review, then checkpoint.' }
@@ -1482,7 +1617,7 @@ export class Harness {
     }
     const media = this.mediaState(p).requests;
     const openMedia = this.openMedia(p);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, intake: p.intake ?? null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1538,6 +1673,16 @@ export class Harness {
     try { this.assertCommitted(project, this.snapshot(project)); }
     catch (error) {
       return { project, registered: false, next: 'Commit the exact scaffold documents and filled goal with bootstrap-commit.', nextStep: { phase: 'bootstrap-commit', actor: 'orchestrator', action: 'bootstrap-commit', command: this.wire('bootstrap-commit', { project, message: 'docs: scaffold <project>' }), reason: 'Registration only accepts a clean committed scaffold.' } };
+    }
+    const reference = state.references?.[session];
+    if (reference?.answer === REFERENCE_USE_MY_REFERENCES) {
+      const scan = state.referenceScans?.[session];
+      if (!scan || scan.project !== project) {
+        return { project, registered: false, next: 'Scan the supplied reference images before prepare.', nextStep: this.referenceScanStep(project) };
+      }
+      if (!referenceEntries(scan).length) {
+        return { project, registered: false, next: 'The reference scan has no accepted image; scan the exact supplied paths before prepare.', nextStep: this.referenceScanStep(project, 'The supplied-reference scan has no accepted reference image; scan the exact image paths before prepare.') };
+      }
     }
     return { project, registered: false, next: 'Call prepare and answer its exact registration question.', nextStep: { phase: 'prepare', actor: 'orchestrator', action: 'prepare', command: this.wire('prepare', { project, goal, scene: '<project-root>.blend' }), reason: 'The scaffold is committed and valid.' } };
   }
@@ -1832,6 +1977,7 @@ export class Harness {
         if (target.change?.pending) deny('project has a pending operation; recover it first');
         if (this.stateMatchesCheckout(target)) deny('registration matches this checkout; use status or recover instead of forgetting it');
         delete s.projects[args.project];
+        if (s.referenceScans) delete s.referenceScans[target.orchestrator];
         return { forgotten: args.project, reason: args.reason.trim(), next: 'Scaffold or prepare a fresh project with this name.' };
       }
       const p = this.owner(s, session);
@@ -1982,6 +2128,15 @@ export class Harness {
         if (chain > p.records.maxRounds || prior?.approval === 'Request revision' && !args.revision) deny('review cap reached or user requested revision; explicit user escalation required');
         this.ensureTaskLedger(p);
         const sceneExists = fs.existsSync(path.join(this.root, p.scene));
+        if (sceneExists && this.referenceIntakePending(p)) {
+          const relative = paths.map((name) => name.slice(p.project.length + 1));
+          const referenceChange = args.objects.length === 0 && args.final !== true && args.media !== true
+            && relative.every((name) => nonScenePath(name))
+            && relative.some((name) => REFERENCE_INTAKE_PATHS.includes(name));
+          if (!referenceChange) {
+            deny(`supplied reference files are scanned but not intaken. Open the reference-intake change first with ${this.referenceIntakeBeginCommand()}, then call intake {action:"intake",payload:{project:"${p.project}",scan:false}}; scene work is blocked until that intake is complete`);
+          }
+        }
         if (args.media === true && !sceneExists) deny('media generation requires the initial scene saved and committed; finish the bootstrap save and checkpoint first');
         p.change = {
           id: crypto.randomUUID(), created: Date.now(), outcome: args.outcome, milestone: milestone.trim(),
@@ -2359,6 +2514,7 @@ export class Harness {
       const p = this.owner(s, session); this.fresh(p);
       const c = p.change;
         if (!c || c.sealed || c.pending || !p.goalActive || (operation === 'apply' && (c.failure || Date.now() > c.deadline || c.operations >= CHECKPOINT_EVERY))) deny('open bounded change required; save/seal remains available after budget or failure');
+      if (operation === 'apply' && this.referenceIntakePending(p)) deny('reference intake is pending; copy the scanned reference files with intake scan:false before applying scene changes');
       if (['apply', 'save', 'seal', 'wip'].includes(operation)) this.mediaGate(p, c, { allowIntaken: true });
       if (operation === 'apply' && c.bootstrap) deny('bootstrap change accepts save only; save the scene, commit, checkpoint, then begin a scene change');
       if (operation === 'apply' && c.documentOnly) deny('document-only changes cannot apply scene operations; begin a scene change');
@@ -2397,6 +2553,7 @@ export class Harness {
       if (!p?.goalActive || p.goalConflict) deny('mission is not active or has a goal conflict; ticket consumption is blocked');
       this.fresh(p);
       if (p.change?.id !== t.change || p.change.pending !== token) deny('ticket change mismatch');
+      if (operation === 'apply' && this.referenceIntakePending(p)) deny('reference intake is pending; copy the scanned reference files with intake scan:false before applying scene changes');
       if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= CHECKPOINT_EVERY)) deny('apply budget exhausted; seal, review, commit and checkpoint before more edits');
       t.state = 'running'; t.started = Date.now(); t.pid = process.pid;
       return { project: p.project, scene: p.scene, goal: p.goal, previousRound: p.history.at(-1)?.round ?? null, change: structuredClone(p.change), records: p.records,

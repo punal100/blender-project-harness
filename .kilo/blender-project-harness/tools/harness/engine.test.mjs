@@ -373,6 +373,11 @@ function register(f, session = 'orchestrator') {
   return prepared;
 }
 
+function setReferenceAnswer(f, answer, session = 'orchestrator') {
+  const reference = f.harness.command(session, 'reference');
+  f.harness.question(session, registrationQuestion(reference), [[answer]]);
+}
+
 function activate(f, session = 'orchestrator') {
   register(f, session);
   f.harness.command(session, 'goal-active', { objective: f.prompt });
@@ -2523,6 +2528,92 @@ test('intake can scan a supplied file before registration', (t) => {
   assert.equal(scan.scan, true);
   assert.equal(scan.entries.length, 1);
   assert.match(scan.next, /Register/);
+});
+
+test('prepare requires a scanned supplied reference before registration', (t) => {
+  const f = useFixture(t);
+  setReferenceAnswer(f, 'Use my references');
+  const args = { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName };
+  gate(() => f.harness.prepare('orchestrator', args), /no supplied reference has been scanned.*scan:true/i);
+
+  const sourceRoot = path.join(path.dirname(f.root), 'supplied-reference-scan');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'reference.png');
+  fs.writeFileSync(reference, PNG_1X1);
+  const scan = f.harness.intake('orchestrator', { project: f.project, files: [reference], kind: 'reference', scan: true });
+  assert.equal(scan.entries.length, 1);
+  const prepared = f.harness.prepare('orchestrator', args);
+  assert.equal(prepared.details.referenceIntake, true);
+});
+
+test('unregistered status directs a supplied-reference scan before prepare', (t) => {
+  const f = useFixture(t);
+  setReferenceAnswer(f, 'Use my references');
+  const status = f.harness.command('orchestrator', 'status', { project: f.project });
+  assert.equal(status.nextStep.phase, 'reference-scan');
+  assert.match(status.nextStep.command, /scan.*true/);
+  assert.match(status.nextStep.instruction, /exact supplied reference image path/i);
+});
+
+test('reference intake is enforced after bootstrap and before scene work', (t) => {
+  const f = useFixture(t);
+  setReferenceAnswer(f, 'Use my references');
+  const sourceRoot = path.join(path.dirname(f.root), 'supplied-reference-intake');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'reference.png');
+  fs.writeFileSync(reference, PNG_1X1);
+  f.harness.intake('orchestrator', { project: f.project, files: [reference], kind: 'reference', scan: true });
+  register(f);
+  f.harness.command('orchestrator', 'goal-active', { objective: f.prompt });
+
+  let status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.referenceIntake.status, 'pending');
+  assert.equal(status.nextStep.phase, 'reference-intake');
+  assert.match(status.nextStep.command, /Intake supplied reference images/);
+  gate(() => begin(f), /reference-intake change first|supplied reference files are scanned but not intaken/i);
+
+  const started = f.harness.command('orchestrator', 'begin', {
+    outcome: 'Intake supplied reference images',
+    objects: [],
+    paths: ['Documents/References/README.md', 'Documents/INTAKE.md'],
+    final: false,
+  });
+  assert.equal(started.change.nonSceneOnly, true);
+  status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'reference-intake');
+  assert.match(status.nextStep.command, /action:"intake"/);
+
+  const copied = f.harness.intake('orchestrator', { project: f.project, scan: false });
+  assert.equal(copied.copied.length, 1);
+  status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.referenceIntake.status, 'complete');
+  assert.equal(status.nextStep.phase, 'commit');
+  f.harness.command('orchestrator', 'commit', { message: 'assets: intake supplied reference' });
+  f.harness.command('orchestrator', 'checkpoint');
+  assert.doesNotThrow(() => begin(f));
+});
+
+test('reference intake rejects a changed scanned file', (t) => {
+  const f = useFixture(t);
+  setReferenceAnswer(f, 'Use my references');
+  const sourceRoot = path.join(path.dirname(f.root), 'supplied-reference-changed');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'reference.png');
+  fs.writeFileSync(reference, PNG_1X1);
+  f.harness.intake('orchestrator', { project: f.project, files: [reference], kind: 'reference', scan: true });
+  register(f);
+  f.harness.command('orchestrator', 'goal-active', { objective: f.prompt });
+  f.harness.command('orchestrator', 'begin', {
+    outcome: 'Intake supplied reference images',
+    objects: [],
+    paths: ['Documents/References/README.md', 'Documents/INTAKE.md'],
+    final: false,
+  });
+  fs.writeFileSync(reference, Buffer.concat([PNG_1X1, Buffer.from('changed')]));
+  gate(() => f.harness.intake('orchestrator', { project: f.project, scan: false }), /missing or changed.*Rescan/i);
 });
 
 test('intake copies references and external assets into the open change', (t) => {
