@@ -26,6 +26,11 @@ Example graders config:
 ```json
 {
   "blender_subagents": {
+    "global_fallback": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "variant": "high"
+    },
     "graders": {
       "agent": "blender-grader",
       "enabled": true,
@@ -74,8 +79,11 @@ Example graders config:
   model. The denial prints observed and expected values.
 - Missing, invalid, disabled, or mismatched config stops delegation. Never substitute, borrow, or
   invent a model, provider, variant, or budget.
-- Resolve models with `agent_manager_models`. Per-task overrides require explicit user request. On a
-  primary dispatch failure, retry once with the configured backup and record `modelRole`.
+- Resolve models with `agent_manager_models`. Per-task overrides require explicit user request. New
+  children walk `primary -> role backup -> global fallback -> orchestrator`; stop at the first child
+  that starts. After a start failure, retry the same task once per tier; the hook selects the next
+  tier and records `modelRole`. A task that starts and reports `BLOCKED`, `PARTIAL`, or
+  `CHANGES_REQUIRED` is not a model-start failure.
 
 ## Worker
 
@@ -102,7 +110,8 @@ Read-only preflight is never blocked by the model gate.
 
 ## Grader
 
-Dispatch only after `seal` and a successful sealed-render `look`:
+Dispatch only after `seal` and a successful sealed-render `look`. Every grader ticket gets a fresh
+`task`; never pass `task_id` when dispatching a grader.
 
 1. Call `grader-ticket {name}`.
 2. Pass the returned prompt to a foreground `blender-grader` task with the configured primary

@@ -2,6 +2,11 @@
   "development_mode": false,
   "development_sessions": ["ses_26Characters"],
   "blender_subagents": {
+    "global_fallback": {
+      "provider": "kilo",
+      "model": "anthropic/claude-haiku-4.5",
+      "variant": "high"
+    },
     "workers": {
       "agent": "blender-worker",
       "provider": "kilo",

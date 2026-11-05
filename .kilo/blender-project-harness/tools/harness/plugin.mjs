@@ -236,8 +236,36 @@ function guardShell(harness, session, project, command, args = {}) {
 export function createHooks(harness, client, directory = harness.root) {
   const questions = new Map();
   const taskArgs = new Map();
+  const taskPlans = new Map();
+  const modelAttempts = new Map();
   const questionPending = new Set();
   const continuations = new Set();
+  const modelChain = (choice, globalFallback) => [
+    { tier: 'primary', model: choice },
+    { tier: 'backup', model: choice?.backup },
+    { tier: 'global-fallback', model: globalFallback },
+    { tier: 'orchestrator-fallback', model: null },
+  ].filter((item) => item.tier === 'orchestrator-fallback' || item.model);
+  const chooseModelPlan = (key, choice, globalFallback) => {
+    const state = modelAttempts.get(key) ?? { failed: new Set() };
+    const chain = modelChain(choice, globalFallback);
+    const next = chain.find((item) => !state.failed.has(item.tier));
+    if (!next) return null;
+    return { key, tier: next.tier, model: next.model, chain };
+  };
+  const applyModel = (args, plan) => {
+    if (plan.tier === 'orchestrator-fallback' || !plan.model) {
+      delete args.provider; delete args.model; delete args.variant;
+      return;
+    }
+    Object.assign(args, { provider: plan.model.provider, model: plan.model.model, variant: plan.model.variant });
+  };
+  const recordModelStartFailure = (plan) => {
+    const state = modelAttempts.get(plan.key) ?? { failed: new Set() };
+    state.failed.add(plan.tier);
+    modelAttempts.set(plan.key, state);
+    return plan.chain.find((item) => !state.failed.has(item.tier)) ?? null;
+  };
   async function identity(id) {
     // PluginInput.client is SDK v1, whose request shape differs from SDK v2.
     const result = await client.session.get({ path: { id }, query: { directory: harness.root }, throwOnError: true });
@@ -256,8 +284,14 @@ export function createHooks(harness, client, directory = harness.root) {
     if (user?.agent === 'blender-worker') {
       const cfg = harness.workerConfig();
       const observed = assistant ? { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant } : null;
-      const role = observed ? modelRole(cfg, observed) : null;
-      return { worker: true, info, role, observed, expected: cfg };
+      const taskTier = harness.transaction((s) => {
+        const p = Object.values(s.projects).find((item) => item.orchestrator === info.parentID);
+        return p?.tasks?.find((task) => task.child === session)?.modelTier ?? null;
+      });
+      let role = observed ? modelRole(cfg, observed, harness.globalFallback()) : null;
+      if (taskTier === 'global-fallback' || taskTier === 'orchestrator-fallback') role = taskTier;
+      if (taskTier && role && taskTier !== role) deny(`worker runtime model tier ${role} does not match requested ${taskTier}; stop this worker and dispatch a fresh task for the requested tier`);
+      return { worker: true, info, role, observed, expected: cfg, tier: taskTier };
     }
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
     const existing = harness.transaction((s) => harness.graderAssignment(s, session));
@@ -465,8 +499,8 @@ export function createHooks(harness, client, directory = harness.root) {
           const child = await childAssignment(input.sessionID);
           if (!child?.worker || args.operation !== 'apply') deny('worker may execute assigned apply operations only');
           if (!child.role) {
-            const detail = modelDiagnostics(child.expected, child.observed);
-            deny(`worker runtime model does not match configured worker or backup; observed ${detail.observed}; expected ${detail.expected}. Stop this worker and dispatch a fresh one with the configured primary or backup.`);
+            const detail = modelDiagnostics(child.expected, child.observed, harness.globalFallback());
+            deny(`worker runtime model does not match configured worker, backup, or global fallback; observed ${detail.observed}; expected ${detail.expected}. Stop this worker and dispatch a fresh one with the configured tier.`);
           }
           reconcileGoal(harness, session.parentID, await identity(session.parentID));
           harness.authorize(session.parentID, args.token, args.operation, args.payload);
@@ -597,7 +631,13 @@ export function createHooks(harness, client, directory = harness.root) {
           if (!p.goalActive || !args.prompt?.trim()) deny('worker delegation requires an active goal and a task prompt');
           if (/HARNESS_GRADER:/.test(args.prompt)) deny('worker task cannot carry a grader marker');
           const cfg = harness.workerConfig();
-          Object.assign(args, { provider: cfg.provider, model: cfg.model, variant: cfg.variant });
+          const token = args.prompt.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0] ?? p.change?.pending ?? null;
+          const key = `worker:${token ?? `${input.sessionID}:${p.change?.id ?? 'none'}`}`;
+          const plan = chooseModelPlan(key, cfg, harness.globalFallback());
+          if (!plan) deny(`all configured model tiers failed before child start (${modelChain(cfg, harness.globalFallback()).map((item) => item.tier).join(' -> ')}); mark tooling failure instead of retrying`);
+          applyModel(args, plan);
+          if (token) harness.setModelTier(input.sessionID, token, plan.tier, 'worker');
+          taskPlans.set(input.callID, { ...plan, kind: 'worker', prompt: args.prompt, session: input.sessionID });
           return;
         }
         if (args.subagent_type !== 'blender-grader' || !/HARNESS_GRADER:[a-f0-9-]{36}/.test(args.prompt ?? '')) deny('production delegation requires foreground assigned grader');
@@ -610,7 +650,12 @@ export function createHooks(harness, client, directory = harness.root) {
         const graderName = Object.entries(p.change.graders).find(([, g]) => g.token === token)?.[0];
         const cfg = p.records.roster.find((g) => g.name === graderName);
         if (!cfg) deny('grader model configuration missing');
-        Object.assign(args, { provider: cfg.provider, model: cfg.model, variant: cfg.variant });
+        const key = `grader:${p.change.round}:${graderName}`;
+        const plan = chooseModelPlan(key, cfg, harness.globalFallback());
+        if (!plan) deny(`all configured model tiers failed before child start; mark the grader as a tooling block instead of retrying`);
+        applyModel(args, plan);
+        harness.setModelTier(input.sessionID, token, plan.tier, 'grader');
+        taskPlans.set(input.callID, { ...plan, kind: 'grader' });
         taskArgs.set(input.callID, args); return;
       }
       if (['write', 'edit', 'apply_patch'].includes(tool)) {
@@ -672,20 +717,38 @@ export function createHooks(harness, client, directory = harness.root) {
       }
       if (tool === 'task' && taskArgs.has(input.callID)) {
         const args = taskArgs.get(input.callID); taskArgs.delete(input.callID);
+        const plan = taskPlans.get(input.callID); taskPlans.delete(input.callID);
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
         const token = args?.prompt?.match(/HARNESS_GRADER:([a-f0-9-]{36})/)?.[1];
         if (!child || !successful(output)) {
+          if (!child && plan) {
+            const next = recordModelStartFailure(plan);
+            if (next) {
+              output.output = `${output.output ?? 'Task did not start'}\n\nModel tier ${plan.tier} failed before a child session. Retry the same task; next tier: ${next.tier}.`;
+              return;
+            }
+          }
           if (token) harness.failGraderByToken(input.sessionID, token, output.output ?? 'grader task failed before child session');
           else deny('grader task result lacks child session ID');
         } else {
+          if (plan) modelAttempts.delete(plan.key);
           harness.collectGrader(input.sessionID, child);
         }
-      } else if (tool === 'task' && input.args?.subagent_type === 'blender-worker') {
+      } else if (tool === 'task' && taskPlans.get(input.callID)?.kind === 'worker') {
+        const plan = taskPlans.get(input.callID); taskPlans.delete(input.callID);
         const child = output.metadata?.sessionId ?? output.metadata?.sessionID ?? output.output?.match(/task(?:_id| id)[=:"\s]+(ses_[A-Za-z0-9]+)/)?.[1];
         if (successful(output) && child) {
-          harness.bindWorker(input.sessionID, child, input.args?.prompt ?? '');
+          if (plan) modelAttempts.delete(plan.key);
+          harness.bindWorker(input.sessionID, child, plan.prompt ?? input.args?.prompt ?? '');
         } else {
-          const token = input.args?.prompt?.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
+          if (!child && plan) {
+            const next = recordModelStartFailure(plan);
+            if (next) {
+              output.output = `${output.output ?? 'Task did not start'}\n\nModel tier ${plan.tier} failed before a child session. Retry the same task; next tier: ${next.tier}.`;
+              return;
+            }
+          }
+          const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
           if (token) harness.failWorkerByToken(input.sessionID, token, output.output ?? 'worker task failed before completion');
         }
       }

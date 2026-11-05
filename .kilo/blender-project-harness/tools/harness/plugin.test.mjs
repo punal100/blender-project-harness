@@ -248,6 +248,43 @@ test('production worker delegation requires valid read-only limits', async (t) =
   );
 });
 
+test('worker model chain advances from primary to backup to global fallback', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const worker = {
+    agent: 'blender-worker',
+    provider: 'fixture-provider',
+    model: 'fixture-model',
+    variant: 'fixture-variant',
+    backup: { provider: 'backup-provider', model: 'backup-model', variant: 'backup-variant' },
+    max_minutes: 10,
+    max_steps: 18,
+    max_failed_attempts: 2,
+    max_parallel: 1,
+  };
+  const globalFallback = { provider: 'global-provider', model: 'global-model', variant: 'global-variant' };
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ blender_subagents: { workers: worker, global_fallback: globalFallback } }));
+  f.write('.kilo/agent/blender-worker.md', '---\nsteps: 20\n---\n');
+  const attempt = () => {
+    const args = { subagent_type: 'blender-worker', prompt: 'Inspect cube', background: false };
+    return before(h, f.session, 'task', args).then(() => args);
+  };
+  const failStart = () => h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task' },
+    { isError: true, output: 'model unavailable' },
+  );
+  let args = await attempt();
+  assert.equal(args.model, 'fixture-model');
+  await failStart();
+  args = await attempt();
+  assert.equal(args.model, 'backup-model');
+  await failStart();
+  args = await attempt();
+  assert.equal(args.model, 'global-model');
+  await failStart();
+  args = await attempt();
+  assert.equal(args.model, undefined);
+  assert.equal(args.provider, undefined);
+});
 test('grader delegation requires the exact ticket evidence key and scene hash', async (t) => {
   const f = fixture(t, { review: 'Single' }), h = hooks(f); f.begin();
   const token = '11111111-1111-1111-1111-111111111111';

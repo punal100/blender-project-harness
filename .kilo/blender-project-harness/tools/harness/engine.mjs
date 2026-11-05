@@ -142,17 +142,18 @@ function modelEntryMatches(entry, runtime) {
   const observed = variantKey(runtime.variant);
   return !observed || variantKey(entry.variant) === observed;
 }
-export function modelRole(choice, runtime) {
+export function modelRole(choice, runtime, globalFallback = null) {
   if (!choice || !runtime) return null;
   if (modelEntryMatches(choice, runtime)) return 'primary';
   if (modelEntryMatches(choice.backup, runtime)) return 'backup';
+  if (modelEntryMatches(globalFallback, runtime)) return 'global-fallback';
   return null;
 }
-export function modelDiagnostics(choice, runtime) {
+export function modelDiagnostics(choice, runtime, globalFallback = null) {
   const entry = (value) => value ? `${value.provider}/${value.model}/${value.variant}` : null;
   return {
     observed: runtime ? `${runtime.providerID}/${runtime.modelID}/${runtime.variant ?? '(unset)'}` : 'unavailable',
-    expected: [entry(choice), entry(choice?.backup)].filter(Boolean).join(' or '),
+    expected: [entry(choice), entry(choice?.backup), entry(globalFallback)].filter(Boolean).join(' or '),
   };
 }
 
@@ -375,6 +376,36 @@ export class Harness {
     } catch { return false; }
   }
 
+  globalFallback() {
+    const file = configPath(this.root);
+    if (!fs.existsSync(file)) return null;
+    const value = readJson(file).blender_subagents?.global_fallback;
+    if (value === undefined) return null;
+    try {
+      return modelFields(value, 'global fallback');
+    } catch (error) {
+      deny(error.message);
+    }
+  }
+  setModelTier(session, token, tier, kind) {
+    return this.transaction((s) => {
+      const p = this.owner(s, session);
+      if (kind === 'worker') {
+        const task = p.tasks?.find((item) => item.token === token);
+        if (task) {
+          task.modelTier = tier;
+          this.writeTaskDocument(p, task);
+          this.writeTaskLedger(p);
+        }
+        return;
+      }
+      const entry = Object.entries(p.change?.graders ?? {}).find(([, g]) => g.token === token);
+      if (entry) {
+        entry[1].modelTier = tier;
+        this.updateManifest(p);
+      }
+    });
+  }
   workerConfig() {
     const file = configPath(this.root);
     if (!fs.existsSync(file)) deny('worker config missing; copy config.example.json and confirm it before delegation');
@@ -2461,11 +2492,15 @@ export class Harness {
       const entry = Object.entries(c.graders).find(([, g]) => g.token === match?.[1]);
       if (!entry || (entry[1].child && entry[1].child !== child)) deny('grader assignment missing or already owned');
       const cfg = p.records.roster.find((g) => g.name === entry[0]);
-      const role = modelRole(cfg, model);
+      const globalFallback = this.globalFallback();
+      const planned = entry[1].modelTier;
+      let role = modelRole(cfg, model, globalFallback);
+      if (planned === 'global-fallback' || planned === 'orchestrator-fallback') role = planned;
       if (!role) {
-        const detail = modelDiagnostics(cfg, model);
-        deny(`grader runtime model does not match configured primary or backup; observed ${detail.observed}; expected ${detail.expected}`);
+        const detail = modelDiagnostics(cfg, model, globalFallback);
+        deny(`grader runtime model does not match configured primary, backup, or global fallback; observed ${detail.observed}; expected ${detail.expected}`);
       }
+      if (planned && planned !== role) deny(`grader runtime model tier ${role} does not match requested ${planned}; stop this child and dispatch a fresh task for the requested tier`);
       entry[1].child = child;
       entry[1].modelRole = role;
       const task = p.tasks?.find((item) => item.token === entry[1].token);
