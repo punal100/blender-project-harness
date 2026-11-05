@@ -30,6 +30,16 @@ function makePackage(t) {
   return { temp, packageRoot };
 }
 
+function workspaceBackupFile(root, name) {
+  const parent = path.join(root, '.temp', 'blender-project-harness-backups');
+  for (const entry of fs.readdirSync(parent)) {
+    if (!entry.endsWith('-workspace')) continue;
+    const file = path.join(parent, entry, name);
+    if (fs.existsSync(file)) return file;
+  }
+  return null;
+}
+
 function makeWorkspace(t) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'blender-harness-workspace-'));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -66,6 +76,7 @@ test('installs the harness, config, and workspace surfaces', (t) => {
   assert.match(fs.readFileSync(path.join(root, '.kilo', 'kilo.jsonc'), 'utf8'), /\.kilo\/blender-project-harness\/tools\/harness\/server\.mjs/);
   assert.match(fs.readFileSync(path.join(root, '.kilo', 'plugins', 'blender-workflow.js'), 'utf8'), /\.\.\/blender-project-harness\/tools\/harness\/plugin\.mjs/);
   assert.equal(fs.existsSync(path.join(root, 'AGENTS.md')), true);
+  assert.equal(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), '# Package readme\n');
   assert.equal(fs.existsSync(path.join(root, '.kilo', 'skills', 'test-skill', 'SKILL.md')), true);
   assert.match(fs.readFileSync(path.join(root, '.gitignore'), 'utf8'), /\.kilo\/blender-project-harness\/config\.json/);
   assert.match(fs.readFileSync(path.join(root, '.gitignore'), 'utf8'), /\*\*\/logs\/\*\*/);
@@ -87,9 +98,51 @@ test('updates to a new version, backs up the old tree, and preserves config', (t
   assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'VERSION'), 'utf8').trim(), '2.0.0');
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'config.json'), 'utf8')).custom, true);
   assert.equal(fs.readFileSync(path.join(root, '.kilo', 'blender-project-harness', 'AGENTS.md'), 'utf8'), '# Agent contract v2\n');
-  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Agent contract\n');
+  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Agent contract v2\n');
+  assert.ok(updated.written.includes('AGENTS.md'));
+  const agentsBackup = workspaceBackupFile(root, 'AGENTS.md');
+  assert.equal(fs.readFileSync(agentsBackup, 'utf8'), '# Agent contract\n');
+  assert.ok(updated.warnings.some((warning) => warning.includes('AGENTS.md')));
   assert.equal(fs.readFileSync(path.join(root, updated.backup, 'VERSION'), 'utf8').trim(), '1.0.0');
   assert.equal(fs.readFileSync(path.join(root, updated.backup, 'AGENTS.md'), 'utf8'), '# Agent contract\n');
+});
+
+test('preserves modified root surfaces and refreshes identical ones', (t) => {
+  const { packageRoot } = makePackage(t);
+  const { root } = makeWorkspace(t);
+  install({ root, packageRoot, version: '1.0.0', skipDeps: true });
+
+  fs.writeFileSync(path.join(root, 'AGENTS.md'), '# Agent contract\n\nuser note\n');
+  fs.writeFileSync(path.join(packageRoot, 'AGENTS.md'), '# Agent contract v2\n');
+  fs.writeFileSync(path.join(packageRoot, 'README.md'), '# Package readme v2\n');
+
+  const updated = install({ root, packageRoot, version: '2.0.0', skipDeps: true });
+  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Agent contract\n\nuser note\n');
+  assert.equal(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), '# Package readme v2\n');
+  assert.ok(updated.warnings.some((warning) => warning.includes('AGENTS.md')));
+  assert.ok(updated.written.includes('README.md'));
+  assert.equal(fs.readFileSync(workspaceBackupFile(root, 'README.md'), 'utf8'), '# Package readme\n');
+
+  fs.writeFileSync(path.join(root, 'README.md'), '# User readme\n');
+  fs.writeFileSync(path.join(packageRoot, 'AGENTS.md'), '# Agent contract v3\n');
+  fs.writeFileSync(path.join(packageRoot, 'README.md'), '# Package readme v3\n');
+
+  const updatedAgain = install({ root, packageRoot, version: '3.0.0', skipDeps: true });
+  assert.equal(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), '# User readme\n');
+  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Agent contract\n\nuser note\n');
+  assert.ok(updatedAgain.warnings.some((warning) => warning.includes('README.md')));
+});
+
+test('preserves root README when the previous install has no copy', (t) => {
+  const { packageRoot } = makePackage(t);
+  const { root } = makeWorkspace(t);
+  install({ root, packageRoot, version: '1.0.0', skipDeps: true });
+  fs.rmSync(path.join(root, '.kilo', 'blender-project-harness', 'README.md'));
+  fs.writeFileSync(path.join(packageRoot, 'README.md'), '# Package readme v2\n');
+
+  const updated = install({ root, packageRoot, version: '2.0.0', skipDeps: true });
+  assert.equal(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), '# Package readme\n');
+  assert.ok(updated.warnings.some((warning) => warning.includes('README.md')));
 });
 
 test('same version is idempotent unless forced', (t) => {

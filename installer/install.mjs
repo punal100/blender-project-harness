@@ -169,6 +169,39 @@ function copyMissingFile(source, destination) {
   return true;
 }
 
+function sameFile(left, right) {
+  try {
+    return fs.readFileSync(left).equals(fs.readFileSync(right));
+  } catch {
+    return false;
+  }
+}
+
+function installRootSurface({ root, packageRoot, name, previousRoot, previousVersion, warnings, actions, written }) {
+  const destination = path.join(root, name);
+  const source = path.join(packageRoot, name);
+  if (!exists(destination)) {
+    copyFile(source, destination);
+    actions.push(name);
+    return;
+  }
+  if (!previousRoot) return;
+  const previous = path.join(previousRoot, name);
+  if (!exists(previous)) {
+    warnings.push(`${name} has no previous package copy to compare; kept the existing file`);
+    return;
+  }
+  if (!sameFile(destination, previous)) {
+    warnings.push(`${name} was modified locally; kept the existing file`);
+    return;
+  }
+  if (sameFile(destination, source)) return;
+  const backup = backupWorkspaceFile(root, name, previousVersion);
+  copyFile(source, destination);
+  written.push(name);
+  if (backup) warnings.push(`previous ${name} backed up to ${backup}`);
+}
+
 function copyMissingTree(source, destination) {
   if (!exists(source)) return [];
   const copied = [];
@@ -199,12 +232,12 @@ function backupWorkspaceFile(root, relative, version) {
   return path.relative(root, backup).replaceAll('\\', '/');
 }
 
-function installSurfaces({ root, packageRoot, version, backupRoot }) {
+function installSurfaces({ root, packageRoot, version, previousVersion, backupRoot }) {
   const warnings = [];
   const actions = [];
   const written = [];
-  if (copyMissingFile(path.join(packageRoot, 'AGENTS.md'), path.join(root, 'AGENTS.md'))) actions.push('AGENTS.md');
-  if (copyMissingFile(path.join(packageRoot, 'README.md'), path.join(root, 'README.md'))) actions.push('README.md');
+  installRootSurface({ root, packageRoot, name: 'AGENTS.md', previousRoot: backupRoot, previousVersion, warnings, actions, written });
+  installRootSurface({ root, packageRoot, name: 'README.md', previousRoot: backupRoot, previousVersion, warnings, actions, written });
   const skills = copyMissingTree(path.join(packageRoot, '.kilo', 'skills'), path.join(root, '.kilo', 'skills'));
   if (skills.length) actions.push(`${skills.length} skill file(s)`);
   const agents = copyMissingTree(path.join(packageRoot, '.kilo', 'agent'), path.join(root, '.kilo', 'agent'));
@@ -279,6 +312,7 @@ export function install({ root, packageRoot, version, skipDeps = false, resetCon
     copyFile(path.join(source, 'config.example.json'), path.join(stage, 'config.example.json'));
     copyFile(configSource, path.join(stage, 'config.json'));
     copyFile(path.join(packageRoot, 'AGENTS.md'), path.join(stage, 'AGENTS.md'));
+    copyFile(path.join(packageRoot, 'README.md'), path.join(stage, 'README.md'));
     fs.writeFileSync(path.join(stage, 'VERSION'), `${version}\n`);
     if (!skipDeps) runNpmCi(path.join(stage, 'tools', 'harness'));
     writeJson(path.join(stage, 'install.json'), {
@@ -308,7 +342,7 @@ export function install({ root, packageRoot, version, skipDeps = false, resetCon
     throw error;
   }
 
-  const surfaces = installSurfaces({ root, packageRoot, version, backupRoot: backup });
+  const surfaces = installSurfaces({ root, packageRoot, version, previousVersion, backupRoot: backup });
   return {
     ok: true,
     status: previousVersion ? 'updated' : 'installed',
