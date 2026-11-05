@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261105T143815Z | 20261105T143815Z | bdf5b9c6897f | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R01-20261105T143815Z/REVIEW.md](R01-20261105T143815Z/REVIEW.md) |
+| R02-20261105T150726Z | 20261105T150726Z | bbba0dc62c78 | All milestone | visual, technical, spec | CHANGES_REQUIRED | [R02-20261105T150726Z/REVIEW.md](R02-20261105T150726Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261105T143815Z: Build the room shell, window, hero camera, and warm ceiling lighting; evidence 38fe4ac255ac5b2ed7dd227cf78a57e93acf504a8b0659d56e62110c392cb27f
+
+- R02-20261105T150726Z: Fix R01 findings: reframe the full window, shape the warm practical lighting, add floor detail and matched ceiling fixtures; evidence 9513efd49190ae6733faf993ef2c6112d11bb23d630883862a04266a1f6b9a74

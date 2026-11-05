@@ -22,10 +22,10 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 ## Visual direction
 
 - Style: realistic / stylized-realistic environment art.
-- Mood / references: quiet, lived-in, inviting evening laundromat; one reference image generated after registration.
+- Mood / references: quiet, lived-in, inviting evening laundromat; one generated reference image in `Documents/References/`.
 - Colour and lighting: warm tungsten amber, cream walls, muted teal accents, soft shadows.
-- Camera / framing: wide eye-level interior at about 1.6 m, 35-50 mm equivalent, full room readable.
-- Scale and units: metres; room about 6 x 5 m, ceiling about 2.8 m, washers about 0.85 m tall, counter about 0.9 m.
+- Camera / framing: wide eye-level interior at about 1.62 m, 35 mm, full window and room readable.
+- Scale and units: metres; room about 6.2 x 5.2 m, ceiling about 2.8 m, washers about 0.85 m tall, counter about 0.9 m.
 
 ## Deliverables
 
@@ -33,7 +33,7 @@ Confirmed scope and acceptance criteria: [`Documents/REQUIREMENTS.md`](Documents
 - Final renders: `renders/final/`.
 - Exports: none planned.
 - Documentation: `Documents/`.
-- External assets: generated reference and optional generated textures only, after registration and intake.
+- External assets: one generated reference image; no third-party assets.
 
 ## Project structure
 
@@ -74,7 +74,7 @@ CozyLaundromat/
 
 - MCP port: owned by the workspace root `.kilo/kilo.jsonc`.
 - Launch and stop with `blender_workflow` `launch`/`stop`; never invoke Blender from the shell.
-- Main file: save the first scene as `cozylaundromat.blend` in the project root and verify the MCP scene path before production edits.
+- Main file: `cozylaundromat.blend` in the project root.
 - Only one Blender project spawned by this workspace may be open at a time.
 
 ## Workflow
@@ -85,7 +85,7 @@ CozyLaundromat/
 
 ## External assets
 
-No third-party assets are planned. A reference image is generated after registration; any generated texture is brought in through `intake` and recorded. See [`Documents/ASSETS.md`](Documents/ASSETS.md).
+One generated reference image is registered under `Documents/References/`. No third-party assets are used. See [`Documents/ASSETS.md`](Documents/ASSETS.md).
 
 ## Goals
 
@@ -94,15 +94,16 @@ No third-party assets are planned. A reference image is generated after registra
 ## References
 
 - [`Documents/References/README.md`](Documents/References/README.md)
-- Reference answer: generate one image after registration.
+- Generated reference: `Documents/References/img_20261105_195314_cozy-laundromat-reference_e1df3f-e1df3f0e.png`
 
 ## Open questions
 
-- None at registration. Render engine and final lighting balance are production decisions recorded in [`Documents/DECISIONS.md`](Documents/DECISIONS.md).
+- None. Render engine and lighting balance are production decisions recorded in [`Documents/DECISIONS.md`](Documents/DECISIONS.md).
 
 ## Next steps
 
-- [ ] Launch Blender, save the bootstrap scene, and checkpoint it.
-- [ ] Build the room shell, fixtures, machines, props, lighting, and camera across bounded changes.
-- [ ] Seal, grade, approve, and commit each reviewable change.
+- [x] Launch Blender, save the bootstrap scene, and checkpoint it.
+- [x] Build the room shell and lighting; address the R01 review findings.
+- [ ] Build the machine row and waiting area.
+- [ ] Build the folding counter, props, and final lighting detail.
 - [ ] Deliver the inspected hero render and complete the goal.
