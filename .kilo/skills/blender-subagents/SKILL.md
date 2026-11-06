@@ -11,8 +11,10 @@ read-only and writes one assigned report. Their full contracts are in `.kilo/age
 and `.kilo/agent/blender-grader.md`; this skill covers orchestration.
 
 Use the normal `task` tool, not Agent Manager sessions or worktrees. Only one Blender writer runs.
-Issue one ticket, dispatch one foreground worker, and reuse that `task_id` for the next ticket in the
-same change. Start a new worker only after the worker is blocked or the change ends.
+Issue one ticket, dispatch one foreground worker, and omit `task_id`: the harness pins one worker child
+for up to 10 dispatches and injects its ID automatically. Do not start a new worker while pinned; the
+harness rotates to a fresh worker at the turn limit, or after `BLOCKED`, `PARTIAL`, or a connection
+failure. After rotation, dispatch again without `task_id`.
 
 ## Config
 
@@ -90,7 +92,7 @@ Example graders config:
 The orchestrator must issue an `apply` ticket before dispatch. Give the worker only the exact task
 ID, outcome, allowed objects/collections/paths, authoritative `.blend`, inputs, ticket token and
 payload, acceptance checks, `look` views, budget, deadline, and prior budget used. Do not add design or
-scope decisions.
+scope decisions. Omit `task_id`; the harness reuses the pinned worker and rotates it automatically.
 
 The worker calls `blender_harness_execute` with the exact token, `operation:"apply"`, matching
 payload, and the user's verbatim prompt. It may inspect the assigned scene with `get_scene_info` and

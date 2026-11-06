@@ -20,6 +20,8 @@
   inspect, invoke, schema budgets, and role guidance.
 - Background-process waits suppress automatic continuation and are exposed in `status`; worker
   `PARTIAL` results release unused tickets like `BLOCKED`.
+- The harness pins one worker child for up to 10 dispatches, auto-injects its `task_id`, and rotates
+  on `BLOCKED`, `PARTIAL`, task-start failure, or the turn limit; worker turn/reuse state is recorded.
 - WIP preflight now rejects black and washed-out PNG renders and reports camera/scene-bounds facts.
 - Role profiles can be selected with `BLENDER_ROLE`; unsafe tools require an explicit
   `unsafe.sessions` entry; tool-list changes notify connected clients.

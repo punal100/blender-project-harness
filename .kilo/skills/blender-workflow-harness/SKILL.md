@@ -75,7 +75,10 @@ may close with `commit`. Requirements stay frozen.
   window after the writer starts; an unstarted ticket expires on its ticket TTL. Never release a live
   writer.
 - If a worker child fails before executing, the ticket is still `issued`; dispatch a fresh worker and
-  it rebinds. A ticket already authorized or running stays bound to that child.
+  it rebinds. A ticket already authorized or running stays bound to that child. The harness pins one
+  worker child for up to 10 dispatches; `BLOCKED`, `PARTIAL`, task-start failure, or the turn limit
+  retires it, and the next dispatch starts fresh. `status.worker` reports the pinned child and turn
+  count; `status.workerRetired` records the last retirement.
 - Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
 - To stop immediately, use `/goal-blender stop`; it works with an open change and aborts active
   worker/grader children. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call
