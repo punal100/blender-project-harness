@@ -1379,7 +1379,7 @@ export class Harness {
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       const reference = s.references?.[session];
       if (!reference) deny('Reference question has not been issued. Call blender_workflow {action:"reference"} first.');
-      if (!reference.answer) deny('Reference question is unanswered. Call the question tool with the exact question returned by blender_workflow {action:"reference"}, all four labels in order, custom:false and multiple:false. Chat answers are not recorded.');
+      if (!reference.answer) deny('Reference question is unanswered. Call the question tool with the exact question returned by blender_workflow {action:"reference"}, including the HARNESS REFERENCE token, all four labels in order, custom:false and multiple:false. Chat answers are not recorded.');
       let referenceIntake = null;
       if (reference.answer === REFERENCE_USE_MY_REFERENCES) {
         const scan = s.referenceScans?.[session];
