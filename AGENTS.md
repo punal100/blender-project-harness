@@ -140,6 +140,8 @@ not list workspace-local skills, read the file directly.
   A built-in `/goal` invalidates the Blender registration: stop production, run `/goal clear`, close
   any open change, and re-register. `status` exposes `goalSource`, `goalMeta`, `goalConflict`, and
   `goalReport`.
+- A pending `status.wait` or `status.pendingQuestion` is a hard stop: end the turn and do not start
+  work until the wait clears or the exact runtime question is answered.
 
 ## Done
 
