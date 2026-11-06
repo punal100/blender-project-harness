@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed
+
+- Goal auto-continuation now respects armed wakeups and scheduled waits, marks automatic turns as
+  automatic, and exposes the wait in `status`.
+- Worker tickets are released when a worker returns `BLOCKED` before execution, and unexecuted
+  tickets can be recovered without waiting out the full TTL.
+- Worker dispatch returns and validates a copy-ready prompt with the authoritative scene, task
+  document, and one-time token.
+- WIP and sealed render inspection use absolute paths; WIP preflight rejects scenes with no lights or
+  world.
+- Runtime questions expose exact `question` payloads and reject custom answers for harness questions.
+- `intake` accepts source notes, aliases `note`/`type`, and lists the exact source schema.
+- `Single grader` errors list configured names, `extend` reports the object budget, and unsupported
+  Blender operations identify the reviewed-layer boundary.
+- Added policy-controlled `lite`/`smart`/`full`/`readonly`/`unsafe` tool exposure with search,
+  inspect, invoke, schema budgets, and role guidance.
+
 ## 1.0.6 - 2026-11-06
 
 ### Added
