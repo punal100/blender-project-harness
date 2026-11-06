@@ -2145,6 +2145,7 @@ test('every third apply requires a WIP render before continuing', (t) => {
   const wip = issueAndConsume(f, 'orchestrator', 'wip');
   f.harness.finish(wip.token, { ok: true, renderPath: wipPath });
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'wip-inspect');
+  assert.ok(f.harness.command('orchestrator', 'status').nextStep.command.includes(JSON.stringify(path.resolve(f.root, wipPath))));
   gate(() => f.harness.issue('orchestrator', 'apply', { index: 4 }), /WIP.*third apply|third apply.*WIP/i);
   f.harness.inspect('orchestrator', path.resolve(f.root, wipPath), true);
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'apply');
