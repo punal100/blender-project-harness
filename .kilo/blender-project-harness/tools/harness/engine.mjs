@@ -25,6 +25,7 @@ export const digest = (data) => crypto.createHash('sha256').update(data).digest(
 export const normalizeGoal = (value) => typeof value === 'string' ? value.normalize('NFC').replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
 export const WAIT_LIMIT = 10;
+export const WORKER_MAX_TURNS = 10;
 export const questionToolPayload = (question, labels) => ({
   tool: 'question',
   questions: [{
@@ -609,6 +610,8 @@ export class Harness {
       `- Capability: ${task.capability ?? task.operation}`,
       `- Assigned: ${task.worker}`,
       `- Child session: ${task.child ?? ''}`,
+      ...(task.workerTurns ? [`- Worker turn: ${task.workerTurns}/${task.workerMaxTurns ?? WORKER_MAX_TURNS}`, `- Worker reused: ${task.workerReused ? 'yes' : 'no'}`] : []),
+      ...(task.workerRetired ? [`- Worker retired: ${task.workerRetired}`] : []),
       `- Created: ${task.created}`,
       `- Finished: ${task.finished ?? ''}`,
       `- Deadline: ${task.deadline ? new Date(task.deadline).toISOString() : ''}`,
@@ -646,6 +649,8 @@ export class Harness {
       `- Actor: ${task.actor ?? task.worker}`,
       `- Capability: ${task.capability ?? task.operation}`,
       `- Child session: ${task.child ?? ''}`,
+      ...(task.workerTurns ? [`- Worker turn: ${task.workerTurns}/${task.workerMaxTurns ?? WORKER_MAX_TURNS}`, `- Worker reused: ${task.workerReused ? 'yes' : 'no'}`] : []),
+      ...(task.workerRetired ? [`- Worker retired: ${task.workerRetired}`] : []),
       `- Created: ${task.created}`,
       `- Finished: ${task.finished ?? ''}`,
       `- Result: ${task.result ?? ''}`,
@@ -1665,7 +1670,7 @@ export class Harness {
       questionTool: questionToolPayload(pendingChallenge.question, ['Confirm registration', 'Cancel']),
       expiresAt: new Date(pendingChallenge.created + 600000).toISOString(),
     } : null;
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, pendingQuestion, objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: p.change?.objects?.length ?? 0, remaining: Math.max(0, MAX_CHANGE_OBJECTS - (p.change?.objects?.length ?? 0)) }, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home), toolExposure: toolExposureSummary(this.root),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, pendingQuestion, objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: p.change?.objects?.length ?? 0, remaining: Math.max(0, MAX_CHANGE_OBJECTS - (p.change?.objects?.length ?? 0)) }, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), worker: p.worker ?? null, workerRetired: p.workerRetired ?? null, intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home), toolExposure: toolExposureSummary(this.root),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -2724,8 +2729,42 @@ export class Harness {
       if (task.child === child && task.state === 'running') return;
       task.child = child;
       if (task.state === 'issued') task.state = 'running';
+      const worker = this.rememberWorker(p, child);
+      task.workerTurns = worker.turns;
+      task.workerMaxTurns = worker.maxTurns;
+      task.workerReused = worker.reused;
       this.writeTaskDocument(p, task);
       this.writeTaskLedger(p);
+    });
+  }
+  rememberWorker(p, child) {
+    const now = new Date().toISOString();
+    const existing = p.worker?.child === child ? p.worker : null;
+    const worker = {
+      child,
+      turns: (existing?.turns ?? 0) + 1,
+      maxTurns: existing?.maxTurns ?? WORKER_MAX_TURNS,
+      createdAt: existing?.createdAt ?? now,
+      lastUsedAt: now,
+    };
+    p.worker = worker;
+    return { ...worker, reused: Boolean(existing) };
+  }
+  retireWorker(orchestrator, child, reason, token = null) {
+    return this.transaction((s) => {
+      const p = this.owner(s, orchestrator);
+      if (!p.worker || (child && p.worker.child !== child)) return null;
+      const retired = { ...p.worker, retiredAt: new Date().toISOString(), reason: String(reason ?? 'worker retired').slice(0, 300) };
+      p.worker = null;
+      p.workerRetired = retired;
+      const task = token ? p.tasks?.find((item) => item.token === token) : null;
+      if (task) {
+        task.workerRetired = retired.reason;
+        this.writeTaskDocument(p, task);
+        this.writeTaskSummary(p, task);
+        this.writeTaskLedger(p);
+      }
+      return retired;
     });
   }
   bindWorker(orchestrator, child, prompt = '') {
@@ -2744,6 +2783,10 @@ export class Harness {
       }
       task.child = child;
       if (task.state === 'issued') task.state = 'running';
+      const worker = this.rememberWorker(p, child);
+      task.workerTurns = worker.turns;
+      task.workerMaxTurns = worker.maxTurns;
+      task.workerReused = worker.reused;
       this.writeTaskDocument(p, task);
       this.writeTaskLedger(p);
       if (p.change && (task.state === 'done' || task.state === 'failed')) this.commitTaskArtifacts(p, p.change, `task: bind ${task.id} worker`);

@@ -311,6 +311,53 @@ test('worker dispatch requires the exact scene and task document', async (t) => 
   );
 });
 
+test('worker dispatch pins one child for ten turns and rotates after the limit', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  const first = { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false };
+  await before(h, f.session, 'task', first);
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task', args: first },
+    { output: 'applied', metadata: { sessionId: 'ses_worker_shared' } },
+  );
+  let status = f.harness.command(f.session, 'status');
+  assert.equal(status.worker.child, 'ses_worker_shared');
+  assert.equal(status.worker.turns, 1);
+
+  f.harness.transaction((s) => {
+    const project = Object.values(s.projects)[0];
+    s.tickets[issued.token].state = 'done';
+    project.change.pending = null;
+  });
+  const secondIssued = f.harness.issue(f.session, 'apply', { index: 2 });
+  const second = { subagent_type: 'blender-worker', prompt: secondIssued.workerPrompt, background: false };
+  await before(h, f.session, 'task', second);
+  assert.equal(second.task_id, 'ses_worker_shared');
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task', args: second },
+    { output: 'applied', metadata: { sessionId: 'ses_worker_shared' } },
+  );
+  status = f.harness.command(f.session, 'status');
+  assert.equal(status.worker.turns, 2);
+
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: secondIssued.workerPrompt, background: false, task_id: 'ses_other' }),
+    /pinned/,
+  );
+
+  f.harness.transaction((s) => {
+    const project = Object.values(s.projects)[0];
+    project.worker.turns = 10;
+    project.worker.maxTurns = 10;
+  });
+  const third = { subagent_type: 'blender-worker', prompt: secondIssued.workerPrompt, background: false };
+  await before(h, f.session, 'task', third);
+  assert.equal(third.task_id, undefined);
+  status = f.harness.command(f.session, 'status');
+  assert.equal(status.worker, null);
+  assert.match(status.workerRetired.reason, /turn limit/);
+});
+
 test('a worker BLOCKED result releases the unused apply ticket', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const issued = f.harness.issue(f.session, 'apply', { index: 1 });
@@ -322,6 +369,8 @@ test('a worker BLOCKED result releases the unused apply ticket', async (t) => {
   );
   assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
   assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+  assert.equal(f.harness.command(f.session, 'status').worker, null);
+  assert.match(f.harness.command(f.session, 'status').workerRetired.reason, /BLOCKED/);
 });
 
 test('a worker PARTIAL result releases the unused apply ticket', async (t) => {

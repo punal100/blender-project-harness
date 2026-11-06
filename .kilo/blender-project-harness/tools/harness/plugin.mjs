@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, activeWaits, expiredWaits } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -424,6 +424,7 @@ export function createHooks(harness, client, directory = harness.root) {
         ? harness.command(sessionID, 'goal-inactive', { clear: true, reason })
         : harness.command(sessionID, 'goal-inactive', { reason });
       const abortedChildren = await abortChildren(p, reason);
+      harness.retireWorker(sessionID, null, reason);
       if (action === 'clear') result.openChange = Boolean(p.change);
       result.abortedChildren = abortedChildren;
       return JSON.stringify(result, null, 2);
@@ -450,6 +451,7 @@ export function createHooks(harness, client, directory = harness.root) {
     if (await lastTurnAborted(sessionID)) {
       const reason = 'Stopped by the user (session aborted); resume with /goal-blender resume.';
       await abortChildren(project, reason);
+      harness.retireWorker(sessionID, null, reason);
       harness.transaction((s) => {
         const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
         if (!current || current.complete) return;
@@ -776,6 +778,20 @@ export function createHooks(harness, client, directory = harness.root) {
         if (args.subagent_type === 'blender-worker') {
           if (!p.goalActive || !args.prompt?.trim()) deny('worker delegation requires an active goal and a task prompt');
           if (/HARNESS_GRADER:/.test(args.prompt)) deny('worker task cannot carry a grader marker');
+          let worker = p.worker;
+          const maxTurns = worker?.maxTurns ?? WORKER_MAX_TURNS;
+          if (worker?.child && (worker.turns ?? 0) >= maxTurns) {
+            harness.retireWorker(input.sessionID, worker.child, `worker turn limit ${maxTurns} reached`);
+            worker = null;
+          }
+          if (worker?.child) {
+            const requested = args.task_id ?? args.taskId;
+            if (requested && requested !== worker.child) deny(`worker is pinned to ${worker.child} for ${maxTurns} turns; omit task_id to reuse it, or wait for the turn limit`);
+            args.task_id = worker.child;
+            delete args.taskId;
+          } else if (args.task_id || args.taskId) {
+            deny('worker task_id is not known to the harness; omit task_id so the harness starts and pins a worker');
+          }
           const cfg = harness.workerConfig();
           const token = args.prompt.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0] ?? p.change?.pending ?? null;
           if (token) {
@@ -925,8 +941,11 @@ export function createHooks(harness, client, directory = harness.root) {
           if (token && /\b(?:BLOCKED|PARTIAL)\b/.test(text)) {
             const releasable = harness.transaction((s) => ['issued', 'authorized'].includes(s.tickets[token]?.state));
             if (releasable) harness.failWorkerByToken(input.sessionID, token, `worker returned ${/\bPARTIAL\b/.test(text) ? 'PARTIAL' : 'BLOCKED'} before executing the ticket`);
+            harness.retireWorker(input.sessionID, child, `worker returned ${/\bPARTIAL\b/.test(text) ? 'PARTIAL' : 'BLOCKED'}; starting a fresh worker next turn`, token);
           }
         } else {
+          const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
+          harness.retireWorker(input.sessionID, child ?? null, output.output ?? 'worker task failed before completion', token ?? null);
           if (!child && plan) {
             const next = recordModelStartFailure(plan);
             if (next) {
@@ -934,7 +953,6 @@ export function createHooks(harness, client, directory = harness.root) {
               return;
             }
           }
-          const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
           if (token) harness.failWorkerByToken(input.sessionID, token, output.output ?? 'worker task failed before completion');
         }
       }
