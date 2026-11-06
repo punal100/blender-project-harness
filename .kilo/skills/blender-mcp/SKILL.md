@@ -67,6 +67,9 @@ Use the exposed `blender_` prefix. Pass the user's exact words in `user_prompt` 
   auto-saves.
 - After `seal`, inspect the returned absolute PNG with `blender_look`. Viewport checks do not replace
   the sealed render.
+- Before a WIP render, verify the camera is inside/aimed at the subject and the scene has a light or
+  world. If the frame is black, clipped, or washed out, adjust camera, light energy, or exposure and
+  rerender before sealing.
 - Review, approve, commit, and checkpoint through the harness. Never stage or commit project files
   manually or create review documents manually.
 - Read project documents through `blender_document` `{action:"read"}`; create new markdown with

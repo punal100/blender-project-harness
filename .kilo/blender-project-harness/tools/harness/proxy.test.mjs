@@ -187,6 +187,22 @@ test('proxy renders a WIP image without creating review evidence', async (t) => 
   assert.equal(wip.change.evidence, undefined);
 });
 
+test('proxy rejects a WIP render when the scene has no lights or world', async (t) => {
+  const f = fixture(t); f.begin();
+  const noLights = upstream(f);
+  const baseCall = noLights.callTool.bind(noLights);
+  noLights.callTool = async (call) => {
+    if (call.name === 'execute_blender_code' && call.arguments.code.includes('"lights":')) {
+      return result('HARNESS_JSON:' + JSON.stringify({ ok: true, camera: 'Camera', lights: [], world: false, exposure: 0, resolution: [640, 480] }));
+    }
+    return baseCall(call);
+  };
+  const p = new BlenderProxy(f.harness, noLights);
+  await execute(f, p, 'apply', meshOperation);
+  f.harness.command(f.session, 'finalize');
+  await assert.rejects(execute(f, p, 'wip'), /no lights and no world/);
+});
+
 test('proxy camera preflight fails before creating round artifacts and keeps recovery available', async (t) => {
   const f = fixture(t); f.begin();
   const noCamera = upstream(f);

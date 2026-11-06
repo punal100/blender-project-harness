@@ -186,8 +186,14 @@ export class BlenderProxy {
       const saved = await this.run(preflightCode(scenePath), args.user_prompt);
       if (saved.is_dirty || saved.filepath !== scenePath) deny('authoritative scene save not verified');
       if (args.operation === 'save') return this.result(this.harness.finish(args.token, { ok: true }));
-      await this.run(renderPreflightCode(scenePath), args.user_prompt);
+      const renderPreflight = await this.run(renderPreflightCode(scenePath), args.user_prompt);
       if (args.operation === 'wip') {
+        if (Array.isArray(renderPreflight.lights) && renderPreflight.lights.length === 0 && renderPreflight.world === false) {
+          deny('WIP preflight: the scene has no lights and no world. Add a light or a world before rendering; a black frame is not a valid WIP');
+        }
+        if (Array.isArray(renderPreflight.lights) && renderPreflight.lights.length > 0 && renderPreflight.lights.every((light) => Number(light.energy) === 0) && renderPreflight.world === false) {
+          deny('WIP preflight: every scene light has zero energy and there is no world. Raise a light before rendering');
+        }
         const relativeRender = `renders/wip/WIP-${Date.now()}.png`;
         const wipPath = `${context.project}/${relativeRender}`;
         contained(this.harness.root, wipPath, true);
@@ -195,7 +201,7 @@ export class BlenderProxy {
         await this.run(renderCode(scenePath, `//${relativeRender}`), args.user_prompt);
         const image = fs.readFileSync(contained(this.harness.root, wipPath));
         if (!image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) deny('WIP render is not PNG');
-        return this.result(this.harness.finish(args.token, { ok: true, renderPath: wipPath }));
+        return this.result(this.harness.finish(args.token, { ok: true, renderPath: wipPath, preflight: renderPreflight }));
       }
        round = this.makeRound(context.project, context.change.failedRounds ?? []);
        roundRoot = `${context.project}/Documents/Reviews/${round}`;

@@ -2660,7 +2660,7 @@ export class Harness {
        else if (t.operation === 'save') { c.saved = true; c.sceneHash = this.hash(p.scene); }
        else if (t.operation === 'wip') {
          c.saved = true; c.sceneHash = this.hash(p.scene);
-         c.wipRender = { path: result.renderPath, hash: this.hash(result.renderPath), at: new Date().toISOString(), operations: c.operations };
+         c.wipRender = { path: result.renderPath, hash: this.hash(result.renderPath), at: new Date().toISOString(), operations: c.operations, preflight: result.preflight ?? null };
          c.wipLook = null;
          delete c.failure; delete c.reopen; c.deadline = Date.now() + CHANGE_WINDOW_MS;
        } else {

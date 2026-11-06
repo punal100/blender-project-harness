@@ -333,6 +333,9 @@ test('preflight, save, and render code enforce explicit project paths', () => {
   assert.match(camera, /scene camera is not set/);
   assert.match(camera, /camera\.type != 'CAMERA'/);
   assert.match(camera, /resolution is invalid/);
+  assert.match(camera, /"lights":/);
+  assert.match(camera, /"world":/);
+  assert.match(camera, /"exposure":/);
   assert.throws(() => renderCode('//project.blend', 'C:\\outside.png'), /project-relative/);
 });
 
