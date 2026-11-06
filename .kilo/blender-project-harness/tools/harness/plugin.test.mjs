@@ -658,6 +658,8 @@ test('goal-blender auto-continues once per idle up to the cap', async (t) => {
   await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session });
   await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
   assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.parts[0].synthetic, true);
+  assert.match(calls[0].body.parts[0].text, /HARNESS GOAL CONTINUATION \(automatic; no user message\)/);
   assert.equal(f.harness.command(f.session, 'status').goalMeta.autoTurns, 1);
   f.harness.transaction((s) => { s.projects[f.project].goalMeta.autoTurns = 25; });
   await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });

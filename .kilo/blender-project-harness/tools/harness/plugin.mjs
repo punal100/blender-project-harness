@@ -462,7 +462,7 @@ export function createHooks(harness, client, directory = harness.root) {
           parts: [{
             type: 'text',
             synthetic: true,
-            text: 'Continue the active /goal-blender mission. Inspect status, make the next safe step, and do not complete without the harness checks.',
+            text: 'HARNESS GOAL CONTINUATION (automatic; no user message). Continue the active /goal-blender mission. Inspect status, make the next safe step, and do not complete without the harness checks.',
           }],
         },
       });
