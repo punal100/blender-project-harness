@@ -115,6 +115,7 @@ export class BlenderProxy {
       : { allowed: false, reason: exposure.mode === 'unsafe' ? 'unsafe mode is disabled or the tool is denied' : 'not exposed in this mode; use the unsafe/development mode only with explicit approval' };
     const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
     if (name === TOOL_SEARCH_TOOL.name) {
+      if (!this.exposed?.has(name)) deny(`tool_search is not exposed in ${exposure.mode} mode`);
       if (!args || Object.keys(args).some((key) => !['query', 'category', 'limit'].includes(key)) || typeof args.query !== 'string' || !args.query.trim()) deny('tool_search requires query and optional category/limit');
       const limit = Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), exposure.searchTopK) : exposure.searchTopK;
       const query = args.query.toLowerCase();
@@ -122,12 +123,14 @@ export class BlenderProxy {
       return text({ mode: exposure.mode, query: args.query, tools: matches.map((tool) => ({ name: tool.name, description: tool.description ?? '', category: category(tool), ...policy(tool) })) });
     }
     if (name === TOOL_INSPECT_TOOL.name) {
+      if (!this.exposed?.has(name)) deny(`tool_inspect is not exposed in ${exposure.mode} mode`);
       if (!args || Object.keys(args).some((key) => key !== 'name') || typeof args.name !== 'string' || !args.name.trim()) deny('tool_inspect requires name');
       const tool = all.find((item) => item.name === args.name);
       if (!tool) deny(`unknown Blender MCP tool: ${args.name}`);
       return text({ mode: exposure.mode, tool, ...policy(tool) });
     }
     if (name === TOOL_INVOKE_TOOL.name) {
+      if (!this.exposed?.has(name)) deny(`tool_invoke is not exposed in ${exposure.mode} mode`);
       if (!args || Object.keys(args).some((key) => !['name', 'arguments'].includes(key)) || typeof args.name !== 'string' || !args.name.trim() || (args.arguments !== undefined && (typeof args.arguments !== 'object' || Array.isArray(args.arguments) || args.arguments === null))) deny('tool_invoke requires name and optional object arguments');
       const tool = all.find((item) => item.name === args.name);
       if (!tool) deny(`unknown Blender MCP tool: ${args.name}`);

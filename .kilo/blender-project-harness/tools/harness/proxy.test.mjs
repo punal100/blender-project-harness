@@ -91,6 +91,24 @@ test('unsafe mode exposes the raw catalog only when explicitly enabled', async (
   assert.match((await p.call('tool_invoke', { name: 'execute_blender_code', arguments: { code: 'anything' } })).content[0].text, /HARNESS_JSON/);
 });
 
+test('lite and readonly modes keep the direct list small', async (t) => {
+  const lite = fixture(t);
+  lite.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'lite' } }));
+  const liteProxy = new BlenderProxy(lite.harness, upstream(lite));
+  const liteNames = (await liteProxy.listTools()).tools.map((tool) => tool.name);
+  assert.ok(liteNames.includes('get_guide'));
+  assert.ok(!liteNames.includes('tool_search'));
+  await assert.rejects(liteProxy.call('tool_search', { query: 'boolean' }), /not exposed/);
+
+  const readonly = fixture(t);
+  readonly.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'readonly' } }));
+  const readonlyProxy = new BlenderProxy(readonly.harness, upstream(readonly));
+  const readonlyNames = (await readonlyProxy.listTools()).tools.map((tool) => tool.name);
+  assert.ok(readonlyNames.includes('look'));
+  assert.ok(!readonlyNames.includes('harness_execute'));
+  assert.ok(!readonlyNames.includes('tool_invoke'));
+});
+
 test('proxy hides raw mutation tools and rejects direct calls', async (t) => {
   const f = fixture(t), p = new BlenderProxy(f.harness, upstream(f));
   assert.ok((await p.listTools()).tools.some((v) => v.name === 'look'));
