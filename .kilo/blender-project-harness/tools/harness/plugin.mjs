@@ -4,7 +4,7 @@ import path from 'node:path';
 import { z } from 'zod';
 import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, activeWaits, expiredWakeups } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
-import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
+import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
 import { toolExposureSummary } from './tool-exposure.mjs';
 
@@ -44,6 +44,13 @@ const BOOTSTRAP_DOCUMENTS = [
 ];
 const capabilities = (root = process.cwd()) => ({
   operations: [...OPERATION_NAMES],
+  operationLimits: OPERATION_LIMITS,
+  capabilityBoundary: {
+    blender: 'Native Blender supports the feature.',
+    mcpAddon: 'The MCP addon can execute arbitrary Blender Python, but raw Python is not a default harness path.',
+    harness: 'Only reviewed operations and the configured tool exposure are callable.',
+    rawPython: 'Blocked unless explicit unsafe mode and a development session are enabled.',
+  },
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
   documentFormats: describeDocumentFormats(),

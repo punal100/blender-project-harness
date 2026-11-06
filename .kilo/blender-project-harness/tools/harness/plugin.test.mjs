@@ -107,6 +107,8 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.equal(result.toolExposure.mode, 'smart');
   assert.ok(result.toolExposure.modes.includes('unsafe'));
   assert.match(result.toolCatalog.detail, /tool_search.*tool_inspect.*tool_invoke/);
+  assert.match(result.capabilityBoundary.harness, /reviewed operations/);
+  assert.deepEqual(result.operationLimits.modifiers.unsupported, ['BOOLEAN']);
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));

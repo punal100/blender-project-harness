@@ -33,6 +33,13 @@ const SCENE_MODES = new Set(['NEW', 'EMPTY', 'LINK_COPY', 'FULL_COPY']);
 const SCENE_OPERATIONS = new Set(['create_mesh', 'text', 'modifier', 'transform', 'material', 'shared_material', 'duplicate', 'create_light', 'create_camera', 'set_camera', 'render_settings', 'delete_object', 'import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'export_scene', 'set_scene_camera', 'scene_strip']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
 const MODIFIER_KINDS = new Set(['BEVEL', 'SUBSURF', 'SOLIDIFY', 'MIRROR', 'ARRAY']);
+export const OPERATION_LIMITS = {
+  boundary: 'The reviewed operation layer is the limit; Blender and the MCP addon can do more, but raw Python remains blocked unless the explicit unsafe mode and a development session are enabled.',
+  modifiers: { supported: [...MODIFIER_KINDS], unsupported: ['BOOLEAN'], workaround: 'Build openings from wall segments or separate mesh pieces, or use explicit unsafe mode.' },
+  material: { supported: ['color', 'roughness', 'metallic', 'emission'], unsupported: ['transmission', 'ior', 'alpha'], workaround: 'Use a tinted plane or explicit unsafe mode for glass/transmission.' },
+  createLight: { supported: ['name', 'kind', 'location', 'energy', 'color', 'temperature'], unsupported: ['rotation', 'size'], workaround: 'Create the light, then use transform for rotation; exact AREA size requires explicit unsafe mode.' },
+  createMesh: { primitives: [...PRIMITIVES], semantics: 'Base cube is 2x2x2; final size = base size * scale. For a 1m cube use scale 0.5.', unsupported: ['size', 'dimensions'], workaround: 'Use scale = dimension/2 for a cube, or explicit unsafe mode for arbitrary mesh data.' },
+};
 const TEXT_ALIGN_X = new Set(['LEFT', 'CENTER', 'RIGHT', 'JUSTIFY', 'FLUSH']);
 const TEXT_ALIGN_Y = new Set(['TOP', 'TOP_BASELINE', 'CENTER', 'BOTTOM_BASELINE', 'BOTTOM']);
 const NAME_RE = /^[\x20-\x7e]+(?![\s\S])/;
