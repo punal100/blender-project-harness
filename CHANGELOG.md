@@ -18,6 +18,13 @@
   Blender operations identify the reviewed-layer boundary.
 - Added policy-controlled `lite`/`smart`/`full`/`readonly`/`unsafe` tool exposure with search,
   inspect, invoke, schema budgets, and role guidance.
+- Background-process waits suppress automatic continuation and are exposed in `status`; worker
+  `PARTIAL` results release unused tickets like `BLOCKED`.
+- WIP preflight now rejects black and washed-out PNG renders and reports camera/scene-bounds facts.
+- Role profiles can be selected with `BLENDER_ROLE`; unsafe tools require an explicit
+  `unsafe.sessions` entry; tool-list changes notify connected clients.
+- Added reviewed BOOLEAN modifiers, material transmission/IOR/alpha, light rotation/AREA size, and
+  custom `create_mesh` vertices/faces.
 
 ## 1.0.6 - 2026-11-06
 
