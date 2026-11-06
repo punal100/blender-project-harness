@@ -16,7 +16,7 @@ const transport = new StdioClientTransport({ command: 'uvx', args: ['mcp-for-ble
   env: Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined)), stderr: 'inherit' });
 await client.connect(transport);
 const proxy = new BlenderProxy(harness, client);
-const server = new Server({ name: 'guarded-blender', version: '1.0.0' }, { capabilities: { tools: {} }, instructions:
+const server = new Server({ name: 'guarded-blender', version: '1.0.0' }, { capabilities: { tools: { listChanged: true } }, instructions:
   'Production writes require blender_workflow registration, bounded change and one-time operation ticket. Raw Python is unavailable. Media generation requires a harness media-request after registration and intake before commit. Seal, inspect with look, review, obtain required approval, commit and checkpoint before next change. Unsupported operations stop.' });
 server.setRequestHandler(ListToolsRequestSchema, () => proxy.listTools());
 server.setRequestHandler(CallToolRequestSchema, (request) => proxy.call(request.params.name, request.params.arguments));

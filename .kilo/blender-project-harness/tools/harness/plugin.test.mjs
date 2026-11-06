@@ -104,6 +104,9 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.actions.some((action) => action.name === 'download'));
   assert.ok(result.actions.some((action) => action.name === 'media-request'));
   assert.match(result.mediaPolicy, /media-request/);
+  assert.equal(result.toolExposure.mode, 'smart');
+  assert.ok(result.toolExposure.modes.includes('unsafe'));
+  assert.match(result.toolCatalog.detail, /tool_search.*tool_inspect.*tool_invoke/);
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));

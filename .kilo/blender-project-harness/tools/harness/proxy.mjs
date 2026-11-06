@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
 import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode, sceneFactsCode } from './blender-operations.mjs';
+import { readToolExposure, toolAllowed, toolTokens } from './tool-exposure.mjs';
 
-export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
+export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'get_guide', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
 export const SCENE_INFO_TOOL = {
   name: 'blender_harness_scene_info',
   description: 'Read-only scene facts for one scene or all scenes. No ticket, save, or mutation.',
@@ -14,6 +15,21 @@ export const EXECUTE_TOOL = {
   description: 'Execute one ticketed bounded Blender apply batch, save, WIP render, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
   inputSchema: { type: 'object', properties: { token: { type: 'string' }, operation: { type: 'string', enum: ['apply', 'save', 'seal', 'wip'] },
     payload: { type: 'object' }, user_prompt: { type: 'string' } }, required: ['token', 'operation', 'payload', 'user_prompt'], additionalProperties: false },
+};
+export const TOOL_SEARCH_TOOL = {
+  name: 'tool_search',
+  description: 'Search the full Blender MCP tool catalog. Returns names, one-line descriptions, and policy status. Use tool_inspect for one schema.',
+  inputSchema: { type: 'object', properties: { query: { type: 'string' }, category: { type: 'string' }, limit: { type: 'integer' } }, required: ['query'], additionalProperties: false },
+};
+export const TOOL_INSPECT_TOOL = {
+  name: 'tool_inspect',
+  description: 'Return the full schema for one Blender MCP tool without loading the rest of the catalog.',
+  inputSchema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
+};
+export const TOOL_INVOKE_TOOL = {
+  name: 'tool_invoke',
+  description: 'Invoke one policy-allowed Blender MCP tool with explicit arguments. Unsafe tools require the unsafe mode and an explicit development session.',
+  inputSchema: { type: 'object', properties: { name: { type: 'string' }, arguments: { type: 'object' } }, required: ['name'], additionalProperties: false },
 };
 export const textOf = (result) => (result.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
 export function firstJson(text) {
@@ -51,25 +67,83 @@ export class BlenderProxy {
     if (!exportSignature(receipt.format, buffer)) deny('export file signature does not match the format');
     return { ...receipt, path: projectPath };
   }
-  async listTools() {
+  async catalog() {
+    if (this.catalogCache) return this.catalogCache;
     const tools = [], seen = new Set();
     let cursor;
     do {
       if (cursor && seen.has(cursor)) deny('upstream tool pagination repeated');
       seen.add(cursor);
       const response = await this.upstream.listTools(cursor ? { cursor } : {});
-      tools.push(...response.tools.filter((t) => READ_TOOLS.has(t.name)));
+      tools.push(...response.tools);
       cursor = response.nextCursor;
     } while (cursor);
-    return { tools: [...tools, EXECUTE_TOOL, SCENE_INFO_TOOL] };
+    this.catalogCache = tools;
+    return tools;
+  }
+  exposureTools(all, exposure) {
+    const byName = new Map(all.map((tool) => [tool.name, tool]));
+    const coreNames = ['get_addon_status', 'get_scene_info', 'look', 'get_guide', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback'];
+    const core = coreNames.map((name) => byName.get(name)).filter(Boolean);
+    const harnessTools = [EXECUTE_TOOL, SCENE_INFO_TOOL];
+    const meta = [TOOL_SEARCH_TOOL, TOOL_INSPECT_TOOL, TOOL_INVOKE_TOOL];
+    if (exposure.mode === 'readonly') return [...core, SCENE_INFO_TOOL];
+    if (exposure.mode === 'lite') return [...core, ...harnessTools];
+    if (exposure.mode === 'smart') return [...core, ...harnessTools, ...meta];
+    if (exposure.mode === 'unsafe' && exposure.unsafe.enabled) {
+      const tools = [...core, ...harnessTools, ...all.filter((tool) => !coreNames.includes(tool.name) && toolAllowed(exposure, tool.name))];
+      return tools.length <= exposure.maxExposed && tools.reduce((sum, tool) => sum + toolTokens(tool), 0) <= exposure.maxSchemaTokens ? tools : [...core, ...harnessTools, ...meta];
+    }
+    const direct = all.filter((tool) => !coreNames.includes(tool.name) && toolAllowed(exposure, tool.name));
+    const tools = [...core, ...harnessTools, ...direct];
+    if (tools.length <= exposure.maxExposed && tools.reduce((sum, tool) => sum + toolTokens(tool), 0) <= exposure.maxSchemaTokens) return tools;
+    return [...core, ...harnessTools, ...meta];
+  }
+  async listTools() {
+    const all = await this.catalog();
+    this.exposure = readToolExposure(this.harness.root);
+    const tools = this.exposureTools(all, this.exposure);
+    this.exposed = new Set(tools.map((tool) => tool.name));
+    return { tools };
   }
   async call(name, args) {
+    const exposure = this.exposure ?? readToolExposure(this.harness.root);
+    const all = await this.catalog();
+    const category = (tool) => /guide/i.test(tool.name) ? 'guide' : /code/i.test(tool.name) ? 'code' : /generate/i.test(tool.name) ? 'generate' : /asset/i.test(tool.name) ? 'asset' : 'read';
+    const policy = (tool) => toolAllowed(exposure, tool.name)
+      ? { allowed: true, reason: null }
+      : { allowed: false, reason: exposure.mode === 'unsafe' ? 'unsafe mode is disabled or the tool is denied' : 'not exposed in this mode; use the unsafe/development mode only with explicit approval' };
+    const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
+    if (name === TOOL_SEARCH_TOOL.name) {
+      if (!args || Object.keys(args).some((key) => !['query', 'category', 'limit'].includes(key)) || typeof args.query !== 'string' || !args.query.trim()) deny('tool_search requires query and optional category/limit');
+      const limit = Number.isInteger(args.limit) ? Math.min(Math.max(args.limit, 1), exposure.searchTopK) : exposure.searchTopK;
+      const query = args.query.toLowerCase();
+      const matches = all.filter((tool) => (!args.category || category(tool) === args.category) && `${tool.name} ${tool.description ?? ''}`.toLowerCase().includes(query)).slice(0, limit);
+      return text({ mode: exposure.mode, query: args.query, tools: matches.map((tool) => ({ name: tool.name, description: tool.description ?? '', category: category(tool), ...policy(tool) })) });
+    }
+    if (name === TOOL_INSPECT_TOOL.name) {
+      if (!args || Object.keys(args).some((key) => key !== 'name') || typeof args.name !== 'string' || !args.name.trim()) deny('tool_inspect requires name');
+      const tool = all.find((item) => item.name === args.name);
+      if (!tool) deny(`unknown Blender MCP tool: ${args.name}`);
+      return text({ mode: exposure.mode, tool, ...policy(tool) });
+    }
+    if (name === TOOL_INVOKE_TOOL.name) {
+      if (!args || Object.keys(args).some((key) => !['name', 'arguments'].includes(key)) || typeof args.name !== 'string' || !args.name.trim() || (args.arguments !== undefined && (typeof args.arguments !== 'object' || Array.isArray(args.arguments) || args.arguments === null))) deny('tool_invoke requires name and optional object arguments');
+      const tool = all.find((item) => item.name === args.name);
+      if (!tool) deny(`unknown Blender MCP tool: ${args.name}`);
+      const accepted = policy(tool);
+      if (!accepted.allowed) deny(`${tool.name} is unavailable: ${accepted.reason}`);
+      return this.upstream.callTool({ name: tool.name, arguments: args.arguments ?? {} });
+    }
     if (name === SCENE_INFO_TOOL.name) {
       if (!args || Object.keys(args).some((key) => !['scene', 'user_prompt'].includes(key)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim() || (args.scene !== undefined && (typeof args.scene !== 'string' || !args.scene.trim()))) deny('scene info requires user_prompt and optional scene name');
       return this.result(await this.run(sceneFactsCode(args.scene ?? null), args.user_prompt));
     }
-    if (READ_TOOLS.has(name)) return this.upstream.callTool({ name, arguments: args });
-    if (name !== 'harness_execute') deny('unregistered Blender operation');
+    if (READ_TOOLS.has(name) && toolAllowed(exposure, name)) return this.upstream.callTool({ name, arguments: args });
+    if (name !== 'harness_execute') {
+      if (this.exposed?.has(name) && toolAllowed(exposure, name)) return this.upstream.callTool({ name, arguments: args });
+      deny(`tool ${name} is not exposed in ${exposure.mode} mode`);
+    }
     if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
     const context = this.harness.consume(args.token, args.operation, args.payload);
     const scenePath = contained(this.harness.root, context.scene, true);

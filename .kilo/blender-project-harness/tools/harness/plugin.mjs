@@ -6,12 +6,13 @@ import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
+import { toolExposureSummary } from './tool-exposure.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
-const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
+const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_get_guide', 'blender_search_assets', 'blender_tool_search', 'blender_tool_inspect', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
-const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);
+const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_get_guide']);
 const PUBLIC_ACTIONS = new Set(['status', 'reference', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
@@ -41,11 +42,13 @@ const BOOTSTRAP_DOCUMENTS = [
   'scripts/README.md',
   'backups/README.md',
 ];
-const capabilities = () => ({
+const capabilities = (root = process.cwd()) => ({
   operations: [...OPERATION_NAMES],
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
   documentFormats: describeDocumentFormats(),
+  toolExposure: toolExposureSummary(root),
+  toolCatalog: { modes: ['lite', 'smart', 'full', 'readonly', 'unsafe'], detail: 'Use blender_tool_search, blender_tool_inspect, and blender_tool_invoke in smart mode; never infer availability from tools/list alone.' },
   intakeSource: {
     accepts: 'string note or object',
     fields: ['name', 'asset', 'url', 'vendor', 'author', 'license', 'licenseText', 'licenseFile', 'attribution', 'redistributable', 'external', 'packaging', 'notes', 'licenseUrl'],
@@ -528,7 +531,8 @@ export function createHooks(harness, client, directory = harness.root) {
           reconcileGoal(harness, context.sessionID, session);
           const payload = jsonPayload(args.payload);
           let result;
-          if (args.action === 'capabilities') result = capabilities();
+          if (args.action === 'capabilities') result = capabilities(harness.root);
+
           else if (args.action === 'bootstrap-document') result = harness.bootstrapDocument(context.sessionID, payload);
           else if (args.action === 'bootstrap-commit') result = harness.bootstrapCommit(context.sessionID, payload);
           else if (args.action === 'intake') result = harness.intake(context.sessionID, payload);
@@ -750,7 +754,10 @@ export function createHooks(harness, client, directory = harness.root) {
         guardShell(harness, input.sessionID, p.project, command, args);
         return;
       }
-      if (tool === 'blender_workflow' || tool === 'goal_blender' || tool === 'question' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
+      if (tool === 'blender_tool_invoke' && ['execute_blender_code', 'generate_3d', 'import_asset'].includes(args.name) && !harness.developmentMode(input.sessionID)) {
+        deny(`${args.name} is an unsafe tool. Enable the explicit unsafe tool mode and a development session before invoking it; raw Python and unpaid generation are not default paths`);
+      }
+      if (tool === 'blender_workflow' || tool === 'goal_blender' || tool === 'question' || tool === 'blender_tool_invoke' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
       if (tool === 'task') {
         if (args.background) deny('production delegation must be foreground');
         if (args.subagent_type === 'blender-worker') {

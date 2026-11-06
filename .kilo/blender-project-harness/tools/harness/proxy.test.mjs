@@ -10,7 +10,7 @@ function upstream(f) {
   const calls = [];
   return {
     calls,
-    async listTools() { return { tools: ['look', 'execute_blender_code', 'import_asset', 'get_scene_info'].map((name) => ({ name, inputSchema: { type: 'object' } })) }; },
+    async listTools() { return { tools: ['look', 'execute_blender_code', 'import_asset', 'get_scene_info', 'get_guide'].map((name) => ({ name, inputSchema: { type: 'object' } })) }; },
     async callTool(call) {
       calls.push(call);
       if (call.name === 'get_addon_status') return result(JSON.stringify({ up_to_date: true }));
@@ -61,10 +61,40 @@ const meshOperation = {
   scale: [1, 1, 1],
 };
 
+test('proxy exposes the catalog through smart search, inspect, and invoke', async (t) => {
+  const f = fixture(t), p = new BlenderProxy(f.harness, upstream(f));
+  const listed = (await p.listTools()).tools.map((v) => v.name);
+  assert.deepEqual(listed, ['get_scene_info', 'look', 'get_guide', 'harness_execute', 'blender_harness_scene_info', 'tool_search', 'tool_inspect', 'tool_invoke']);
+  const search = JSON.parse((await p.call('tool_search', { query: 'execute' })).content[0].text);
+  assert.equal(search.tools[0].name, 'execute_blender_code');
+  assert.equal(search.tools[0].allowed, false);
+  const inspect = JSON.parse((await p.call('tool_inspect', { name: 'execute_blender_code' })).content[0].text);
+  assert.equal(inspect.tool.name, 'execute_blender_code');
+  await assert.rejects(p.call('tool_invoke', { name: 'execute_blender_code', arguments: { code: 'anything' } }), /unavailable/);
+  assert.match((await p.call('tool_invoke', { name: 'get_guide', arguments: {} })).content[0].text, /Read only|HARNESS_JSON/);
+});
+
+test('full mode falls back to smart when the schema budget would be exceeded', async (t) => {
+  const f = fixture(t);
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'full', max_exposed: 4 } }));
+  const p = new BlenderProxy(f.harness, upstream(f));
+  const listed = (await p.listTools()).tools.map((v) => v.name);
+  assert.ok(listed.includes('tool_search'));
+  assert.ok(!listed.includes('execute_blender_code'));
+});
+
+test('unsafe mode exposes the raw catalog only when explicitly enabled', async (t) => {
+  const f = fixture(t);
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'unsafe', unsafe: { enabled: true } } }));
+  const p = new BlenderProxy(f.harness, upstream(f));
+  assert.ok((await p.listTools()).tools.some((v) => v.name === 'execute_blender_code'));
+  assert.match((await p.call('tool_invoke', { name: 'execute_blender_code', arguments: { code: 'anything' } })).content[0].text, /HARNESS_JSON/);
+});
+
 test('proxy hides raw mutation tools and rejects direct calls', async (t) => {
   const f = fixture(t), p = new BlenderProxy(f.harness, upstream(f));
-  assert.deepEqual((await p.listTools()).tools.map((v) => v.name), ['look', 'get_scene_info', 'harness_execute', 'blender_harness_scene_info']);
-  await assert.rejects(p.call('execute_blender_code', { code: 'anything' }), /unregistered/);
+  assert.ok((await p.listTools()).tools.some((v) => v.name === 'look'));
+  await assert.rejects(p.call('execute_blender_code', { code: 'anything' }), /not exposed|unregistered/);
   await assert.rejects(p.call('harness_execute', { token: 'forged', operation: 'save', payload: {}, user_prompt: 'test' }), /authorization/);
 });
 

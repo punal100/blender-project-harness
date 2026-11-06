@@ -1,6 +1,24 @@
 {
   "development_mode": false,
   "development_sessions": ["ses_26Characters"],
+  "tool_exposure": {
+    "mode": "smart",
+    "max_exposed": 12,
+    "max_schema_tokens": 6000,
+    "search_top_k": 5,
+    "list_changed": true,
+    "allow": [],
+    "deny": [],
+    "roles": {
+      "orchestrator": { "mode": "smart", "max_exposed": 12 },
+      "worker": { "mode": "lite", "max_exposed": 5 },
+      "grader": { "mode": "readonly", "max_exposed": 4 }
+    },
+    "unsafe": {
+      "enabled": false,
+      "sessions": []
+    }
+  },
   "blender_subagents": {
     "global_fallback": {
       "provider": "kilo",
