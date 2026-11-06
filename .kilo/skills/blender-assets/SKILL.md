@@ -58,7 +58,8 @@ registered before use. The user does not need to create folders or copy files; `
 7. Record whether the `.blend` links, packs, or embeds the asset. Packed or embedded bytes remain
    third-party data even when source binaries are ignored.
 
-The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary project Python remain blocked.
+The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary project Python remain blocked unless
+this session is explicitly listed in `unsafe.sessions`; do not enable that for production.
 Asset search does not authorize a remote import. Generated images are registered with `intake` using
 `generated` metadata; they are not automatically scene assets.
 

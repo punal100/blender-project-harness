@@ -270,7 +270,7 @@ disabled grader is a tooling failure, not a silent pass.
 | One Blender instance | The workspace runs one guarded instance at a time |
 | One writer | Apply operations execute through one worker at a time |
 | Bounded edits | Every scene change has exact names, paths, and declared scenes |
-| No raw Python | Arbitrary Blender Python and project Python execution are blocked |
+| No raw Python | Arbitrary Blender Python and project Python are blocked by default; only an explicit `unsafe.sessions` development session may enable raw tools |
 | No manual project Git | Project commits go through the harness |
 | No silent pass | Missing evidence and grader failures produce `BLOCKED` |
 | No fake assets | Generated or downloaded files must be inspected, registered, and licensed |

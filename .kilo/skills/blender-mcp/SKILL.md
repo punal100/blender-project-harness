@@ -27,11 +27,16 @@ holds the runtime contract.
 
 Follow `status.toolExposure.mode`; the full catalog is discoverable, not all schemas are loaded.
 
-- `lite` — reviewed operations and the small read set; do not assume a missing tool is unavailable.
+- `lite` — reviewed operations and the small read set; workers use this profile.
 - `smart` — use `blender_tool_search`, then `blender_tool_inspect`, then `blender_tool_invoke`.
 - `full` — direct policy-safe tools are listed; still respect ticket, media, and intake gates.
-- `readonly` — read-only tools only.
-- `unsafe` — never enable or use unless the user explicitly opted in for this session.
+- `readonly` — read-only tools only; graders use this profile.
+- `unsafe` — raw tools only when `unsafe.enabled` is true and this session is listed in `unsafe.sessions`.
+
+Role profiles are selected by `BLENDER_ROLE` (`orchestrator`, `worker`, or `grader`) when a role-specific
+server instance is launched. The default server uses `orchestrator`. The unsafe mode is not a
+replacement for Development Mode; Development Mode is a full harness bypass and must not be used for
+production.
 
 Raw Python remains blocked in `lite`/`smart`/`full`. A harness limit is not a Blender limit. Use
 `blender_get_guide` for on-demand workflow guidance when it is available.
@@ -90,15 +95,16 @@ Every scene, material, lighting, or camera change must be inspected with `look` 
 
 Reviewed operations cover primitives, text objects, transforms, materials, shared materials,
 duplication, lights, cameras, render settings, and the safe modifier subset: bevel, subdivision
-surface, solidify, mirror, and array. Modifiers are added through `modifier` and applied only when the
-operation sets `apply:true`. Text objects can receive materials through `material` or
-`shared_material`.
+surface, solidify, mirror, array, and boolean. Modifiers are added through `modifier` and applied only
+when the operation sets `apply:true`. Boolean requires an existing target object and an explicit
+`boolean_operation` (`UNION`, `DIFFERENCE`, or `INTERSECT`). Text objects can receive materials
+through `material` or `shared_material`.
 
-Primitive sizing is not documented by the tool. A live test measured the `create_mesh` cube at
-2×1×1 units and `scale` as half-extents. Verify every created object with `get_scene_info` and correct
-it with `transform` rather than assuming unit dimensions. `material` exposes base color, roughness,
-metallic, and emission only; glass, bump/noise, displacement, boolean openings, and world volume are
-unsupported.
+Primitive sizing uses `scale` as half-extents; the cube base is 2×2×2. Verify every created object
+with `get_scene_info` and correct it with `transform` rather than assuming unit dimensions.
+`create_mesh` also accepts bounded `vertices` and `faces` for custom geometry. `material` exposes
+base color, roughness, metallic, emission, transmission, IOR, and alpha. `create_light` accepts
+rotation and AREA `size`. World volume and arbitrary shader graphs remain unsupported.
 
 Scene operations are `create_scene` (`NEW`, `EMPTY`, `LINK_COPY`, `FULL_COPY`), `switch_scene`,
 `duplicate_scene`, `delete_scene`, `set_scene_camera`, and `scene_strip`. Existing operations accept
@@ -115,10 +121,11 @@ then `intake`. Use the reviewed harness operations for local files: `import_asse
 `import_audio`, `image_reference`, `image_texture`, `world_hdri`, `check_assets`, `pack_assets`, and
 `export_scene`.
 
-The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary Python tools remain blocked.
-Library search does not authorize a remote import. Scripts are source-only under `scripts/` and are
-never executed by the harness. Every `export_scene` returns a harness receipt; completion is denied
-for a missing or changed export. Export validation is separate from `check_assets`.
+The raw `blender_import_asset`, `blender_generate_3d`, and arbitrary Python tools remain blocked unless
+the session is explicitly listed in `unsafe.sessions`. Library search does not authorize a remote
+import. Scripts are source-only under `scripts/` and are never executed by the harness. Every
+`export_scene` returns a harness receipt; completion is denied for a missing or changed export. Export
+validation is separate from `check_assets`.
 
 ## API gaps and safety
 
@@ -131,9 +138,10 @@ for a missing or changed export. Export validation is separate from `check_asset
    with isolated tests. Never guess properties, operators, or signatures.
 5. Report the source and test result; report unresolved gaps instead of pretending they work.
 
-`execute_blender_code` is blocked. The harness is a same-user guard, not an OS sandbox; manual Blender
-or external-shell edits invalidate evidence. State under
-`~/.local/state/blender-workflow-harness/<workspace-hash>` is runtime-owned and not agent-editable.
+`execute_blender_code` is blocked unless the session is explicitly listed in `unsafe.sessions`. The
+harness is a same-user guard, not an OS sandbox; manual Blender or external-shell edits invalidate
+evidence. State under `~/.local/state/blender-workflow-harness/<workspace-hash>` is runtime-owned and
+not agent-editable.
 Check `telemetry_consent` in addon status; call `blender_disable_telemetry` immediately when the user
 requests opt-out. Do not disable safe mode or add credentials, tokens, or private data to payloads.
 

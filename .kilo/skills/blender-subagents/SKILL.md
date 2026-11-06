@@ -111,8 +111,9 @@ Read-only preflight is never blocked by the model gate.
 ## Grader
 
 Dispatch only after `seal` and a successful sealed-render `look`. Every grader ticket gets a fresh
-`task`; never pass `task_id` when dispatching a grader. Workers run the `lite` exposure profile and
-graders the `readonly` profile; neither may enable `unsafe`, `blender_tool_invoke`, or raw Python.
+`task`; never pass `task_id` when dispatching a grader. Workers should use a role-specific server with
+`BLENDER_ROLE=worker` (`lite`) and graders `BLENDER_ROLE=grader` (`readonly`); neither may enable
+`unsafe`, `blender_tool_invoke`, or raw Python.
 
 1. Call `grader-ticket {name}`.
 2. Pass the returned prompt to a foreground `blender-grader` task with the configured primary

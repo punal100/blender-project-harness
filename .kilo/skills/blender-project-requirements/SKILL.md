@@ -55,12 +55,12 @@ create scene work during the discussion. For a necessary question during product
 ## Capability check
 
 Before confirming requirements, read `blender_workflow {action:"capabilities"}` and map each visual
-requirement to a supported operation. Known gaps in the current tooling: `material` exposes only base
-color, roughness, metallic, and emission (no transmission/glass, bump, or procedural noise); lights
-have no rotation or size field (use a second `transform` operation); there is no boolean modifier for
-openings and no displacement modifier; world haze/volume is unsupported. If a requirement needs an
-unsupported operation, ask the user to drop it, approximate it with a supported operation, or mark it
-`Deferred`. Never confirm a requirement the harness cannot express.
+requirement to a supported operation. Current limits: `material` supports base color, roughness,
+metallic, emission, transmission, IOR, and alpha, but not bump/procedural noise; lights support
+rotation and AREA size; `modifier` includes boolean; `create_mesh` accepts custom vertices/faces.
+Displacement, geometry nodes, rigging, animation, and world volume remain unsupported. If a
+requirement needs an unsupported operation, ask the user to drop it, approximate it with a supported
+operation, or mark it `Deferred`. Never confirm a requirement the harness cannot express.
 
 ## Research
 

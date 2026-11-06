@@ -262,7 +262,7 @@ Example apply batch:
     {
       "operation": "create_light",
       "name": "Light_Lamp",
-      "light_type": "POINT",
+      "kind": "POINT",
       "location": [-0.7, 0.2, 1.2],
       "energy": 45
     }

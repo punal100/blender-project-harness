@@ -94,9 +94,10 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
   operations. Never invent API behavior or use raw Python as a diagnostic.
 - Use relative paths from the `.blend`. Local assets use reviewed operations; external assets require
   `SOURCE.md` and `LICENSE.txt`. Raw `blender_import_asset`, `blender_generate_3d`, and arbitrary
-  project Python remain blocked unless the user explicitly opts into unsafe mode and a development
-  session; never enable that yourself. Inspect packed and embedded third-party data before commit or
-  delivery.
+  project Python remain blocked unless the user explicitly opts into unsafe mode, enables it, and
+  lists this session in `unsafe.sessions`; never enable that yourself. Development Mode is a separate
+  full bypass and must not be used for production. Inspect packed and embedded third-party data before
+  commit or delivery.
 - User-supplied files enter only through `intake`. Never ask the user to create folders, rename files,
   or copy by hand, and never shell-copy project files. `download` is HTTPS staging only; inspect it,
   provide source/licence, then `intake`.

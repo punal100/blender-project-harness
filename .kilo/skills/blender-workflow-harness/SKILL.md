@@ -50,7 +50,8 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
   copied into `Documents/References/`.
 - Tool exposure lives in `.kilo/blender-project-harness/config.json`, not `kilo.jsonc`. Read
   `status.toolExposure`; `lite`/`smart`/`full`/`readonly`/`unsafe` change what is listed, not the
-  underlying safety gates.
+  underlying safety gates. Role profiles apply when the server is launched with `BLENDER_ROLE`;
+  raw tools in `unsafe` mode require the session in `unsafe.sessions`.
 - Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
   Partially Autonomous needs approval before the review commit.
 
@@ -83,7 +84,8 @@ may close with `commit`. Requirements stay frozen.
   registration with `forget {project,reason}` before scaffolding or preparing that name again.
 - `max_rounds` is configured 1-4. Cap exhaustion requires `escalate`, then the exact registration
   question. A tooling `BLOCKED` retries the grader; `CHANGES_REQUIRED` is the design revision path.
-- `schedule_wakeup`, cron, and `background_process` are orchestrator-only.
+- `schedule_wakeup`, cron, and `background_process` are orchestrator-only. A background process
+  records a bounded wait; stop it or let it expire before continuing.
 - Harness mission state is authoritative. Use `goal_blender` for start, status, pause, stop, resume,
   complete, and clear. `/goal-blender stop` aborts active children and works with an open change. If
   `nextStep.phase` is `goal-blender`, call `/goal-blender resume` before continuing. If
