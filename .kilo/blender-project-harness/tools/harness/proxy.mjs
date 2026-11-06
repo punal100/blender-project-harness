@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
 import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode, sceneFactsCode } from './blender-operations.mjs';
-import { readToolExposure, toolAllowed, toolTokens } from './tool-exposure.mjs';
+import { CORE_TOOLS, readToolExposure, toolAllowed, toolTokens } from './tool-exposure.mjs';
+import { pngStats } from './image-stats.mjs';
 
 export const READ_TOOLS = new Set(['get_addon_status', 'get_scene_info', 'look', 'get_guide', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback']);
 export const SCENE_INFO_TOOL = {
@@ -28,7 +29,7 @@ export const TOOL_INSPECT_TOOL = {
 };
 export const TOOL_INVOKE_TOOL = {
   name: 'tool_invoke',
-  description: 'Invoke one policy-allowed Blender MCP tool with explicit arguments. Unsafe tools require the unsafe mode and an explicit development session.',
+  description: 'Invoke one policy-allowed Blender MCP tool with explicit arguments. Unsafe tools require unsafe mode, unsafe.enabled, and this session in unsafe.sessions.',
   inputSchema: { type: 'object', properties: { name: { type: 'string' }, arguments: { type: 'object' } }, required: ['name'], additionalProperties: false },
 };
 export const textOf = (result) => (result.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
@@ -55,7 +56,11 @@ function exportSignature(format, buffer) {
 }
 
 export class BlenderProxy {
-  constructor(harness, upstream) { this.harness = harness; this.upstream = upstream; }
+  constructor(harness, upstream, role = null) {
+    this.harness = harness;
+    this.upstream = upstream;
+    this.role = role;
+  }
   verifyExport(context, receipt) {
     if (!receipt || typeof receipt.path !== 'string' || !receipt.path.startsWith('exports/')) deny('export receipt path is invalid');
     const projectPath = `${context.project}/${receipt.path}`;
@@ -81,33 +86,59 @@ export class BlenderProxy {
     this.catalogCache = tools;
     return tools;
   }
+  fitsBudget(tools, exposure) {
+    return tools.length <= exposure.maxExposed
+      && tools.reduce((sum, tool) => sum + toolTokens(tool), 0) <= exposure.maxSchemaTokens;
+  }
+  budgeted(tools, exposure, priority = []) {
+    if (this.fitsBudget(tools, exposure)) return tools;
+    const order = [...new Set([...priority, ...tools.map((tool) => tool.name)])];
+    const selected = [];
+    for (const name of order) {
+      const tool = tools.find((item) => item.name === name);
+      if (tool && !selected.includes(tool) && this.fitsBudget([...selected, tool], exposure)) selected.push(tool);
+    }
+    return selected;
+  }
   exposureTools(all, exposure) {
     const byName = new Map(all.map((tool) => [tool.name, tool]));
-    const coreNames = ['get_addon_status', 'get_scene_info', 'look', 'get_guide', 'search_assets', 'disable_telemetry', 'record_trajectory_feedback'];
-    const core = coreNames.map((name) => byName.get(name)).filter(Boolean);
-    const harnessTools = [EXECUTE_TOOL, SCENE_INFO_TOOL];
-    const meta = [TOOL_SEARCH_TOOL, TOOL_INSPECT_TOOL, TOOL_INVOKE_TOOL];
-    if (exposure.mode === 'readonly') return [...core, SCENE_INFO_TOOL];
-    if (exposure.mode === 'lite') return [...core, ...harnessTools];
-    if (exposure.mode === 'smart') return [...core, ...harnessTools, ...meta];
-    if (exposure.mode === 'unsafe' && exposure.unsafe.enabled) {
-      const tools = [...core, ...harnessTools, ...all.filter((tool) => !coreNames.includes(tool.name) && toolAllowed(exposure, tool.name))];
-      return tools.length <= exposure.maxExposed && tools.reduce((sum, tool) => sum + toolTokens(tool), 0) <= exposure.maxSchemaTokens ? tools : [...core, ...harnessTools, ...meta];
+    const core = CORE_TOOLS
+      .filter((name) => toolAllowed(exposure, name))
+      .map((name) => byName.get(name))
+      .filter(Boolean);
+    const harnessTools = [EXECUTE_TOOL, SCENE_INFO_TOOL].filter((tool) => toolAllowed(exposure, tool.name));
+    const meta = [TOOL_SEARCH_TOOL, TOOL_INSPECT_TOOL, TOOL_INVOKE_TOOL].filter((tool) => toolAllowed(exposure, tool.name));
+    const readPriority = [EXECUTE_TOOL.name, SCENE_INFO_TOOL.name, 'look', 'get_scene_info', 'get_addon_status', 'get_guide', 'tool_search', 'tool_inspect', 'tool_invoke'];
+    if (exposure.mode === 'readonly') {
+      const tools = [...core, SCENE_INFO_TOOL].filter((tool) => toolAllowed(exposure, tool.name));
+      return this.budgeted(tools, exposure, [SCENE_INFO_TOOL.name, 'look', 'get_scene_info', 'get_addon_status', 'get_guide']);
     }
-    const direct = all.filter((tool) => !coreNames.includes(tool.name) && toolAllowed(exposure, tool.name));
-    const tools = [...core, ...harnessTools, ...direct];
-    if (tools.length <= exposure.maxExposed && tools.reduce((sum, tool) => sum + toolTokens(tool), 0) <= exposure.maxSchemaTokens) return tools;
-    return [...core, ...harnessTools, ...meta];
+    if (exposure.mode === 'lite') {
+      return this.budgeted([...core, ...harnessTools], exposure, readPriority);
+    }
+    if (exposure.mode === 'smart') {
+      return this.budgeted([...core, ...harnessTools, ...meta], exposure, readPriority);
+    }
+    if (exposure.mode === 'unsafe' && exposure.unsafe.enabled) {
+      return this.budgeted([...core, ...harnessTools, ...all.filter((tool) => !CORE_TOOLS.includes(tool.name) && toolAllowed(exposure, tool.name))], exposure, readPriority);
+    }
+    const direct = all.filter((tool) => !CORE_TOOLS.includes(tool.name) && toolAllowed(exposure, tool.name));
+    return this.budgeted([...core, ...harnessTools, ...direct], exposure, readPriority);
+  }
+  invalidateExposure() {
+    this.exposure = null;
+    this.exposed = null;
   }
   async listTools() {
     const all = await this.catalog();
-    this.exposure = readToolExposure(this.harness.root);
+    this.exposure = readToolExposure(this.harness.root, this.role);
     const tools = this.exposureTools(all, this.exposure);
     this.exposed = new Set(tools.map((tool) => tool.name));
     return { tools };
   }
   async call(name, args) {
-    const exposure = this.exposure ?? readToolExposure(this.harness.root);
+    if (!this.exposed) await this.listTools();
+    const exposure = this.exposure ?? readToolExposure(this.harness.root, this.role);
     const all = await this.catalog();
     const category = (tool) => /guide/i.test(tool.name) ? 'guide' : /code/i.test(tool.name) ? 'code' : /generate/i.test(tool.name) ? 'generate' : /asset/i.test(tool.name) ? 'asset' : 'read';
     const policy = (tool) => toolAllowed(exposure, tool.name)
@@ -139,6 +170,7 @@ export class BlenderProxy {
       return this.upstream.callTool({ name: tool.name, arguments: args.arguments ?? {} });
     }
     if (name === SCENE_INFO_TOOL.name) {
+      if (!this.exposed?.has(name) || !toolAllowed(exposure, name)) deny(`tool ${name} is not exposed in ${exposure.mode} mode`);
       if (!args || Object.keys(args).some((key) => !['scene', 'user_prompt'].includes(key)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim() || (args.scene !== undefined && (typeof args.scene !== 'string' || !args.scene.trim()))) deny('scene info requires user_prompt and optional scene name');
       return this.result(await this.run(sceneFactsCode(args.scene ?? null), args.user_prompt));
     }
@@ -147,6 +179,7 @@ export class BlenderProxy {
       if (this.exposed?.has(name) && toolAllowed(exposure, name)) return this.upstream.callTool({ name, arguments: args });
       deny(`tool ${name} is not exposed in ${exposure.mode} mode`);
     }
+    if (!this.exposed?.has('harness_execute') || !toolAllowed(exposure, 'harness_execute')) deny(`harness_execute is not exposed in ${exposure.mode} mode`);
     if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
     const context = this.harness.consume(args.token, args.operation, args.payload);
     const scenePath = contained(this.harness.root, context.scene, true);
@@ -204,7 +237,21 @@ export class BlenderProxy {
         await this.run(renderCode(scenePath, `//${relativeRender}`), args.user_prompt);
         const image = fs.readFileSync(contained(this.harness.root, wipPath));
         if (!image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) deny('WIP render is not PNG');
-        return this.result(this.harness.finish(args.token, { ok: true, renderPath: wipPath, preflight: renderPreflight }));
+        const stats = pngStats(image);
+        if (stats.supported && (stats.mean < 0.01 || stats.darkRatio > 0.995)) {
+          deny('WIP preflight: the render is almost entirely black; fix lighting, camera framing, or world settings before rendering again');
+        }
+        if (stats.supported && stats.mean > 0.97 && stats.brightRatio > 0.9) {
+          deny('WIP preflight: the render is washed out; reduce light energy or exposure before rendering again');
+        }
+        const warnings = [];
+        if (renderPreflight.camera_outside === true) warnings.push('camera is outside the mesh bounds; verify it is not outside the room');
+        return this.result(this.harness.finish(args.token, {
+          ok: true,
+          renderPath: wipPath,
+          preflight: renderPreflight,
+          quality: { ...stats, warnings },
+        }));
       }
        round = this.makeRound(context.project, context.change.failedRounds ?? []);
        roundRoot = `${context.project}/Documents/Reviews/${round}`;

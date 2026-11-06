@@ -2,11 +2,53 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import { BlenderProxy, firstJson } from './proxy.mjs';
 import { fixture } from './test-fixture.mjs';
 
 const result = (text) => ({ content: [{ type: 'text', text }] });
-function upstream(f) {
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(buffer) {
+  let c = 0xffffffff;
+  for (const byte of buffer) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function chunk(type, data) {
+  const name = Buffer.from(type, 'ascii');
+  const length = Buffer.alloc(4); length.writeUInt32BE(data.length);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(Buffer.concat([name, data])));
+  return Buffer.concat([length, name, data, crc]);
+}
+function png(width, height, rgb) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4);
+  header[8] = 8; header[9] = 2; header[10] = 0; header[11] = 0; header[12] = 0;
+  const rows = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y += 1) {
+    const row = y * (width * 3 + 1);
+    rows[row] = 0;
+    for (let x = 0; x < width; x += 1) {
+      rows[row + 1 + x * 3] = rgb[0];
+      rows[row + 2 + x * 3] = rgb[1];
+      rows[row + 3 + x * 3] = rgb[2];
+    }
+  }
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', header),
+    chunk('IDAT', zlib.deflateSync(rows)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+function upstream(f, renderPng = null) {
   const calls = [];
   return {
     calls,
@@ -37,7 +79,7 @@ function upstream(f) {
       if (code.includes('bpy.ops.render.render')) {
         const render = /scene\.render\.filepath = "(\/\/[^"\n]+)"/.exec(code)?.[1];
         assert.ok(render, 'render output bound to generated path');
-        f.write(`${f.project}/${render.slice(2)}`, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]));
+        f.write(`${f.project}/${render.slice(2)}`, renderPng ?? Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0]));
       }
       return result('HARNESS_JSON:' + JSON.stringify({ ok: true }));
     },
@@ -74,12 +116,13 @@ test('proxy exposes the catalog through smart search, inspect, and invoke', asyn
   assert.match((await p.call('tool_invoke', { name: 'get_guide', arguments: {} })).content[0].text, /Read only|HARNESS_JSON/);
 });
 
-test('full mode falls back to smart when the schema budget would be exceeded', async (t) => {
+test('full mode falls back to a budgeted read surface when the schema budget would be exceeded', async (t) => {
   const f = fixture(t);
   f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'full', max_exposed: 4 } }));
   const p = new BlenderProxy(f.harness, upstream(f));
   const listed = (await p.listTools()).tools.map((v) => v.name);
-  assert.ok(listed.includes('tool_search'));
+  assert.ok(listed.length <= 4);
+  assert.ok(listed.includes('harness_execute'));
   assert.ok(!listed.includes('execute_blender_code'));
 });
 
@@ -107,6 +150,30 @@ test('lite and readonly modes keep the direct list small', async (t) => {
   assert.ok(readonlyNames.includes('look'));
   assert.ok(!readonlyNames.includes('harness_execute'));
   assert.ok(!readonlyNames.includes('tool_invoke'));
+});
+
+test('role profiles select the advertised exposure mode', async (t) => {
+  const f = fixture(t);
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: {
+    mode: 'smart',
+    roles: { orchestrator: { mode: 'smart' }, worker: { mode: 'lite', max_exposed: 10 }, grader: { mode: 'readonly', max_exposed: 8 } },
+  } }));
+  const orchestrator = new BlenderProxy(f.harness, upstream(f), 'orchestrator');
+  const worker = new BlenderProxy(f.harness, upstream(f), 'worker');
+  const grader = new BlenderProxy(f.harness, upstream(f), 'grader');
+  assert.ok((await orchestrator.listTools()).tools.some((tool) => tool.name === 'tool_search'));
+  assert.ok(!(await worker.listTools()).tools.some((tool) => tool.name === 'tool_search'));
+  assert.ok((await worker.listTools()).tools.some((tool) => tool.name === 'harness_execute'));
+  assert.ok(!(await grader.listTools()).tools.some((tool) => tool.name === 'harness_execute'));
+});
+
+test('allow and deny lists apply to both listing and calls', async (t) => {
+  const f = fixture(t);
+  f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'smart', allow: ['look', 'harness_execute'] } }));
+  const p = new BlenderProxy(f.harness, upstream(f));
+  assert.deepEqual((await p.listTools()).tools.map((tool) => tool.name).sort(), ['harness_execute', 'look']);
+  await assert.rejects(p.call('get_guide', {}), /not exposed/);
+  assert.match((await p.call('look', { user_prompt: 'Inspect.' })).content[0].text, /Read only|HARNESS_JSON/);
 });
 
 test('proxy hides raw mutation tools and rejects direct calls', async (t) => {
@@ -219,6 +286,20 @@ test('proxy rejects a WIP render when the scene has no lights or world', async (
   await execute(f, p, 'apply', meshOperation);
   f.harness.command(f.session, 'finalize');
   await assert.rejects(execute(f, p, 'wip'), /no lights and no world/);
+});
+
+test('proxy rejects black and washed-out WIP renders', async (t) => {
+  const black = fixture(t); black.begin();
+  const blackProxy = new BlenderProxy(black.harness, upstream(black, png(8, 8, [0, 0, 0])));
+  await execute(black, blackProxy, 'apply', meshOperation);
+  black.harness.command(black.session, 'finalize');
+  await assert.rejects(execute(black, blackProxy, 'wip'), /almost entirely black/);
+
+  const white = fixture(t); white.begin();
+  const whiteProxy = new BlenderProxy(white.harness, upstream(white, png(8, 8, [255, 255, 255])));
+  await execute(white, whiteProxy, 'apply', meshOperation);
+  white.harness.command(white.session, 'finalize');
+  await assert.rejects(execute(white, whiteProxy, 'wip'), /washed out/);
 });
 
 test('proxy camera preflight fails before creating round artifacts and keeps recovery available', async (t) => {
