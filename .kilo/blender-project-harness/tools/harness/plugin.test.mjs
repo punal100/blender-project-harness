@@ -108,7 +108,9 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.toolExposure.modes.includes('unsafe'));
   assert.match(result.toolCatalog.detail, /tool_search.*tool_inspect.*tool_invoke/);
   assert.match(result.capabilityBoundary.harness, /reviewed operations/);
-  assert.deepEqual(result.operationLimits.modifiers.unsupported, ['BOOLEAN']);
+  assert.deepEqual(result.operationLimits.modifiers.unsupported, []);
+  assert.ok(result.operationLimits.modifiers.supported.includes('BOOLEAN'));
+  assert.ok(result.operationLimits.material.supported.includes('transmission'));
   assert.ok(result.primitives.includes('cube'));
   assert.ok(result.bootstrapDocuments.includes('Documents/Goals/<NN>-<slug>.md'));
   assert.ok(result.bootstrapDocuments.includes('Documents/TASKSTRACKER.md'));
@@ -320,6 +322,52 @@ test('a worker BLOCKED result releases the unused apply ticket', async (t) => {
   );
   assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
   assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+});
+
+test('a worker PARTIAL result releases the unused apply ticket', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  const args = { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false };
+  await before(h, f.session, 'task', args);
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task', args },
+    { output: 'PARTIAL: scene changed before the ticket executed', metadata: { sessionId: 'ses_worker_partial' } },
+  );
+  assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
+  assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+});
+
+test('background process starts a wait and stop clears it', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const args = { command: 'node .kilo/blender-project-harness/tools/harness/cli.mjs doctor', action: 'start' };
+  await before(h, f.session, 'background_process', args);
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'background_process', args },
+    { output: 'started process proc_fixture', metadata: { id: 'proc_fixture' } },
+  );
+  let status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: '{}' }, { sessionID: f.session }));
+  assert.equal(status.wait.kind, 'process');
+  assert.equal(status.nextStep.phase, 'wait');
+
+  const stop = { action: 'stop', id: 'proc_fixture' };
+  await before(h, f.session, 'background_process', stop);
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'background_process', args: stop },
+    { output: 'stopped process proc_fixture' },
+  );
+  status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: '{}' }, { sessionID: f.session }));
+  assert.equal(status.wait, null);
+});
+
+test('unsafe tools require the session allowlist, not Development Mode', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const config = '.kilo/blender-project-harness/config.json';
+  f.write(config, JSON.stringify({ tool_exposure: { mode: 'unsafe', unsafe: { enabled: true, sessions: [f.session] } } }));
+  await assert.doesNotReject(before(h, f.session, 'blender_tool_invoke', { name: 'execute_blender_code', arguments: { code: 'print(1)' } }));
+  await assert.doesNotReject(before(h, f.session, 'blender_execute_blender_code', { code: 'print(1)' }));
+  f.write(config, JSON.stringify({ tool_exposure: { mode: 'unsafe', unsafe: { enabled: true, sessions: [] } } }));
+  await assert.rejects(before(h, f.session, 'blender_tool_invoke', { name: 'execute_blender_code', arguments: { code: 'print(1)' } }), /unsafe\.sessions|unsafe tool mode/i);
+  await assert.rejects(before(h, f.session, 'blender_execute_blender_code', { code: 'print(1)' }), /raw Blender mutation|unsafe/i);
 });
 
 test('grader delegation requires the exact ticket evidence key and scene hash', async (t) => {

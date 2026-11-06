@@ -2,11 +2,11 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, activeWaits, expiredWakeups } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, activeWaits, expiredWaits } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
-import { toolExposureSummary } from './tool-exposure.mjs';
+import { readToolExposure, toolExposureSummary, unsafeSessionAllowed } from './tool-exposure.mjs';
 
 const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
@@ -16,6 +16,7 @@ const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_sc
 const PUBLIC_ACTIONS = new Set(['status', 'reference', 'launch', 'stop', 'begin', 'extend', 'finalize', 'bootstrap-document', 'bootstrap-commit', 'intake', 'download', 'media-request', 'media-complete', 'media-fail', 'document', 'self-review', 'review', 'commit', 'approval', 'checkpoint', 'grader-ticket', 'grader-fail', 'recover', 'abandon', 'escalate', 'reregister', 'pause', 'reclaim', 'forget', 'preserve']);
 const MEDIA_READ = new Set(['mediamcp_check_config', 'mediamcp_list_models', 'mediamcp_check_video_status']);
 const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
+const PROCESS_WAIT_TTL_MS = 30 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const MAX_AUTO_TURNS = 25;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
@@ -49,7 +50,7 @@ const capabilities = (root = process.cwd()) => ({
     blender: 'Native Blender supports the feature.',
     mcpAddon: 'The MCP addon can execute arbitrary Blender Python, but raw Python is not a default harness path.',
     harness: 'Only reviewed operations and the configured tool exposure are callable.',
-    rawPython: 'Blocked unless explicit unsafe mode and a development session are enabled.',
+    rawPython: 'Blocked unless explicit unsafe mode is enabled and the session is listed in unsafe.sessions.',
   },
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
@@ -261,6 +262,7 @@ export function createHooks(harness, client, directory = harness.root) {
   const questionPending = new Set();
   const continuations = new Set();
   const waitCalls = new Map();
+  const processCalls = new Map();
   const modelChain = (choice, globalFallback) => [
     { tier: 'primary', model: choice },
     { tier: 'backup', model: choice?.backup },
@@ -369,7 +371,7 @@ export function createHooks(harness, client, directory = harness.root) {
     const iso = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/.exec(text)?.[0];
     return iso ?? null;
   };
-  const waitId = (args, text) => args.id ?? /\b((?:wakeup|wake|cron|task)_[A-Za-z0-9_-]+)\b/i.exec(text)?.[1] ?? null;
+  const waitId = (args, text) => args.id ?? /\b((?:wakeup|wake|cron|task|process|proc|bg|bp)[_-][A-Za-z0-9_-]+)\b/i.exec(text)?.[1] ?? null;
   function recordWait(session, kind, args, text) {
     harness.transaction((s) => {
       const project = Object.values(s.projects).find((item) => item.orchestrator === session);
@@ -377,8 +379,8 @@ export function createHooks(harness, client, directory = harness.root) {
       const entry = {
         kind,
         id: waitId(args, text),
-        dueAt: kind === 'wakeup' ? waitDueAt(args, text) : null,
-        reason: typeof args.reason === 'string' ? args.reason.slice(0, 500) : null,
+        dueAt: kind === 'wakeup' ? waitDueAt(args, text) : kind === 'process' ? new Date(Date.now() + PROCESS_WAIT_TTL_MS).toISOString() : null,
+        reason: typeof args.reason === 'string' ? args.reason.slice(0, 500) : typeof args.command === 'string' ? args.command.slice(0, 500) : null,
         prompt: typeof args.prompt === 'string' ? args.prompt.slice(0, 1000) : null,
         createdAt: new Date().toISOString(),
       };
@@ -440,7 +442,7 @@ export function createHooks(harness, client, directory = harness.root) {
     const waiting = harness.transaction((s) => {
       const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
       if (!current) return false;
-      const expired = expiredWakeups(current);
+      const expired = expiredWaits(current);
       if (expired.length) current.waits = (current.waits ?? []).filter((wait) => !expired.includes(wait));
       return activeWaits(current).length > 0;
     });
@@ -613,7 +615,8 @@ export function createHooks(harness, client, directory = harness.root) {
       if (harness.developmentMode(input.sessionID)) return;
       const tool = input.tool.replace(/^functions\./, '');
       const args = output.args ?? {};
-      if (/execute_blender_code|import_asset|generate_3d/.test(tool)) deny('raw Blender mutation disabled; use ticketed harness_execute');
+      const unsafe = unsafeSessionAllowed(readToolExposure(harness.root), input.sessionID);
+      if (/execute_blender_code|import_asset|generate_3d/.test(tool) && !unsafe) deny('raw Blender mutation disabled; use ticketed harness_execute');
       if (tool === 'blender_harness_execute') {
         const session = await identity(input.sessionID);
         if (session.parentID) {
@@ -732,7 +735,7 @@ export function createHooks(harness, client, directory = harness.root) {
           if (blocked.length) deny(`project files are harness-owned: ${blocked.join(', ')}. Before registration use blender_workflow bootstrap-document for markdown and bootstrap-commit for the exact scaffold; scaffold the folder with node .kilo/blender-project-harness/tools/harness/cli.mjs scaffold. Do not write project files directly.`);
         }
         if (tool === 'bash') {
-          const command = args.command ?? '';
+        const command = typeof args.command === 'string' ? args.command : '';
           if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop; shell Blender commands and legacy scripts are retired');
           if (/^git add\b/.test(command)) {
             const broad = /(?:^|\s)(?:-A|--all|-u|--update|-p|--patch|-i|--interactive|\.|:\/|\*)(?:\s|$)/.test(command);
@@ -753,18 +756,21 @@ export function createHooks(harness, client, directory = harness.root) {
         return;
       }
       if (tool === 'background_process') {
+        const action = args.action ?? 'start';
+        if (!['start', 'stop', 'status', 'logs', 'list'].includes(action)) deny('background_process action must be start, stop, status, logs, or list');
         const command = args.command ?? '';
-        if (typeof command !== 'string' || !command.trim()) deny('background process requires one command');
-        if (unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop');
+        if (action === 'start' && (typeof command !== 'string' || !command.trim())) deny('background process start requires one command');
+        if (command && unsafeBlenderShell(command)) deny('launch and stop Blender through blender_workflow launch/stop');
         if (args.workdir && path.resolve(args.workdir) !== harness.root) deny('background process workdir must be the workspace root');
-        if (/^git (?:add|commit)\b/i.test(command)) deny('production commits use blender_workflow commit');
-        guardShell(harness, input.sessionID, p.project, command, args);
+        if (command && /^git (?:add|commit)\b/i.test(command)) deny('production commits use blender_workflow commit');
+        if (command) guardShell(harness, input.sessionID, p.project, command, args);
+        processCalls.set(input.callID, { args: { ...args, action }, session: input.sessionID });
         return;
       }
-      if (tool === 'blender_tool_invoke' && ['execute_blender_code', 'generate_3d', 'import_asset'].includes(args.name) && !harness.developmentMode(input.sessionID)) {
-        deny(`${args.name} is an unsafe tool. Enable the explicit unsafe tool mode and a development session before invoking it; raw Python and unpaid generation are not default paths`);
+      if (tool === 'blender_tool_invoke' && ['execute_blender_code', 'generate_3d', 'import_asset'].includes(args.name) && !unsafe) {
+        deny(`${args.name} is an unsafe tool. Enable the explicit unsafe tool mode, unsafe.enabled, and list this session in unsafe.sessions before invoking it`);
       }
-      if (tool === 'blender_workflow' || tool === 'goal_blender' || tool === 'question' || tool === 'blender_tool_invoke' || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
+      if (tool === 'blender_workflow' || tool === 'goal_blender' || tool === 'question' || tool === 'blender_tool_invoke' || (unsafe && /(?:^|_)(?:execute_blender_code|import_asset|generate_3d)$/.test(tool)) || READ_ONLY.has(tool) || BLENDER_READ.has(tool) || tool.startsWith('context7_')) return;
       if (tool === 'task') {
         if (args.background) deny('production delegation must be foreground');
         if (args.subagent_type === 'blender-worker') {
@@ -870,6 +876,19 @@ export function createHooks(harness, client, directory = harness.root) {
           }
         }
       }
+      if (processCalls.has(input.callID)) {
+        const call = processCalls.get(input.callID); processCalls.delete(input.callID);
+        if (successful(output)) {
+          const text = [output.output, output.metadata ? JSON.stringify(output.metadata) : ''].filter(Boolean).join('\n');
+          const id = waitId(call.args, text);
+          if ((call.args.action ?? 'start') === 'start') recordWait(call.session, 'process', call.args, text);
+          else if (call.args.action === 'stop') {
+            removeWait(call.session, (wait) => wait.kind === 'process' && (!id || !call.args.id || wait.id === call.args.id || wait.id === id));
+          } else if (['status', 'logs'].includes(call.args.action) && /\b(?:exited|stopped|not running|finished|completed|failed|killed|no process)\b|running\s*[:=]\s*false/i.test(text)) {
+            removeWait(call.session, (wait) => wait.kind === 'process' && (!id || wait.id === id));
+          }
+        }
+      }
       const p = stateFor(input.sessionID);
       if (!p) return;
       if (tool === 'blender_look' && input.args.image) {
@@ -903,9 +922,9 @@ export function createHooks(harness, client, directory = harness.root) {
           harness.bindWorker(input.sessionID, child, plan.prompt ?? input.args?.prompt ?? '');
           const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
           const text = typeof output.output === 'string' ? output.output : '';
-          if (token && /\bBLOCKED\b/.test(text)) {
+          if (token && /\b(?:BLOCKED|PARTIAL)\b/.test(text)) {
             const releasable = harness.transaction((s) => ['issued', 'authorized'].includes(s.tickets[token]?.state));
-            if (releasable) harness.failWorkerByToken(input.sessionID, token, 'worker returned BLOCKED before executing the ticket');
+            if (releasable) harness.failWorkerByToken(input.sessionID, token, `worker returned ${/\bPARTIAL\b/.test(text) ? 'PARTIAL' : 'BLOCKED'} before executing the ticket`);
           }
         } else {
           if (!child && plan) {
