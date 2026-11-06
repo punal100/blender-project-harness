@@ -324,6 +324,14 @@ test('bounded changes track scenes and scene requirement mappings', (t) => {
   gate(() => f.harness.command('orchestrator', 'extend', { scenes: Array.from({ length: 33 }, (_, index) => `SC_${index}`), paths: ['Documents/DECISIONS.md'] }), /capped at 32|up to 32/);
 });
 
+test('extend reports object budget counts and the maximum addition', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f, 'orchestrator', { objects: Array.from({ length: 16 }, (_, index) => `OBJ_${index}`) });
+  assert.deepEqual(f.harness.command('orchestrator', 'status').objectBudget, { cap: 20, existing: 16, remaining: 4 });
+  gate(() => f.harness.command('orchestrator', 'extend', { objects: ['A', 'B', 'C', 'D', 'E'], paths: ['Documents/DECISIONS.md'] }), /21 objects \(16 existing \+ 5 added; cap 20\).*at most 4/);
+});
+
 test('multi-scene seal requires an inspection for every declared scene', (t) => {
   const f = useFixture(t);
   activate(f);
