@@ -23,6 +23,19 @@ holds the runtime contract.
    file path. Stop on connection, addon, or file mismatch.
 5. Use `status.nextStep` for the next harness action; do not infer a lifecycle step.
 
+## Tool exposure
+
+Follow `status.toolExposure.mode`; the full catalog is discoverable, not all schemas are loaded.
+
+- `lite` — reviewed operations and the small read set; do not assume a missing tool is unavailable.
+- `smart` — use `blender_tool_search`, then `blender_tool_inspect`, then `blender_tool_invoke`.
+- `full` — direct policy-safe tools are listed; still respect ticket, media, and intake gates.
+- `readonly` — read-only tools only.
+- `unsafe` — never enable or use unless the user explicitly opted in for this session.
+
+Raw Python remains blocked in `lite`/`smart`/`full`. A harness limit is not a Blender limit. Use
+`blender_get_guide` for on-demand workflow guidance when it is available.
+
 ## Tools
 
 | Tool | Use |
@@ -33,10 +46,14 @@ holds the runtime contract.
 | `blender_document` | Structured read; declared document or assigned grader-report write |
 | `blender_harness_execute` | Execute one ticketed apply batch, save, seal, or WIP operation |
 | `blender_look` | Inspect an exact image: sealed render, viewport, camera, angles, frames |
+| `blender_get_guide` | Load one Blender workflow guide on demand |
+| `blender_tool_search` | Find a catalog tool without loading every schema |
+| `blender_tool_inspect` | Load one full tool schema |
+| `blender_tool_invoke` | Invoke one policy-allowed catalog tool |
 | `blender_search_assets` | Search asset libraries |
-| `blender_execute_blender_code` | Blocked raw Python; never a fallback or diagnostic route |
-| `blender_import_asset` | Blocked until reviewed harness support exists |
-| `blender_generate_3d` | Blocked until reviewed harness support exists |
+| `blender_execute_blender_code` | Unsafe mode only; blocked raw Python is never a diagnostic route |
+| `blender_import_asset` | Reviewed operations or explicit unsafe mode only |
+| `blender_generate_3d` | Unsafe mode only; normal generation goes through media-request |
 | `blender_disable_telemetry` | Disable telemetry only on user request |
 | `blender_record_trajectory_feedback` | Record user result feedback |
 

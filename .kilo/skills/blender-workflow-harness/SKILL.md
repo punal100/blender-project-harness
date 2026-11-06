@@ -48,6 +48,9 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
   After bootstrap, the harness records a pending reference gate. Open the non-scene reference-intake
   change and call `intake {scan:false}`; scene `begin` and apply are blocked until every scanned file is
   copied into `Documents/References/`.
+- Tool exposure lives in `.kilo/blender-project-harness/config.json`, not `kilo.jsonc`. Read
+  `status.toolExposure`; `lite`/`smart`/`full`/`readonly`/`unsafe` change what is listed, not the
+  underlying safety gates.
 - Review: `Off` → `self-review`; `All`/`Single` → `grader-ticket` plus `blender-grader`, then `review`.
   Partially Autonomous needs approval before the review commit.
 

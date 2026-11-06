@@ -88,9 +88,10 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
 
 ## Working and safety
 
-- Read `blender-mcp` before any scene operation. Use Context7 and official Blender docs for uncertain
-  APIs; verify against the live version through supported operations. Never invent API behavior or use
-  raw Python as a diagnostic.
+- Read `blender-mcp` before any scene operation. Follow `status.toolExposure`; use search/inspect before
+  declaring a tool missing, and never enable unsafe/raw-Python exposure on your own. Use Context7 and
+  official Blender docs for uncertain APIs; verify against the live version through supported
+  operations. Never invent API behavior or use raw Python as a diagnostic.
 - Use relative paths from the `.blend`. Local assets use reviewed operations; external assets require
   `SOURCE.md` and `LICENSE.txt`. Raw `blender_import_asset`, `blender_generate_3d`, and arbitrary
   project Python remain blocked. Inspect packed and embedded third-party data before commit or
