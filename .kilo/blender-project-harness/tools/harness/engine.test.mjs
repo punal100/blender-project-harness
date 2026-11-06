@@ -878,6 +878,18 @@ test('recover rejects live writer and recovers expired unconsumed tickets', (t) 
   assert.equal(seal(f).result.change.sealed, true);
 });
 
+test('recover releases an unexecuted issued ticket without waiting for TTL', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'apply', { early: true });
+  const recovered = f.harness.recover('orchestrator');
+  assert.equal(f.harness.transaction((state) => state.tickets[issued.token].state), 'abandoned');
+  assert.equal(recovered.change.pending, null);
+  assert.ok(recovered.change.deadlineRemainingMs > 0);
+  assert.ok(f.harness.issue('orchestrator', 'apply', { fresh: true }).token);
+});
+
 test('recover clears an expired unstarted ticket without closing edits', (t) => {
   const f = useFixture(t);
   activate(f);

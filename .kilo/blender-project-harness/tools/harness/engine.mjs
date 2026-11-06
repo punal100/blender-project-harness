@@ -2860,15 +2860,16 @@ export class Harness {
       }
       const token = p.change?.pending, t = s.tickets[token];
       const liveWriter = t?.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
-      const unexpired = t && t.state !== 'running' && Date.now() - t.created <= TICKET_TTL_MS;
-      if (!t || liveWriter || unexpired) deny('no expired/dead operation; never release a live writer');
+      if (!t || liveWriter) deny('no expired/dead operation; never release a live writer');
       const writerStarted = t.state === 'running';
+      const safeBeforeExecution = ['issued', 'authorized'].includes(t.state);
+      if (!writerStarted && !safeBeforeExecution && Date.now() - t.created <= TICKET_TTL_MS) deny('ticket is not releasable yet; wait for the TTL or inspect the writer');
       t.state = 'abandoned'; delete p.change.pending;
       const task = p.tasks?.find((item) => item.token === token);
       if (task) {
         task.state = 'abandoned';
         task.finished = new Date().toISOString();
-        task.result = writerStarted ? 'abandoned after writer start' : 'expired before execution';
+        task.result = writerStarted ? 'abandoned after writer start' : 'abandoned before execution';
         this.writeTaskDocument(p, task);
         this.writeTaskSummary(p, task);
         this.writeTaskLedger(p);
@@ -2877,6 +2878,8 @@ export class Harness {
       if (writerStarted) {
         p.change.failure = 'Abandoned operation; inspect live scene, save and reseal before proceeding';
         p.change.deadline = 0;
+      } else if (p.change.deadline - Date.now() < 60000) {
+        p.change.deadline = Date.now() + CHANGE_WINDOW_MS;
       }
       return this.status(p, s);
     });
