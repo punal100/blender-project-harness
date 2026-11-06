@@ -375,6 +375,8 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'material': {
+      const unsupportedMaterial = ['transmission', 'ior', 'alpha'].filter((key) => Object.hasOwn(operation, key));
+      if (unsupportedMaterial.length) fail(`${kind}.${unsupportedMaterial.join('/')} is unsupported by the harness reviewed material layer; supported: color, roughness, metallic, emission. Blender supports glass, but raw Python stays blocked; use a tinted plane, a reviewed material extension, or explicit unsafe mode.`);
       strictObject(operation, ['operation', 'name', 'color', 'roughness', 'metallic', 'emission'], kind);
       requireKeys(operation, ['name', 'color', 'roughness', 'metallic'], kind);
       validateAllowedName(operation.name, allowed);
@@ -382,6 +384,8 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'shared_material': {
+      const unsupportedMaterial = ['transmission', 'ior', 'alpha'].filter((key) => Object.hasOwn(operation, key));
+      if (unsupportedMaterial.length) fail(`${kind}.${unsupportedMaterial.join('/')} is unsupported by the harness reviewed material layer; supported: color, roughness, metallic, emission. Blender supports glass, but raw Python stays blocked; use a tinted plane, a reviewed material extension, or explicit unsafe mode.`);
       strictObject(operation, ['operation', 'name', 'objects', 'color', 'roughness', 'metallic', 'emission'], kind);
       requireKeys(operation, ['name', 'objects', 'color', 'roughness', 'metallic'], kind);
       validateString(operation.name, `${kind}.name`);

@@ -93,6 +93,7 @@ test('energy and positive lens enforce upper bounds', () => {
 
 test('material vectors retain tighter color bounds and reject sparse components', () => {
   const operation = { operation: 'material', name: 'Cube', color: [0, 1, 0, 1], roughness: 0, metallic: 1 };
+  assert.throws(() => operationCode({ ...operation, transmission: 0.5 }, allowed), /unsupported by the harness reviewed material layer.*Blender supports glass.*raw Python stays blocked/);
   assert.doesNotThrow(() => operationCode(operation, allowed));
   for (const bad of [-0.01, 1.01, NaN, Infinity]) {
     for (const field of ['roughness', 'metallic']) {
