@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable } from './engine.mjs';
+import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, activeWaits, expiredWakeups } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -240,6 +240,7 @@ export function createHooks(harness, client, directory = harness.root) {
   const modelAttempts = new Map();
   const questionPending = new Set();
   const continuations = new Set();
+  const waitCalls = new Map();
   const modelChain = (choice, globalFallback) => [
     { tier: 'primary', model: choice },
     { tier: 'backup', model: choice?.backup },
@@ -334,6 +335,45 @@ export function createHooks(harness, client, directory = harness.root) {
   function stateFor(session) {
     return harness.transaction((s) => Object.values(s.projects).find((p) => p.orchestrator === session) ?? null);
   }
+  const delayMs = (value) => {
+    if (typeof value !== 'string') return null;
+    const match = /^(\d+(?:\.\d+)?)\s*(s|m|h|d)?$/i.exec(value.trim());
+    if (!match) return null;
+    const factor = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[(match[2] ?? 's').toLowerCase()];
+    return Number(match[1]) * factor;
+  };
+  const waitDueAt = (args, text) => {
+    if (typeof args.when === 'string' && Number.isFinite(Date.parse(args.when))) return new Date(Date.parse(args.when)).toISOString();
+    const ms = delayMs(args.delay);
+    if (ms !== null) return new Date(Date.now() + ms).toISOString();
+    const iso = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/.exec(text)?.[0];
+    return iso ?? null;
+  };
+  const waitId = (args, text) => args.id ?? /\b((?:wakeup|wake|cron|task)_[A-Za-z0-9_-]+)\b/i.exec(text)?.[1] ?? null;
+  function recordWait(session, kind, args, text) {
+    harness.transaction((s) => {
+      const project = Object.values(s.projects).find((item) => item.orchestrator === session);
+      if (!project) return;
+      const entry = {
+        kind,
+        id: waitId(args, text),
+        dueAt: kind === 'wakeup' ? waitDueAt(args, text) : null,
+        reason: typeof args.reason === 'string' ? args.reason.slice(0, 500) : null,
+        prompt: typeof args.prompt === 'string' ? args.prompt.slice(0, 1000) : null,
+        createdAt: new Date().toISOString(),
+      };
+      project.waits = [...(project.waits ?? []).filter((wait) => !entry.id || wait.id !== entry.id), entry].slice(-WAIT_LIMIT);
+    });
+  }
+  function removeWait(session, predicate) {
+    harness.transaction((s) => {
+      const project = Object.values(s.projects).find((item) => item.orchestrator === session);
+      if (project) project.waits = (project.waits ?? []).filter((wait) => !predicate(wait));
+    });
+  }
+  function clearWakeups(session) {
+    removeWait(session, (wait) => wait.kind === 'wakeup');
+  }
   async function statusFor(session) {
     const info = await identity(session);
     reconcileGoal(harness, session, info);
@@ -377,6 +417,14 @@ export function createHooks(harness, client, directory = harness.root) {
     const project = stateFor(sessionID);
     if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) return;
     if ((project.goalMeta?.autoTurns ?? 0) >= MAX_AUTO_TURNS) return;
+    const waiting = harness.transaction((s) => {
+      const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
+      if (!current) return false;
+      const expired = expiredWakeups(current);
+      if (expired.length) current.waits = (current.waits ?? []).filter((wait) => !expired.includes(wait));
+      return activeWaits(current).length > 0;
+    });
+    if (waiting) return;
     if (await lastTurnAborted(sessionID)) {
       const reason = 'Stopped by the user (session aborted); resume with /goal-blender resume.';
       await abortChildren(project, reason);
@@ -530,6 +578,7 @@ export function createHooks(harness, client, directory = harness.root) {
         invalidateBuiltInGoal(harness, input.sessionID, 'Built-in /goal was used; this workspace requires /goal-blender.');
       }
       if (!input.sessionID || parts.some((part) => part.type === 'text' && part.synthetic)) return;
+      clearWakeups(input.sessionID);
       harness.transaction((s) => {
         const project = Object.values(s.projects).find((item) => item.orchestrator === input.sessionID);
         if (project?.goalMeta) project.goalMeta = { ...project.goalMeta, autoTurns: 0 };
@@ -666,6 +715,10 @@ export function createHooks(harness, client, directory = harness.root) {
         return;
       }
       if (tool === 'agent_manager') return;
+      if (['schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_delete'].includes(tool)) {
+        waitCalls.set(input.callID, { tool, args, session: input.sessionID });
+        return;
+      }
       if (tool === 'background_process') {
         const command = args.command ?? '';
         if (typeof command !== 'string' || !command.trim()) deny('background process requires one command');
@@ -759,6 +812,19 @@ export function createHooks(harness, client, directory = harness.root) {
           invalidateBuiltInGoal(harness, input.sessionID, `${tool} succeeded; this workspace uses /goal-blender.`);
         }
         return;
+      }
+      if (waitCalls.has(input.callID)) {
+        const call = waitCalls.get(input.callID); waitCalls.delete(input.callID);
+        if (successful(output)) {
+          const text = [output.output, output.metadata ? JSON.stringify(output.metadata) : ''].filter(Boolean).join('\n');
+          if (call.tool === 'schedule_wakeup') recordWait(call.session, 'wakeup', call.args, text);
+          else if (call.tool === 'cron_create') recordWait(call.session, 'cron', call.args, text);
+          else if (call.tool === 'cancel_wakeup' && call.args.action !== 'list') {
+            removeWait(call.session, (wait) => wait.kind === 'wakeup' && (!call.args.id || wait.id === call.args.id || !wait.id));
+          } else if (call.tool === 'cron_delete') {
+            removeWait(call.session, (wait) => wait.kind === 'cron' && (!call.args.id || wait.id === call.args.id || !wait.id));
+          }
+        }
       }
       const p = stateFor(input.sessionID);
       if (!p) return;

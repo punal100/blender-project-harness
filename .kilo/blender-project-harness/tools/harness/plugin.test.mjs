@@ -628,6 +628,29 @@ test('goal-blender command runs the harness mission action', async (t) => {
   assert.match(statusOutput.parts[0].text, /"goalActive": true/);
 });
 
+test('an armed wakeup suppresses goal auto-continuation until cancelled or due', async (t) => {
+  const f = fixture(t);
+  const calls = [];
+  const h = hooks(f, undefined, { session: { promptAsync: async (args) => calls.push(args) } });
+  await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session });
+  const schedule = { delay: '5m', prompt: 'Check the render', reason: 'Wait for the render window' };
+  await before(h, f.session, 'schedule_wakeup', schedule);
+  await h['tool.execute.after']({ sessionID: f.session, callID: 'call_test', tool: 'schedule_wakeup', args: schedule }, { output: 'Wakeup scheduled: wake_123 due 2026-11-06T10:00:00Z' });
+  let status = f.harness.command(f.session, 'status');
+  assert.equal(status.wait.kind, 'wakeup');
+  assert.equal(status.nextStep.phase, 'wait');
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 0);
+
+  const cancel = { action: 'cancel', id: 'wake_123' };
+  await before(h, f.session, 'cancel_wakeup', cancel);
+  await h['tool.execute.after']({ sessionID: f.session, callID: 'call_test', tool: 'cancel_wakeup', args: cancel }, { output: 'Wakeup cancelled' });
+  status = f.harness.command(f.session, 'status');
+  assert.equal(status.wait, null);
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 1);
+});
+
 test('goal-blender auto-continues once per idle up to the cap', async (t) => {
   const f = fixture(t);
   const calls = [];

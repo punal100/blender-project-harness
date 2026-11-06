@@ -23,6 +23,21 @@ import { configPath } from './workspace.mjs';
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.normalize('NFC').replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
+export const WAIT_LIMIT = 10;
+const validDate = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value));
+export const waitIsActive = (wait) => Boolean(wait) && (wait.kind !== 'wakeup' || !validDate(wait.dueAt) || Date.parse(wait.dueAt) > Date.now());
+export const activeWaits = (project) => (project?.waits ?? []).filter(waitIsActive);
+export const expiredWakeups = (project) => (project?.waits ?? []).filter((wait) => wait.kind === 'wakeup' && validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now());
+export const waitSummary = (project) => {
+  const active = activeWaits(project);
+  if (!active.length) return null;
+  return active.slice().sort((a, b) => {
+    if (!validDate(a.dueAt) && !validDate(b.dueAt)) return 0;
+    if (!validDate(a.dueAt)) return 1;
+    if (!validDate(b.dueAt)) return -1;
+    return Date.parse(a.dueAt) - Date.parse(b.dueAt);
+  })[0];
+};
 const ASSET_USING_OPERATIONS = new Set(['import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'pack_assets']);
 const documentOnlyPath = (name) => /\.md$/i.test(name) || /(?:^|\/)scripts\/[^/]+\.(?:py|pyw)$/i.test(name);
 const nonScenePath = (name) => documentOnlyPath(name) || /(?:^|\/)(?:assets|Documents\/References)\//i.test(name);
@@ -1406,9 +1421,9 @@ export class Harness {
         const existing = s.projects[c.project];
         if (c.reRegister) {
           if (!existing || existing.orchestrator !== session || existing.change || (!existing.escalation?.requested && !existing.reregistering)) deny('explicit re-registration is no longer valid');
-          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, complete: false, escalation: null, reregistering: false, lastRender: null, referenceIntake: c.referenceIntake ?? null });
+          Object.assign(existing, { scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, complete: false, escalation: null, reregistering: false, lastRender: null, referenceIntake: c.referenceIntake ?? null, waits: [] });
         } else {
-          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, history: [], complete: false, escalation: null, referenceIntake: c.referenceIntake ?? null };
+          s.projects[c.project] = { project: c.project, orchestrator: session, scene: `${c.project}/${c.scene}`, goal: c.goal, records: c.records, snapshot: c.snapshot, checkpoint: c.checkpoint, goalActive: false, goalSource: null, goalMeta: null, goalConflict: null, goalReport: null, paused: null, change: null, history: [], complete: false, escalation: null, referenceIntake: c.referenceIntake ?? null, waits: [] };
         }
         s.challenge = null;
       } else {
@@ -1458,6 +1473,17 @@ export class Harness {
       return { phase: 'goal-blender', actor: 'orchestrator', action: 'goal_blender', command: 'goal_blender {action:"start"}', reason: 'Start the registered /goal-blender mission before production work.' };
     }
     const c = p.change;
+    const wait = waitSummary(p);
+    if (wait) {
+      const due = wait.dueInMs === null ? '' : ` until ${wait.dueAt} (${wait.dueInMs}ms remaining)`;
+      return {
+        phase: 'wait',
+        actor: 'orchestrator',
+        action: null,
+        command: 'End the turn now; the armed wait will resume the mission.',
+        reason: `A ${wait.kind} wait is active${due}. Do not start work or call another tool before it fires or is cancelled.`,
+      };
+    }
     if (!c && !fs.existsSync(path.join(this.root, p.scene))) {
       const sceneName = path.basename(p.scene);
       return {
@@ -1617,7 +1643,7 @@ export class Harness {
     }
     const media = this.mediaState(p).requests;
     const openMedia = this.openMedia(p);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: wait.kind === 'wakeup' && validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -2039,6 +2065,7 @@ export class Harness {
         if (args.clear !== undefined && typeof args.clear !== 'boolean') deny('goal-inactive clear must be boolean');
         p.goalActive = false;
         p.goalSource = null;
+        p.waits = [];
         if (args.clear) {
           p.goalMeta = null;
           p.goalReport = null;
