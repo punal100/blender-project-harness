@@ -7,8 +7,8 @@ import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
 
-const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
-const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
+const READ_ONLY = new Set(['read', 'glob', 'grep', 'list', 'webfetch', 'websearch', 'skill', 'todowrite', 'todoread', 'board_read', 'board_post', 'agent_manager_models', 'kilo_local_recall', 'schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
+const ORCHESTRATOR_ONLY = new Set(['schedule_wakeup', 'cancel_wakeup', 'cron_create', 'cron_list', 'cron_delete', 'background_process']);
 const BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look', 'blender_search_assets', 'blender_disable_telemetry', 'blender_record_trajectory_feedback']);
 const GRADER_BLENDER_READ = new Set(['blender_look']);
 const WORKER_BLENDER_READ = new Set(['blender_get_addon_status', 'blender_get_scene_info', 'blender_harness_scene_info', 'blender_look']);

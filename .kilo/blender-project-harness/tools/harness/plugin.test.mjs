@@ -28,6 +28,12 @@ async function approveShell(h, session, command, reason = 'Inspect the workspace
   return id;
 }
 
+test('cancel_wakeup is classified as an orchestrator scheduling tool', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  await assert.doesNotReject(before(h, f.session, 'cancel_wakeup', { action: 'list' }));
+  await assert.doesNotReject(before(h, f.session, 'cancel_wakeup', { action: 'cancel', id: 'wake_1' }));
+});
+
 test('plugin denies raw code and unsupported production escape routes', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   for (const tool of ['blender_execute_blender_code', 'blender_import_asset', 'blender_generate_3d', 'mediamcp_generate_video', 'use_mcp_tool']) {
