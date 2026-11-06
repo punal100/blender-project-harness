@@ -290,6 +290,8 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'create_mesh': {
+      const unsupportedMesh = ['size', 'dimensions'].filter((key) => Object.hasOwn(operation, key));
+      if (unsupportedMesh.length) fail(`${kind}.${unsupportedMesh.join('/')} is unsupported by the harness reviewed primitive layer; cube base is 2x2x2, final size = base size * scale. Use scale = dimension/2, or explicit unsafe mode for arbitrary mesh data.`);
       strictObject(operation, ['operation', 'name', 'primitive', 'location', 'scale'], kind);
       requireKeys(operation, ['name', 'primitive', 'location', 'scale'], kind);
       validateAllowedName(operation.name, allowed);

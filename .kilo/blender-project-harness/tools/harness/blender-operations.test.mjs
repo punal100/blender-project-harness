@@ -125,6 +125,7 @@ test('operationCode validates extra keys, names, bounds, and enums', () => {
   assert.throws(() => operationCode({ operation: 'render_settings', width: 15, height: 100, samples: 1 }, []), /out of bounds/);
   assert.throws(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: -1 }, allowed), /out of bounds/);
   assert.throws(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 10, rotation: [0, 0, 0] }, allowed), /unsupported by the harness reviewed create_light layer.*Blender supports rotation.*transform/);
+  assert.throws(() => operationCode({ ...meshOperation(), size: [1, 1, 1] }, allowed), /unsupported by the harness reviewed primitive layer.*cube base is 2x2x2.*scale = dimension\/2/);
   assert.throws(() => operationCode({ operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 0 }, allowed), /out of bounds/);
   assert.throws(() => operationCode({ operation: 'transform', name: 'Cube' }, allowed), /requires/);
 });
