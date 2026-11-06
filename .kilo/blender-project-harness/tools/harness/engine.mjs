@@ -24,6 +24,16 @@ export const digest = (data) => crypto.createHash('sha256').update(data).digest(
 export const normalizeGoal = (value) => typeof value === 'string' ? value.normalize('NFC').replace(/\r\n?/g, '\n').trim() : value;
 const CHECKPOINT_EVERY = 20;
 export const WAIT_LIMIT = 10;
+export const questionToolPayload = (question, labels) => ({
+  tool: 'question',
+  questions: [{
+    question,
+    header: 'Harness question',
+    options: labels.map((label) => ({ label, description: label })),
+    custom: false,
+    multiple: false,
+  }],
+});
 const validDate = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 export const waitIsActive = (wait) => Boolean(wait) && (wait.kind !== 'wakeup' || !validDate(wait.dueAt) || Date.parse(wait.dueAt) > Date.now());
 export const activeWaits = (project) => (project?.waits ?? []).filter(waitIsActive);
@@ -1326,10 +1336,11 @@ export class Harness {
     return {
       question: reference.question,
       labels: reference.labels,
+      questionTool: questionToolPayload(reference.question, reference.labels),
       answered: Boolean(reference.answer),
       answer: reference.answer ?? null,
       intakeRequired: reference.answer === REFERENCE_USE_MY_REFERENCES,
-      instruction: 'Pass this exact question including the HARNESS REFERENCE token to question; use all four labels exactly.',
+      instruction: 'Call the question tool with this exact question including the HARNESS REFERENCE token, all four labels in order, custom:false and multiple:false. Chat answers are not recorded.',
     };
   }
   reference(session) {
@@ -1366,7 +1377,7 @@ export class Harness {
       const reRegister = Boolean((prior?.escalation?.requested || prior?.reregistering) && prior.orchestrator === session && !prior.change);
       const reference = s.references?.[session];
       if (!reference) deny('Reference question has not been issued. Call blender_workflow {action:"reference"} first.');
-      if (!reference.answer) deny('Reference question is unanswered. Ask the exact question returned by blender_workflow {action:"reference"}, including the HARNESS REFERENCE token, with all four labels exactly.');
+      if (!reference.answer) deny('Reference question is unanswered. Call the question tool with the exact question returned by blender_workflow {action:"reference"}, all four labels in order, custom:false and multiple:false. Chat answers are not recorded.');
       let referenceIntake = null;
       if (reference.answer === REFERENCE_USE_MY_REFERENCES) {
         const scan = s.referenceScans?.[session];
@@ -1384,7 +1395,7 @@ export class Harness {
         const c = s.challenge;
         if (c.session !== session) deny(`registration for ${c.project} is pending in another session; finish it there or wait 10 minutes for it to expire before preparing again`);
         const unchanged = c.project === args.project && c.goal === args.goal && c.scene === args.scene && this.head() === c.checkpoint && stable(this.snapshot(args.project)) === stable(c.snapshot) && stable(records) === stable(c.records) && stable(c.referenceIntake) === stable(referenceIntake);
-        if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal, referenceIntake: Boolean(c.referenceIntake) } };
+        if (unchanged) return { question: c.question, labels: ['Confirm registration', 'Cancel'], questionTool: questionToolPayload(c.question, ['Confirm registration', 'Cancel']), instruction: 'Call the question tool with this exact question, custom:false and multiple:false. Chat answers are not recorded.', details: { project: c.project, workflow: c.records.workflow, review: c.records.review, scene: c.scene, goal: c.goal, referenceIntake: Boolean(c.referenceIntake) } };
         s.challenge = null;
       }
       if (prior && !reRegister) deny('project already registered; use status to continue it, reregister a paused project, or escalate only after a capped review');
@@ -1394,7 +1405,7 @@ export class Harness {
       this.assertCommitted(args.project, snapshot);
       const question = `Register ${args.project}, scene ${args.scene}, goal ${args.goal}, workflow ${records.workflow}, review ${records.review}? HARNESS REGISTER ${crypto.randomUUID()}`;
       s.challenge = { ...args, records, session, question, snapshot, created: Date.now(), checkpoint: this.head(), reRegister, explicitReregister: Boolean(prior?.reregistering), referenceIntake };
-      return { question, labels: ['Confirm registration', 'Cancel'], details: { project: args.project, workflow: records.workflow, review: records.review, scene: args.scene, goal: args.goal, referenceIntake: Boolean(referenceIntake) } };
+      return { question, labels: ['Confirm registration', 'Cancel'], questionTool: questionToolPayload(question, ['Confirm registration', 'Cancel']), instruction: 'Call the question tool with this exact question, custom:false and multiple:false. Chat answers are not recorded.', details: { project: args.project, workflow: records.workflow, review: records.review, scene: args.scene, goal: args.goal, referenceIntake: Boolean(referenceIntake) } };
     });
   }
   question(session, args, answers) {
@@ -1644,7 +1655,14 @@ export class Harness {
     }
     const media = this.mediaState(p).requests;
     const openMedia = this.openMedia(p);
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: wait.kind === 'wakeup' && validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
+    const pendingChallenge = state?.challenge?.session === p.orchestrator && Date.now() - state.challenge.created <= 600000 ? state.challenge : null;
+    const pendingQuestion = pendingChallenge ? {
+      question: pendingChallenge.question,
+      labels: ['Confirm registration', 'Cancel'],
+      questionTool: questionToolPayload(pendingChallenge.question, ['Confirm registration', 'Cancel']),
+      expiresAt: new Date(pendingChallenge.created + 600000).toISOString(),
+    } : null;
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, pendingQuestion, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: wait.kind === 'wakeup' && validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1652,8 +1670,9 @@ export class Harness {
        change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), reviewScope: c.final ? 'final' : 'milestone', readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
        next: step.reason, nextStep: step };
   }
-  reregisterStatus(p) {
-    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering };
+  reregisterStatus(p, state = null) {
+    const challenge = state?.challenge?.session === p.orchestrator && Date.now() - state.challenge.created <= 600000 ? state.challenge : null;
+    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering, pendingQuestion: challenge ? { question: challenge.question, labels: ['Confirm registration', 'Cancel'], questionTool: questionToolPayload(challenge.question, ['Confirm registration', 'Cancel']), expiresAt: new Date(challenge.created + 600000).toISOString() } : null };
     try { this.records(p.project, p.goal); }
     catch (error) {
       return { ...base, next: `Fix the registration documents before preparing: ${error.message}`, nextStep: { phase: 'reregister-document', actor: 'orchestrator', action: 'bootstrap-document', command: this.wire('bootstrap-document', { project: p.project, path: '<invalid registration document>', content: '<complete format from capabilities.documentFormats>' }), reason: 'Fix registration documents through bootstrap-document while reregistering.' } };
@@ -1679,7 +1698,13 @@ export class Harness {
     const challenge = state.challenge;
     if (challenge?.project === project) {
       if (challenge.session !== session) return { project, registered: false, next: 'Another session is registering this project; wait for it to finish or expire.', nextStep: { phase: 'registration-pending', actor: 'other-session', action: null, command: null, reason: 'Do not create a second registration challenge.' } };
-      return { project, registered: false, next: 'Answer the exact pending registration question, then start or resume the goal.', nextStep: { phase: 'registration', actor: 'orchestrator', action: 'question', command: 'question {questions:[<returned registration question>]}', reason: 'Only the runtime answer grants registration.' } };
+      const pendingQuestion = {
+        question: challenge.question,
+        labels: ['Confirm registration', 'Cancel'],
+        questionTool: questionToolPayload(challenge.question, ['Confirm registration', 'Cancel']),
+        expiresAt: new Date(challenge.created + 600000).toISOString(),
+      };
+      return { project, registered: false, pendingQuestion, next: 'Answer the exact pending registration question with the question tool; chat answers are not recorded.', nextStep: { phase: 'registration', actor: 'orchestrator', action: 'question', command: 'Call the question tool with pendingQuestion.questionTool; custom:false and multiple:false.', reason: 'Only the runtime answer grants registration.' } };
     }
     const base = this.projectPath(project);
     const goalsDirectory = path.join(base, 'Documents', 'Goals');
@@ -1965,7 +1990,7 @@ export class Harness {
     return this.transaction((s) => {
       if (action === 'status') {
         const projects = Object.values(s.projects).filter((p) => p.orchestrator === session);
-        if (projects.length === 1) return projects[0].reregistering ? this.reregisterStatus(projects[0]) : this.status(projects[0], s);
+        if (projects.length === 1) return projects[0].reregistering ? this.reregisterStatus(projects[0], s) : this.status(projects[0], s);
         if (projects.length > 1) deny('session owns multiple projects; inspect workspace state before continuing');
         if (args.project) return this.bootstrapStatus(session, args.project, s);
         const pending = s.challenge?.session === session
@@ -2018,7 +2043,7 @@ export class Harness {
       }
       if (action === 'reregister') {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('reregister requires one bounded reason');
-        if (p.reregistering) return this.reregisterStatus(p);
+        if (p.reregistering) return this.reregisterStatus(p, s);
         if (p.change) deny('checkpoint or preserve the open change before re-registration');
         p.reregistering = { requested: Date.now(), reason: args.reason.trim() };
         p.goalActive = false;
@@ -2029,7 +2054,7 @@ export class Harness {
         p.lastRenders = null;
         p.assetCheck = null;
         p.exports = [];
-        return this.reregisterStatus(p);
+        return this.reregisterStatus(p, s);
       }
       const c = p.change;
       const allowRosterDrift = Boolean((c && ['review','self-review','approval','preserve','commit','checkpoint','seal','grader-fail','abandon'].includes(action)) || ['goal-active','goal-inactive','goal-complete','goal-conflict'].includes(action));

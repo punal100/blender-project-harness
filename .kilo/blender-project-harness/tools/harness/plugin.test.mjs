@@ -624,6 +624,18 @@ test('reference action opens the runtime reference gate', async (t) => {
   assert.match(result.question, /HARNESS REFERENCE/);
   assert.deepEqual(result.labels, ['Use my references', 'Generate one', 'Use web references', 'None']);
   assert.match(result.instruction, /exact question.*HARNESS REFERENCE token/i);
+  assert.equal(result.questionTool.questions[0].custom, false);
+  assert.equal(result.questionTool.questions[0].multiple, false);
+});
+
+test('harness questions reject custom answers with a corrective error', async (t) => {
+  const f = fixture(t), h = hooks(f);
+  f.harness.transaction((s) => { delete s.references?.[f.session]; });
+  const reference = JSON.parse(await h.tool.blender_workflow.execute({ action: 'reference', payload: {} }, { sessionID: f.session }));
+  await assert.rejects(
+    before(h, f.session, 'question', { questions: [{ question: reference.question, options: reference.questionTool.questions[0].options, custom: true, multiple: false }] }),
+    /custom:false.*multiple:false/,
+  );
 });
 
 test('goal_blender starts, pauses, and resumes without kilo.goal', async (t) => {

@@ -681,6 +681,18 @@ export function createHooks(harness, client, directory = harness.root) {
         return;
       }
       if (tool === 'question') {
+        const harnessQuestion = harness.transaction((s) => {
+          const text = args.questions?.[0]?.question;
+          const reference = s.references?.[input.sessionID];
+          return Boolean(text && (
+            reference?.question === text
+            || (s.challenge?.session === input.sessionID && s.challenge.question === text)
+            || Object.values(s.projects).some((project) => project.orchestrator === input.sessionID && project.change?.approvalQuestion === text)
+          ));
+        });
+        if (harnessQuestion && args.questions?.some((question) => question.custom === true || question.multiple === true)) {
+          deny('harness questions require custom:false and multiple:false so the runtime answer is recorded; re-ask with the exact labels');
+        }
         questions.set(input.callID, structuredClone(args));
         questionPending.add(input.sessionID);
       }

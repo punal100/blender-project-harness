@@ -224,6 +224,11 @@ function registrationQuestion(prepared) {
 test('registration accepts question args without custom or multiple flags', (t) => {
   const f = useFixture(t);
   const prepared = f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName });
+  assert.equal(prepared.questionTool.questions[0].custom, false);
+  assert.equal(prepared.questionTool.questions[0].multiple, false);
+  const pending = f.harness.command('orchestrator', 'status', { project: f.project });
+  assert.equal(pending.pendingQuestion.question, prepared.question);
+  assert.equal(pending.pendingQuestion.questionTool.questions[0].custom, false);
   f.harness.question('orchestrator', {
     questions: [{ question: prepared.question, options: prepared.labels.map((label) => ({ label })) }],
   }, [['Confirm registration']]);
