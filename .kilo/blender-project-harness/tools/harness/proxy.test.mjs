@@ -88,7 +88,7 @@ test('unsafe mode exposes the raw catalog only when explicitly enabled', async (
   f.write('.kilo/blender-project-harness/config.json', JSON.stringify({ tool_exposure: { mode: 'unsafe', unsafe: { enabled: true } } }));
   const p = new BlenderProxy(f.harness, upstream(f));
   assert.ok((await p.listTools()).tools.some((v) => v.name === 'execute_blender_code'));
-  assert.match((await p.call('tool_invoke', { name: 'execute_blender_code', arguments: { code: 'anything' } })).content[0].text, /HARNESS_JSON/);
+  assert.match((await p.call('execute_blender_code', { code: 'anything' })).content[0].text, /HARNESS_JSON/);
 });
 
 test('lite and readonly modes keep the direct list small', async (t) => {
