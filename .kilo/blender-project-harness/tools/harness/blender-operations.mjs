@@ -410,6 +410,8 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'create_light': {
+      const unsupportedLight = ['rotation', 'size'].filter((key) => Object.hasOwn(operation, key));
+      if (unsupportedLight.length) fail(`${kind}.${unsupportedLight.join('/')} is unsupported by the harness reviewed create_light layer; supported: name, kind, location, energy, color, temperature. Blender supports rotation and AREA size, but use transform for rotation; exact size requires explicit unsafe mode.`);
       strictObject(operation, ['operation', 'name', 'kind', 'location', 'energy', 'color', 'temperature'], kind);
       requireKeys(operation, ['name', 'kind', 'location', 'energy'], kind);
       validateAllowedName(operation.name, allowed);
