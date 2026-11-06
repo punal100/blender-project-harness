@@ -292,10 +292,22 @@ test('worker model chain advances from primary to backup to global fallback', as
   assert.equal(args.provider, undefined);
 });
 
+test('worker dispatch requires the exact scene and task document', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  await assert.rejects(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: `Ticket: ${issued.token}`, background: false }),
+    /authoritative scene.*task document|worker prompt is missing/i,
+  );
+  await assert.doesNotReject(
+    before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false }),
+  );
+});
+
 test('a worker BLOCKED result releases the unused apply ticket', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const issued = f.harness.issue(f.session, 'apply', { index: 1 });
-  const args = { subagent_type: 'blender-worker', prompt: `Ticket: ${issued.token}\nRead the task document.`, background: false };
+  const args = { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false };
   await before(h, f.session, 'task', args);
   await h['tool.execute.after'](
     { sessionID: f.session, callID: 'call_test', tool: 'task', args },

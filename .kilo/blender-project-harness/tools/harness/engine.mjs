@@ -1563,7 +1563,8 @@ export class Harness {
       const ticket = state?.tickets?.[c.pending];
       const operation = ticket?.operation ?? '<operation>';
       const payload = ticket?.payload ?? {};
-      if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, reason: 'Pass this one-shot apply ticket to blender-worker; the orchestrator must not execute it.' };
+      const task = p.tasks?.find((item) => item.token === c.pending);
+      if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
       return { phase: operation, actor: 'orchestrator', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"${operation}",payload:"{}"}`, reason: `Execute the pending ${operation} ticket.` };
     }
     if (c.wip) return { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The WIP commit is preserved; checkpoint it before another begin.' };
@@ -2560,8 +2561,22 @@ export class Harness {
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };
       c.pending = token;
       const task = this.recordTaskIssued(p, token, operation, payload, s.tickets[token].created + TICKET_TTL_MS);
-      return { token, operation, payload, taskId: task.id };
+      return { token, operation, payload, taskId: task.id, scene: p.scene, taskDoc: task.taskDoc, workerPrompt: this.workerPrompt(p, token, operation, payload, task) };
     });
+  }
+  workerPrompt(p, token, operation, payload, task) {
+    const payloadText = JSON.stringify(payload);
+    return [
+      `Assigned ${operation} for ${p.project}.`,
+      `Authoritative scene: ${p.scene}`,
+      task?.taskDoc ? `Read this task document first: ${task.taskDoc}` : 'Read the assigned task document first.',
+      `One-time token: ${token}`,
+      `Operation: ${operation}`,
+      `Payload: ${payloadText}`,
+      operation === 'apply'
+        ? 'Execute only the assigned apply payload with blender_harness_execute. Do not save, seal, review, approve, commit, or checkpoint.'
+        : `Execute the assigned ${operation} ticket exactly with blender_harness_execute.`,
+    ].join('\n');
   }
   authorize(session, token, operation, payload) {
     return this.transaction((s) => {

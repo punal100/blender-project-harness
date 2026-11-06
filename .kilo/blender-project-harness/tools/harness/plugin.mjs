@@ -736,6 +736,14 @@ export function createHooks(harness, client, directory = harness.root) {
           if (/HARNESS_GRADER:/.test(args.prompt)) deny('worker task cannot carry a grader marker');
           const cfg = harness.workerConfig();
           const token = args.prompt.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0] ?? p.change?.pending ?? null;
+          if (token) {
+            const task = p.tasks?.find((item) => item.token === token);
+            const missing = [];
+            if (!args.prompt.includes(p.scene)) missing.push(`authoritative scene ${p.scene}`);
+            if (!args.prompt.includes(token)) missing.push(`one-time token ${token}`);
+            if (task?.taskDoc && !args.prompt.includes(task.taskDoc)) missing.push(`task document ${task.taskDoc}`);
+            if (missing.length) deny(`worker prompt is missing ${missing.join(', ')}. Use the exact workerPrompt returned by ticket/status.nextStep`);
+          }
           const key = `worker:${token ?? `${input.sessionID}:${p.change?.id ?? 'none'}`}`;
           const plan = chooseModelPlan(key, cfg, harness.globalFallback());
           if (!plan) deny(`all configured model tiers failed before child start (${modelChain(cfg, harness.globalFallback()).map((item) => item.tier).join(' -> ')}); mark tooling failure instead of retrying`);
