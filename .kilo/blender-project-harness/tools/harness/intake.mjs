@@ -296,9 +296,21 @@ export function collectIntakeSources({ root, files = [], folders = [], home = nu
 
 function sourceOptions(source) {
   if (source === undefined || source === null) return {};
-  if (typeof source !== 'object' || Array.isArray(source)) fail('source must be an object');
-  const allowed = ['name', 'asset', 'url', 'vendor', 'author', 'license', 'licenseText', 'licenseFile', 'attribution', 'redistributable', 'external', 'packaging', 'notes', 'licenseUrl'];
-  for (const key of Object.keys(source)) if (!allowed.includes(key)) fail(`source has unsupported field: ${key}`);
+  if (typeof source === 'string') source = { notes: source };
+  if (typeof source !== 'object' || Array.isArray(source)) fail('source must be an object or a string note');
+  const allowed = ['name', 'asset', 'url', 'vendor', 'author', 'license', 'licenseText', 'licenseFile', 'attribution', 'redistributable', 'external', 'packaging', 'notes', 'note', 'type', 'licenseUrl'];
+  for (const key of Object.keys(source)) if (!allowed.includes(key)) fail(`source has unsupported field: ${key}; allowed: ${allowed.join(', ')}`);
+  if (source.note !== undefined) {
+    if (source.notes !== undefined) fail('source.note and source.notes are aliases; use one');
+    source = { ...source, notes: source.note };
+    delete source.note;
+  }
+  if (source.type !== undefined) {
+    if (source.notes !== undefined) fail('source.type and source.notes are aliases; use one');
+    if (typeof source.type !== 'string') fail('source.type must be a string');
+    source = { ...source, notes: source.type };
+    delete source.type;
+  }
   for (const key of ['name', 'asset', 'url', 'vendor', 'author', 'license', 'licenseText', 'licenseFile', 'attribution', 'packaging', 'notes', 'licenseUrl']) {
     if (source[key] !== undefined && typeof source[key] !== 'string') fail(`source.${key} must be a string`);
   }
@@ -391,11 +403,11 @@ export function planIntake({ root, projectName, files = [], folders = [], kind =
     }
     const external = options.generated ? false : externalFor(selected, options.source);
     if (external && !options.source.license) {
-      rejected.push({ path: entry.sourcePath, reason: 'external asset requires source.license' });
+      rejected.push({ path: entry.sourcePath, reason: 'external asset requires source.license; minimal source: {"name":"Asset","vendor":"Vendor","license":"CC0-1.0","licenseText":"..."}' });
       continue;
     }
     if (external && !options.licenseText) {
-      rejected.push({ path: entry.sourcePath, reason: 'external asset requires source.licenseText or source.licenseFile' });
+      rejected.push({ path: entry.sourcePath, reason: 'external asset requires source.licenseText or source.licenseFile in addition to source.license' });
       continue;
     }
     entries.push({

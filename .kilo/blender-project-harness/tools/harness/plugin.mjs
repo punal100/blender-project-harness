@@ -46,6 +46,16 @@ const capabilities = () => ({
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
   documentFormats: describeDocumentFormats(),
+  intakeSource: {
+    accepts: 'string note or object',
+    fields: ['name', 'asset', 'url', 'vendor', 'author', 'license', 'licenseText', 'licenseFile', 'attribution', 'redistributable', 'external', 'packaging', 'notes', 'licenseUrl'],
+    aliases: { note: 'notes', type: 'notes' },
+    examples: {
+      localReference: { source: 'user-supplied mood reference' },
+      externalAsset: { source: { name: 'Chair', vendor: 'Example', license: 'CC0-1.0', licenseText: 'CC0 text' } },
+    },
+    externalRule: 'kind model or a source url/license requires source.license and source.licenseText or source.licenseFile',
+  },
   actions: [
     { name: 'status', actor: 'orchestrator', phase: 'any', payload: '{project?:string}' },
     { name: 'reference', actor: 'orchestrator', phase: 'before registration', payload: '{}' },

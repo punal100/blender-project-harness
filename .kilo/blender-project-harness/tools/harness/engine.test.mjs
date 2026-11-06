@@ -2686,6 +2686,31 @@ test('intake copies references and external assets into the open change', (t) =>
   assert.ok(status.intake.paths.includes(asset.copied[0].stored));
 });
 
+test('intake accepts source notes and reports the exact source schema', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const sourceRoot = path.join(path.dirname(f.root), 'intake-source-schema');
+  fs.mkdirSync(sourceRoot, { recursive: true });
+  t.after(() => fs.rmSync(sourceRoot, { force: true, recursive: true }));
+  const reference = path.join(sourceRoot, 'mood.png');
+  const model = path.join(sourceRoot, 'chair.glb');
+  fs.writeFileSync(reference, PNG_1X1);
+  fs.writeFileSync(model, GLB);
+
+  const copied = f.harness.intake('orchestrator', { project: f.project, files: [reference], source: 'user-supplied mood reference' });
+  assert.equal(copied.copied.length, 1);
+  gate(() => f.harness.intake('orchestrator', { project: f.project, files: [reference], source: { bad: true } }), /unsupported field: bad; allowed: .*notes/);
+
+  const missingLicense = f.harness.intake('orchestrator', {
+    project: f.project,
+    files: [model],
+    kind: 'model',
+    source: { url: 'https://example.invalid/chair.glb', license: 'CC0-1.0' },
+  });
+  assert.match(missingLicense.rejected[0].reason, /licenseText or source\.licenseFile/);
+});
+
 test('reference-only intake closes as a non-scene change', (t) => {
   const f = useFixture(t);
   activate(f);
