@@ -28,9 +28,9 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
   workflow action.
 - New project: confirm requirements, workflow, and review mode in ordinary chat; scaffold; fill the
   records with `bootstrap-document`; `bootstrap-commit`; `prepare`; answer its exact question; then
-  start or resume `/goal-blender`. Do not launch before that sequence. Never start a mission to ask
-  questions or run discovery. `question` remains available during `/goal-blender` for clarifications
-  and approvals. Read-only questions and workspace maintenance need no mission, records, or review
+  start or resume `/goal-blender`. Do not launch before that sequence. Do not start a mission solely
+  to run discovery; registration, approval, clarification, and pause questions are allowed while a
+  mission is active. Read-only questions and workspace maintenance need no mission, records, or review
   render and must not launch or modify Blender.
 - Requirements discovery MUST call `blender_workflow {action:"reference"}` and ask its exact
   reference-images/links question before the `Confirm requirements` question. It MUST accept supplied

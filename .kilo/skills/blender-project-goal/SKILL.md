@@ -38,13 +38,15 @@ starts. `question` remains available during `/goal-blender`.
 7. Call `prepare {project,goal,scene}`; pass its exact question and labels to `question`. Only the
    runtime answer registers.
 8. Start the mission with `goal_blender {action:"start"}` (or `/goal-blender start`). The filled goal
-   is already committed by the scaffold commit. End the turn after a successful start; do not call
-   `begin` in the start turn. The mission loop opens the next turn.
+   is already committed by the scaffold commit. End the current turn only after a successful start;
+   do not call `begin` in the start turn. The mission loop opens the next turn; do not treat that
+   automatic turn as a user message.
 9. On the next mission turn, inspect `blender_workflow` `status` and continue with `nextStep`.
 
-Never start a mission to ask questions. Never create project documents outside the harness. Update
-existing documents only inside declared change paths. Never call the built-in `/goal`, `goal`, or
-`goal_report`; use `goal_blender` and `/goal-blender` only.
+Never start a mission solely for discovery. Registration, approval, clarification, and pause
+questions are allowed while a mission is active. Never create project documents outside the harness.
+Update existing documents only inside declared change paths. Never call the built-in `/goal`, `goal`,
+or `goal_report`; use `goal_blender` and `/goal-blender` only.
 
 ## Return to paused project
 
