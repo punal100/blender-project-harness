@@ -244,6 +244,14 @@ test('custom-answer questions do not register', (t) => {
   assert.equal(f.harness.command('orchestrator', 'status').project, null);
 });
 
+test('Single grader validation names the configured choices', (t) => {
+  const f = useFixture(t, { review: 'Single' });
+  const review = `${f.project}/Documents/REVIEW.md`;
+  write(f.root, review, read(f.root, review).replace('Single grader: visual', 'Single grader: blender-grader'));
+  commit(f.root, 'test: invalid single grader');
+  gate(() => f.harness.prepare('orchestrator', { project: f.project, goal: f.goal.slice(f.project.length + 1), scene: f.sceneName }), /unknown Single grader "blender-grader"; configured names: visual.*agent name/);
+});
+
 test('status reports an unregistered phase instead of denying', (t) => {
   const f = useFixture(t);
   const status = f.harness.command('orchestrator', 'status');

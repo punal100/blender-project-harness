@@ -392,8 +392,9 @@ export class Harness {
       if (!Number.isInteger(cfg.max_parallel) || cfg.max_parallel < 1 || cfg.max_parallel > names.size || !Number.isInteger(cfg.max_rounds) || cfg.max_rounds < 1 || cfg.max_rounds > 4) deny('invalid grader limits');
       roster = cfg.graders; maxParallel = cfg.max_parallel; maxRounds = cfg.max_rounds;
       if (review === 'Single') {
-        roster = roster.filter((g) => g.name === field(docs['Documents/REVIEW.md'], 'Single grader'));
-        if (roster.length !== 1) deny('unknown Single grader');
+        const requested = field(docs['Documents/REVIEW.md'], 'Single grader');
+        roster = roster.filter((g) => g.name === requested);
+        if (roster.length !== 1) deny(`unknown Single grader "${requested}"; configured names: ${[...names].join(', ')}. Use a configured grader name, not the blender-grader agent name.`);
       }
     }
     const specs = Object.fromEntries(['Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', goal].map((name) => [`${project}/${name}`, this.hash(`${project}/${name}`)]));

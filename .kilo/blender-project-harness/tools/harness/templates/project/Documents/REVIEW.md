@@ -5,6 +5,8 @@ Selected: —
 Last changed: —
 Single grader: —
 
+Use a configured grader name from the project config, not the `blender-grader` agent name.
+
 ## Modes
 
 - `Off` — no grader subagents; the orchestrator self-reviews with `look`.
