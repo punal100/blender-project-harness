@@ -32,13 +32,13 @@ const PRIMITIVES = new Set(['cube', 'uv_sphere', 'plane', 'cylinder']);
 const SCENE_MODES = new Set(['NEW', 'EMPTY', 'LINK_COPY', 'FULL_COPY']);
 const SCENE_OPERATIONS = new Set(['create_mesh', 'text', 'modifier', 'transform', 'material', 'shared_material', 'duplicate', 'create_light', 'create_camera', 'set_camera', 'render_settings', 'delete_object', 'import_asset', 'link_library', 'import_audio', 'image_reference', 'image_texture', 'world_hdri', 'export_scene', 'set_scene_camera', 'scene_strip']);
 const LIGHT_KINDS = new Set(['POINT', 'AREA', 'SUN', 'SPOT']);
-const MODIFIER_KINDS = new Set(['BEVEL', 'SUBSURF', 'SOLIDIFY', 'MIRROR', 'ARRAY']);
+const MODIFIER_KINDS = new Set(['BEVEL', 'SUBSURF', 'SOLIDIFY', 'MIRROR', 'ARRAY', 'BOOLEAN']);
 export const OPERATION_LIMITS = {
-  boundary: 'The reviewed operation layer is the limit; Blender and the MCP addon can do more, but raw Python remains blocked unless the explicit unsafe mode and a development session are enabled.',
-  modifiers: { supported: [...MODIFIER_KINDS], unsupported: ['BOOLEAN'], workaround: 'Build openings from wall segments or separate mesh pieces, or use explicit unsafe mode.' },
-  material: { supported: ['color', 'roughness', 'metallic', 'emission'], unsupported: ['transmission', 'ior', 'alpha'], workaround: 'Use a tinted plane or explicit unsafe mode for glass/transmission.' },
-  createLight: { supported: ['name', 'kind', 'location', 'energy', 'color', 'temperature'], unsupported: ['rotation', 'size'], workaround: 'Create the light, then use transform for rotation; exact AREA size requires explicit unsafe mode.' },
-  createMesh: { primitives: [...PRIMITIVES], semantics: 'Base cube is 2x2x2; final size = base size * scale. For a 1m cube use scale 0.5.', unsupported: ['size', 'dimensions'], workaround: 'Use scale = dimension/2 for a cube, or explicit unsafe mode for arbitrary mesh data.' },
+  boundary: 'The reviewed operation layer is the limit; Blender and the MCP addon can do more, but raw Python remains blocked unless the explicit unsafe mode is enabled and this session is listed in unsafe.sessions.',
+  modifiers: { supported: [...MODIFIER_KINDS], unsupported: [], workaround: 'Use reviewed modifiers; BOOLEAN requires an existing target object.' },
+  material: { supported: ['color', 'roughness', 'metallic', 'emission', 'transmission', 'ior', 'alpha'], unsupported: [] },
+  createLight: { supported: ['name', 'kind', 'location', 'energy', 'color', 'temperature', 'rotation', 'size'], unsupported: [] },
+  createMesh: { primitives: [...PRIMITIVES], semantics: 'Base cube is 2x2x2; final size = base size * scale. For a 1m cube use scale 0.5.', custom: 'vertices/faces', unsupported: ['size', 'dimensions'], workaround: 'Use scale = dimension/2, custom vertices/faces, or explicit unsafe mode for arbitrary mesh data.' },
 };
 const TEXT_ALIGN_X = new Set(['LEFT', 'CENTER', 'RIGHT', 'JUSTIFY', 'FLUSH']);
 const TEXT_ALIGN_Y = new Set(['TOP', 'TOP_BASELINE', 'CENTER', 'BOTTOM_BASELINE', 'BOTTOM']);
@@ -167,7 +167,29 @@ function validateMaterialValues(operation, kind) {
   validateVector(operation.color, `${kind}.color`, 4, 0, 1);
   validateFiniteNumber(operation.roughness, `${kind}.roughness`, 0, 1);
   validateFiniteNumber(operation.metallic, `${kind}.metallic`, 0, 1);
+  if (Object.hasOwn(operation, 'transmission')) validateFiniteNumber(operation.transmission, `${kind}.transmission`, 0, 1);
+  if (Object.hasOwn(operation, 'ior')) validateFiniteNumber(operation.ior, `${kind}.ior`, 1, 3);
+  if (Object.hasOwn(operation, 'alpha')) validateFiniteNumber(operation.alpha, `${kind}.alpha`, 0, 1);
   validateEmission(operation.emission, `${kind}.emission`);
+}
+
+function validateMeshData(vertices, faces, kind) {
+  if (!Array.isArray(vertices) || vertices.length < 3 || vertices.length > 10000) {
+    fail(`${kind}.vertices must contain 3-10000 vertices`);
+  }
+  vertices.forEach((vertex, index) => validateVector(vertex, `${kind}.vertices[${index}]`, 3));
+  if (!Array.isArray(faces) || faces.length < 1 || faces.length > 20000) {
+    fail(`${kind}.faces must contain 1-20000 faces`);
+  }
+  faces.forEach((face, index) => {
+    if (!Array.isArray(face) || face.length < 3 || face.length > 64) fail(`${kind}.faces[${index}] must contain 3-64 vertex indices`);
+    const seen = new Set();
+    face.forEach((value) => {
+      if (!Number.isInteger(value) || value < 0 || value >= vertices.length) fail(`${kind}.faces[${index}] contains an invalid vertex index`);
+      if (seen.has(value)) fail(`${kind}.faces[${index}] contains a duplicate vertex index`);
+      seen.add(value);
+    });
+  });
 }
 
 function quote(value) {
@@ -291,12 +313,21 @@ function validateOperation(operation, allowedObjects) {
     }
     case 'create_mesh': {
       const unsupportedMesh = ['size', 'dimensions'].filter((key) => Object.hasOwn(operation, key));
-      if (unsupportedMesh.length) fail(`${kind}.${unsupportedMesh.join('/')} is unsupported by the harness reviewed primitive layer; cube base is 2x2x2, final size = base size * scale. Use scale = dimension/2, or explicit unsafe mode for arbitrary mesh data.`);
-      strictObject(operation, ['operation', 'name', 'primitive', 'location', 'scale'], kind);
-      requireKeys(operation, ['name', 'primitive', 'location', 'scale'], kind);
-      validateAllowedName(operation.name, allowed);
-      validateString(operation.primitive, `${kind}.primitive`);
-      if (!PRIMITIVES.has(operation.primitive)) fail(`${kind}.primitive is invalid`);
+      if (unsupportedMesh.length) fail(`${kind}.${unsupportedMesh.join('/')} is unsupported by the harness reviewed primitive layer; cube base is 2x2x2, final size = base size * scale. Use scale = dimension/2, custom vertices/faces, or explicit unsafe mode for arbitrary mesh data.`);
+      const custom = Object.hasOwn(operation, 'vertices') || Object.hasOwn(operation, 'faces');
+      if (custom) {
+        strictObject(operation, ['operation', 'name', 'vertices', 'faces', 'location', 'scale'], kind);
+        requireKeys(operation, ['name', 'vertices', 'faces', 'location', 'scale'], kind);
+        if (Object.hasOwn(operation, 'primitive')) fail(`${kind}.primitive cannot be combined with vertices/faces`);
+        validateAllowedName(operation.name, allowed);
+        validateMeshData(operation.vertices, operation.faces, kind);
+      } else {
+        strictObject(operation, ['operation', 'name', 'primitive', 'location', 'scale'], kind);
+        requireKeys(operation, ['name', 'primitive', 'location', 'scale'], kind);
+        validateAllowedName(operation.name, allowed);
+        validateString(operation.primitive, `${kind}.primitive`);
+        if (!PRIMITIVES.has(operation.primitive)) fail(`${kind}.primitive is invalid`);
+      }
       validateVector(operation.location, `${kind}.location`, 3);
       validateVector(operation.scale, `${kind}.scale`, 3, 0, 1e4);
       if (operation.scale.some((value) => value === 0)) fail(`${kind}.scale values must be positive`);
@@ -321,11 +352,11 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'modifier': {
-      strictObject(operation, ['operation', 'name', 'modifier', 'apply', 'width', 'segments', 'limit_method', 'angle_limit', 'levels', 'render_levels', 'thickness', 'offset', 'use_rim', 'axis', 'use_clip', 'count', 'relative_offset'], kind);
+      strictObject(operation, ['operation', 'name', 'modifier', 'apply', 'width', 'segments', 'limit_method', 'angle_limit', 'levels', 'render_levels', 'thickness', 'offset', 'use_rim', 'axis', 'use_clip', 'count', 'relative_offset', 'object', 'boolean_operation', 'solver', 'use_self', 'use_hole_tolerant'], kind);
       requireKeys(operation, ['name', 'modifier'], kind);
       validateAllowedName(operation.name, allowed);
       validateString(operation.modifier, `${kind}.modifier`);
-      if (!MODIFIER_KINDS.has(operation.modifier)) fail(`${kind}.modifier "${operation.modifier}" is unsupported by the harness reviewed-operation layer; supported: ${[...MODIFIER_KINDS].join(', ')}. Blender/MCP can do more, but raw Python stays blocked; use wall segments, a reviewed operation, or explicit unsafe mode.`);
+      if (!MODIFIER_KINDS.has(operation.modifier)) fail(`${kind}.modifier "${operation.modifier}" is unsupported by the harness reviewed-operation layer; supported: ${[...MODIFIER_KINDS].join(', ')}. Blender/MCP can do more, but raw Python stays blocked; use a reviewed operation or explicit unsafe mode.`);
       if (Object.hasOwn(operation, 'apply')) validateBoolean(operation.apply, `${kind}.apply`);
       if (operation.modifier === 'BEVEL') {
         if (Object.hasOwn(operation, 'width')) validateFiniteNumber(operation.width, `${kind}.width`, 0, 1000);
@@ -360,6 +391,16 @@ function validateOperation(operation, allowedObjects) {
         }
         if (Object.hasOwn(operation, 'relative_offset')) validateVector(operation.relative_offset, `${kind}.relative_offset`, 3);
       }
+      if (operation.modifier === 'BOOLEAN') {
+        requireKeys(operation, ['object'], kind);
+        validateAllowedName(operation.object, allowed, `${kind}.object`);
+        if (operation.object === operation.name) fail(`${kind}.object must differ from ${kind}.name`);
+        const booleanOperation = operation.boolean_operation ?? 'DIFFERENCE';
+        if (!['UNION', 'DIFFERENCE', 'INTERSECT'].includes(booleanOperation)) fail(`${kind}.boolean_operation is invalid`);
+        if (Object.hasOwn(operation, 'solver') && !['FAST', 'EXACT'].includes(operation.solver)) fail(`${kind}.solver is invalid`);
+        if (Object.hasOwn(operation, 'use_self')) validateBoolean(operation.use_self, `${kind}.use_self`);
+        if (Object.hasOwn(operation, 'use_hole_tolerant')) validateBoolean(operation.use_hole_tolerant, `${kind}.use_hole_tolerant`);
+      }
       break;
     }
     case 'transform': {
@@ -377,18 +418,14 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'material': {
-      const unsupportedMaterial = ['transmission', 'ior', 'alpha'].filter((key) => Object.hasOwn(operation, key));
-      if (unsupportedMaterial.length) fail(`${kind}.${unsupportedMaterial.join('/')} is unsupported by the harness reviewed material layer; supported: color, roughness, metallic, emission. Blender supports glass, but raw Python stays blocked; use a tinted plane, a reviewed material extension, or explicit unsafe mode.`);
-      strictObject(operation, ['operation', 'name', 'color', 'roughness', 'metallic', 'emission'], kind);
+      strictObject(operation, ['operation', 'name', 'color', 'roughness', 'metallic', 'transmission', 'ior', 'alpha', 'emission'], kind);
       requireKeys(operation, ['name', 'color', 'roughness', 'metallic'], kind);
       validateAllowedName(operation.name, allowed);
       validateMaterialValues(operation, kind);
       break;
     }
     case 'shared_material': {
-      const unsupportedMaterial = ['transmission', 'ior', 'alpha'].filter((key) => Object.hasOwn(operation, key));
-      if (unsupportedMaterial.length) fail(`${kind}.${unsupportedMaterial.join('/')} is unsupported by the harness reviewed material layer; supported: color, roughness, metallic, emission. Blender supports glass, but raw Python stays blocked; use a tinted plane, a reviewed material extension, or explicit unsafe mode.`);
-      strictObject(operation, ['operation', 'name', 'objects', 'color', 'roughness', 'metallic', 'emission'], kind);
+      strictObject(operation, ['operation', 'name', 'objects', 'color', 'roughness', 'metallic', 'transmission', 'ior', 'alpha', 'emission'], kind);
       requireKeys(operation, ['name', 'objects', 'color', 'roughness', 'metallic'], kind);
       validateString(operation.name, `${kind}.name`);
       if (!Array.isArray(operation.objects) || operation.objects.length < 1 || operation.objects.length > 50) fail(`${kind}.objects must contain 1-50 object names`);
@@ -412,9 +449,7 @@ function validateOperation(operation, allowedObjects) {
       break;
     }
     case 'create_light': {
-      const unsupportedLight = ['rotation', 'size'].filter((key) => Object.hasOwn(operation, key));
-      if (unsupportedLight.length) fail(`${kind}.${unsupportedLight.join('/')} is unsupported by the harness reviewed create_light layer; supported: name, kind, location, energy, color, temperature. Blender supports rotation and AREA size, but use transform for rotation; exact size requires explicit unsafe mode.`);
-      strictObject(operation, ['operation', 'name', 'kind', 'location', 'energy', 'color', 'temperature'], kind);
+      strictObject(operation, ['operation', 'name', 'kind', 'location', 'energy', 'color', 'temperature', 'rotation', 'size'], kind);
       requireKeys(operation, ['name', 'kind', 'location', 'energy'], kind);
       validateAllowedName(operation.name, allowed);
       validateString(operation.kind, `${kind}.kind`);
@@ -425,6 +460,11 @@ function validateOperation(operation, allowedObjects) {
       if (Object.hasOwn(operation, 'temperature')) {
         if (!Number.isInteger(operation.temperature)) fail(`${kind}.temperature must be an integer`);
         validateFiniteNumber(operation.temperature, `${kind}.temperature`, 1000, 15000);
+      }
+      if (Object.hasOwn(operation, 'rotation')) validateVector(operation.rotation, `${kind}.rotation`, 3);
+      if (Object.hasOwn(operation, 'size')) {
+        if (operation.kind !== 'AREA') fail(`${kind}.size is supported only for AREA lights`);
+        validateFiniteNumber(operation.size, `${kind}.size`, 0.001, 1000);
       }
       break;
     }
@@ -596,8 +636,25 @@ function sceneFactsCode(sceneName = null) {
   return `import bpy\nimport bmesh\nimport json\n${selection}\ndef scene_strips(scene):\n    editor = scene.sequence_editor\n    if editor is None:\n        return []\n    strips = getattr(editor, 'strips', None)\n    if strips is None:\n        strips = getattr(editor, 'sequences', [])\n    return list(strips)\ndef object_facts(obj):\n    facts = {\n        "name": obj.name,\n        "type": obj.type,\n        "location": [round(value, 6) for value in obj.location],\n        "rotation": [round(value, 6) for value in obj.rotation_euler],\n        "scale": [round(value, 6) for value in obj.scale],\n        "dimensions": [round(value, 6) for value in obj.dimensions],\n        "materials": [slot.material.name if slot.material is not None else None for slot in obj.material_slots],\n        "modifiers": [modifier.type for modifier in obj.modifiers],\n    }\n    if obj.type == 'MESH':\n        mesh = obj.data\n        bm = bmesh.new()\n        try:\n            bm.from_mesh(mesh)\n            facts["mesh"] = {\n                "vertices": len(mesh.vertices),\n                "edges": len(mesh.edges),\n                "faces": len(mesh.polygons),\n                "ngons": sum(1 for polygon in mesh.polygons if len(polygon.vertices) > 4),\n                "non_manifold_edges": sum(1 for edge in bm.edges if not edge.is_manifold),\n                "loose_vertices": sum(1 for vert in bm.verts if not vert.link_edges),\n                "degenerate_faces": sum(1 for face in bm.faces if face.calc_area() < 1e-9),\n            }\n        finally:\n            bm.free()\n    return facts\npayload = []\nfor scene in scenes:\n    payload.append({\n        "name": scene.name,\n        "objects": [object_facts(obj) for obj in list(scene.objects)[:1000]],\n        "collections": [collection.name for collection in list(scene.collection.children_recursive)[:500]],\n        "camera": scene.camera.name if scene.camera is not None else None,\n        "resolution": [scene.render.resolution_x, scene.render.resolution_y],\n        "engine": scene.render.engine,\n        "frame_start": scene.frame_start,\n        "frame_end": scene.frame_end,\n        "fps": scene.render.fps,\n        "film_transparent": bool(getattr(scene.render, "film_transparent", False)),\n        "color_management": {"view_transform": scene.view_settings.view_transform, "look": scene.view_settings.look, "exposure": scene.view_settings.exposure, "gamma": scene.view_settings.gamma},\n        "samples": getattr(getattr(scene, "eevee", None), "taa_render_samples", None),\n        "use_sequencer": bool(getattr(scene.render, "use_sequencer", False)),\n        "strips": [{"name": strip.name, "type": strip.type, "scene": getattr(getattr(strip, "scene", None), "name", None), "frame_start": strip.frame_start, "frame_end": strip.frame_final_end} for strip in scene_strips(scene)[:500]],\n    })\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scenes": payload}, separators=(",", ":")))`;
 }
 
+function materialSocketCode(operation) {
+  const fields = [];
+  if (Object.hasOwn(operation, 'transmission')) {
+    fields.push(`transmission_socket = bsdf.inputs.get('Transmission Weight')\nif transmission_socket is None:\n    transmission_socket = bsdf.inputs.get('Transmission')\nif transmission_socket is None:\n    raise RuntimeError("Principled transmission input not found")\ntransmission_socket.default_value = ${operation.transmission}`);
+  }
+  if (Object.hasOwn(operation, 'ior')) {
+    fields.push(`ior_socket = bsdf.inputs.get('IOR')\nif ior_socket is None:\n    raise RuntimeError("Principled IOR input not found")\nior_socket.default_value = ${operation.ior}`);
+  }
+  if (Object.hasOwn(operation, 'alpha')) {
+    fields.push(`alpha_socket = bsdf.inputs.get('Alpha')\nif alpha_socket is None:\n    raise RuntimeError("Principled alpha input not found")\nalpha_socket.default_value = ${operation.alpha}`);
+  }
+  return fields.length ? `\n${fields.join('\n')}` : '';
+}
+
 function createMeshCode(operation) {
-  const primitive = {
+  const custom = Array.isArray(operation.vertices);
+  const primitive = custom
+    ? `verts = ${quote(operation.vertices)}\nfaces = ${quote(operation.faces)}`
+    : {
     cube: `verts = [(-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1), (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)]\nfaces = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]`,
     plane: `verts = [(-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0)]\nfaces = [(0, 1, 2, 3)]`,
     cylinder: `from math import sin, cos, pi\nsegments = 32\nverts = [(cos(2 * pi * segment / segments), sin(2 * pi * segment / segments), z) for z in (-1, 1) for segment in range(segments)]\nfaces = [tuple(reversed(range(segments))), tuple(range(segments, 2 * segments))]\nfor segment in range(segments):\n    next_segment = (segment + 1) % segments\n    faces.append((segment, next_segment, segments + next_segment, segments + segment))`,
@@ -645,6 +702,13 @@ function modifierCode(operation) {
       settings.push(`modifier.use_relative_offset = True`);
       settings.push(`modifier.relative_offset_displace = ${quote(operation.relative_offset)}`);
     }
+  }
+  if (operation.modifier === 'BOOLEAN') {
+    settings.push(`modifier.object = bpy.data.objects.get(${quote(operation.object)})\nif modifier.object is None:\n    raise RuntimeError("boolean target object not found")`);
+    settings.push(`modifier.operation = ${quote(operation.boolean_operation ?? 'DIFFERENCE')}`);
+    if (Object.hasOwn(operation, 'solver')) settings.push(`modifier.solver = ${quote(operation.solver)}`);
+    if (Object.hasOwn(operation, 'use_self')) settings.push(`modifier.use_self = ${operation.use_self ? 'True' : 'False'}`);
+    if (Object.hasOwn(operation, 'use_hole_tolerant')) settings.push(`modifier.use_hole_tolerant = ${operation.use_hole_tolerant ? 'True' : 'False'}`);
   }
   const apply = operation.apply === true
     ? `bpy.context.view_layer.objects.active = obj\nobj.select_set(True)\nbpy.ops.object.modifier_apply(modifier=modifier.name)`
@@ -783,12 +847,12 @@ function operationBody(operation) {
     }
     case 'material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
-      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("material requires mesh, text, or curve object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
+      return `${objectModeGuard()}\n${objectLookup(operation.name)}\n${sceneObjectGuard(operation)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("material requires mesh, text, or curve object")\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}${materialSocketCode(operation)}\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)\n${jsonReceipt('material', operation.name)}`;
     }
     case 'shared_material': {
       const emission = operation.emission ? `\nemission_socket = bsdf.inputs.get('Emission Color')\nif emission_socket is None:\n    emission_socket = bsdf.inputs.get('Emission')\nif emission_socket is None:\n    raise RuntimeError("Principled emission input not found")\nemission_socket.default_value = ${quote(operation.emission.color)}\nbsdf.inputs['Emission Strength'].default_value = ${operation.emission.strength}` : '';
       const assign = operation.objects.map((name) => `${objectLookup(name)}\n${sceneObjectGuard(operation)}\nif obj.type not in ('MESH', 'FONT', 'CURVE'):\n    raise RuntimeError("shared_material requires mesh, text, or curve objects")\nif obj.data.users > 1 or not obj.data.is_editable:\n    obj.data = obj.data.copy()\nif obj.data.materials:\n    obj.active_material = material\nelse:\n    obj.data.materials.append(material)`).join('\n');
-      return `${objectModeGuard()}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}\n${assign}\n${jsonReceipt('shared_material', operation.name)}`;
+      return `${objectModeGuard()}\nmaterial = bpy.data.materials.new(${quote(operation.name)} + "_Material")\nmaterial.use_nodes = True\nbsdf = next((node for node in material.node_tree.nodes if node.type == 'BSDF_PRINCIPLED'), None)\nif bsdf is None:\n    raise RuntimeError("Principled BSDF node not found")\nbsdf.inputs['Base Color'].default_value = ${quote(operation.color)}\nbsdf.inputs['Roughness'].default_value = ${operation.roughness}\nbsdf.inputs['Metallic'].default_value = ${operation.metallic}${emission}${materialSocketCode(operation)}\n${assign}\n${jsonReceipt('shared_material', operation.name)}`;
     }
     case 'duplicate': {
       const overrides = [];
@@ -800,7 +864,9 @@ function operationBody(operation) {
     case 'create_light': {
       const color = Object.hasOwn(operation, 'color') ? `\nlight_data.color = ${quote(operation.color)}` : '';
       const temperature = Object.hasOwn(operation, 'temperature') ? `\nif not hasattr(light_data, 'temperature'):\n    raise RuntimeError("light temperature unavailable")\nlight_data.temperature = ${operation.temperature}\nif hasattr(light_data, 'use_temperature'):\n    light_data.use_temperature = True` : '';
-      return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}${color}${temperature}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\n${sceneLink(operation, 'light')}\nlight.location = ${quote(operation.location)}\n${jsonReceipt('create_light', operation.name)}`;
+      const size = Object.hasOwn(operation, 'size') ? `\nif light_data.type != 'AREA':\n    raise RuntimeError("light size is supported only for AREA lights")\nlight_data.size = ${operation.size}` : '';
+      const rotation = Object.hasOwn(operation, 'rotation') ? `\nlight.rotation_euler = ${quote(operation.rotation)}` : '';
+      return `${objectModeGuard()}\n${hasScene(operation) ? `${sceneSetup(operation)}\n` : ''}${creationGuard(operation.name)}\nlight_enum = ${quote(operation.kind)}\n${enumValues('bpy.types.Light', 'type')}\nif light_enum not in valid_values:\n    raise RuntimeError("unsupported light type")\nlight_data = bpy.data.lights.new(${quote(operation.name)} + "_Light", type=light_enum)\nlight_data.energy = ${operation.energy}${color}${temperature}${size}\nlight = bpy.data.objects.new(${quote(operation.name)}, light_data)\n${sceneLink(operation, 'light')}\nlight.location = ${quote(operation.location)}${rotation}\n${jsonReceipt('create_light', operation.name)}`;
     }
     case 'create_camera': {
       const dof = operation.dof ? `\ncamera_data.dof.use_dof = True\ncamera_data.dof.aperture_fstop = ${operation.dof.aperture}\ncamera_data.dof.focus_distance = ${operation.dof.focus_distance}${Object.hasOwn(operation.dof, 'focus_object') ? `\nfocus_object = bpy.data.objects.get(${quote(operation.dof.focus_object)})\nif focus_object is None:\n    raise RuntimeError("DOF focus object not found")\ncamera_data.dof.focus_object = focus_object` : ''}` : '';
@@ -877,7 +943,7 @@ function sceneSelectionCode(sceneName) {
 
 function renderPreflightCode(scenePath, sceneName = null) {
   validateProjectPath(scenePath, 'scenePath');
-  return `import bpy\nimport json\nimport os\n\nexpected = ${quote(scenePath)}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\n${sceneSelectionCode(sceneName)}\nif not getattr(target_scene, 'render', None):\n    raise RuntimeError("scene render settings unavailable")\nuse_sequencer = bool(getattr(target_scene.render, 'use_sequencer', False)) and target_scene.sequence_editor is not None\ncamera = target_scene.camera\nif camera is None and not use_sequencer:\n    raise RuntimeError("scene camera is not set")\nif camera is not None and camera.type != 'CAMERA':\n    raise RuntimeError("scene camera is not a camera object")\nif int(target_scene.render.resolution_x) < 16 or int(target_scene.render.resolution_y) < 16:\n    raise RuntimeError("render resolution is invalid")\nlights = [obj for obj in target_scene.objects if obj.type == 'LIGHT']\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scene": getattr(target_scene, "name", None), "camera": camera.name if camera is not None else None, "use_sequencer": use_sequencer, "resolution": [target_scene.render.resolution_x, target_scene.render.resolution_y], "lights": [{"name": obj.name, "type": getattr(obj.data, "type", None), "energy": float(getattr(obj.data, "energy", 0) or 0)} for obj in lights], "world": target_scene.world is not None, "exposure": float(getattr(target_scene.view_settings, "exposure", 0) or 0)}, separators=(",", ":")))\n`;
+  return `import bpy\nimport json\nimport os\nfrom mathutils import Vector\n\nexpected = ${quote(scenePath)}\ncurrent = bpy.data.filepath\nif not current or os.path.normcase(os.path.abspath(bpy.path.abspath(current))) != os.path.normcase(os.path.abspath(bpy.path.abspath(expected))):\n    raise RuntimeError("scene filepath mismatch")\n${sceneSelectionCode(sceneName)}\nif not getattr(target_scene, 'render', None):\n    raise RuntimeError("scene render settings unavailable")\nuse_sequencer = bool(getattr(target_scene.render, 'use_sequencer', False)) and target_scene.sequence_editor is not None\ncamera = target_scene.camera\nif camera is None and not use_sequencer:\n    raise RuntimeError("scene camera is not set")\nif camera is not None and camera.type != 'CAMERA':\n    raise RuntimeError("scene camera is not a camera object")\nif int(target_scene.render.resolution_x) < 16 or int(target_scene.render.resolution_y) < 16:\n    raise RuntimeError("render resolution is invalid")\nmesh_objects = [obj for obj in target_scene.objects if obj.type == 'MESH']\ncamera_outside = None\nbounds = None\nif camera is not None and mesh_objects:\n    corners = [obj.matrix_world @ Vector(corner) for obj in mesh_objects for corner in obj.bound_box]\n    minimum = [min(corner[i] for corner in corners) for i in range(3)]\n    maximum = [max(corner[i] for corner in corners) for i in range(3)]\n    location = camera.matrix_world.translation\n    camera_outside = any(location[i] < minimum[i] or location[i] > maximum[i] for i in range(3))\n    bounds = {"min": minimum, "max": maximum}\nlights = [obj for obj in target_scene.objects if obj.type == 'LIGHT']\nprint("HARNESS_JSON:" + json.dumps({"ok": True, "scene": getattr(target_scene, "name", None), "camera": camera.name if camera is not None else None, "use_sequencer": use_sequencer, "resolution": [target_scene.render.resolution_x, target_scene.render.resolution_y], "camera_outside": camera_outside, "bounds": bounds, "lights": [{"name": obj.name, "type": getattr(obj.data, "type", None), "energy": float(getattr(obj.data, "energy", 0) or 0)} for obj in lights], "world": target_scene.world is not None, "exposure": float(getattr(target_scene.view_settings, "exposure", 0) or 0)}, separators=(",", ":")))\n`;
 }
 
 function renderCode(scenePath, renderPath, sceneName = null) {

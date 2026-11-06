@@ -93,13 +93,16 @@ test('energy and positive lens enforce upper bounds', () => {
 
 test('material vectors retain tighter color bounds and reject sparse components', () => {
   const operation = { operation: 'material', name: 'Cube', color: [0, 1, 0, 1], roughness: 0, metallic: 1 };
-  assert.throws(() => operationCode({ ...operation, transmission: 0.5 }, allowed), /unsupported by the harness reviewed material layer.*Blender supports glass.*raw Python stays blocked/);
+  assert.doesNotThrow(() => operationCode({ ...operation, transmission: 0.5, ior: 1.45, alpha: 0.8 }, allowed));
   assert.doesNotThrow(() => operationCode(operation, allowed));
   for (const bad of [-0.01, 1.01, NaN, Infinity]) {
-    for (const field of ['roughness', 'metallic']) {
+    for (const field of ['roughness', 'metallic', 'transmission', 'alpha']) {
       assert.throws(() => operationCode({ ...operation, [field]: bad }, allowed), /finite|bounds/);
     }
     assert.throws(() => operationCode({ ...operation, color: [0, 0, bad, 1] }, allowed), /finite|bounds/);
+  }
+  for (const bad of [0.99, 3.01, NaN, Infinity]) {
+    assert.throws(() => operationCode({ ...operation, ior: bad }, allowed), /finite|bounds/);
   }
   assert.throws(() => operationCode({ ...operation, color: Array(4) }, allowed), /finite/);
 });
@@ -124,8 +127,13 @@ test('operationCode validates extra keys, names, bounds, and enums', () => {
   assert.throws(() => operationCode({ operation: 'delete_object', name: 'Other' }, allowed), /not allowed/);
   assert.throws(() => operationCode({ operation: 'render_settings', width: 15, height: 100, samples: 1 }, []), /out of bounds/);
   assert.throws(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: -1 }, allowed), /out of bounds/);
-  assert.throws(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 10, rotation: [0, 0, 0] }, allowed), /unsupported by the harness reviewed create_light layer.*Blender supports rotation.*transform/);
+  assert.doesNotThrow(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 10, rotation: [0, 0, 0], size: 1.2 }, allowed));
+  assert.throws(() => operationCode({ operation: 'create_light', name: 'Lamp', kind: 'POINT', location: [0, 0, 0], energy: 10, size: 1 }, allowed), /only for AREA/);
   assert.throws(() => operationCode({ ...meshOperation(), size: [1, 1, 1] }, allowed), /unsupported by the harness reviewed primitive layer.*cube base is 2x2x2.*scale = dimension\/2/);
+  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN' }, allowed), /object is required/);
+  assert.doesNotThrow(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN', object: 'Lamp', boolean_operation: 'DIFFERENCE', solver: 'EXACT' }, allowed));
+  assert.doesNotThrow(() => operationCode({ operation: 'create_mesh', name: 'Triangle', vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]], faces: [[0, 1, 2]], location: [0, 0, 0], scale: [1, 1, 1] }, [...allowed, 'Triangle']));
+  assert.throws(() => operationCode({ operation: 'create_mesh', name: 'Triangle', vertices: [[0, 0, 0]], faces: [[0, 0, 0]], location: [0, 0, 0], scale: [1, 1, 1] }, [...allowed, 'Triangle']), /3-10000 vertices/);
   assert.throws(() => operationCode({ operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 0 }, allowed), /out of bounds/);
   assert.throws(() => operationCode({ operation: 'transform', name: 'Cube' }, allowed), /requires/);
 });
@@ -228,7 +236,9 @@ test('camera DOF, light color/temperature, emission, shared materials, and dupli
   assert.match(array, /modifier\.count = 4/);
   assert.match(array, /modifier_apply/);
   assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'WAVE' }, allowed), /unsupported by the harness reviewed-operation layer.*supported: BEVEL/);
-  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN' }, allowed), /Blender\/MCP can do more.*raw Python stays blocked/);
+  const boolean = operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN', object: 'Lamp', boolean_operation: 'DIFFERENCE', solver: 'EXACT' }, allowed);
+  assert.match(boolean, /modifier\.object/);
+  assert.match(boolean, /modifier\.operation = "DIFFERENCE"/);
   const duplicate = operationCode({ operation: 'duplicate', name: 'Cube', new_name: 'Copy', location: [1, 0, 0] }, [...allowed, 'Copy']);
   assert.match(duplicate, /duplicate\.data = obj\.data\.copy\(\)/);
   assert.match(duplicate, /duplicate\.location/);
@@ -342,6 +352,7 @@ test('preflight, save, and render code enforce explicit project paths', () => {
 test('every operation and lifecycle script compiles as Python without importing Blender', () => {
   const operations = [
     ...['cube', 'plane', 'uv_sphere', 'cylinder'].map(meshOperation),
+    { operation: 'create_mesh', name: 'Triangle', vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]], faces: [[0, 1, 2]], location: [0, 0, 0], scale: [1, 1, 1] },
     { operation: 'create_scene', name: 'SC_001', mode: 'NEW' },
     { operation: 'create_scene', name: 'SC_002', mode: 'EMPTY', source: 'SC_001' },
     { operation: 'switch_scene', name: 'SC_001' },
@@ -355,11 +366,12 @@ test('every operation and lifecycle script compiles as Python without importing 
     { operation: 'modifier', name: 'Cube', modifier: 'SOLIDIFY', thickness: 0.01, offset: -1 },
     { operation: 'modifier', name: 'Cube', modifier: 'MIRROR', axis: 'X', use_clip: true },
     { operation: 'modifier', name: 'Cube', modifier: 'ARRAY', count: 3, relative_offset: [1, 0, 0], apply: true },
+    { operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN', object: 'Lamp', boolean_operation: 'DIFFERENCE', solver: 'EXACT' },
     { operation: 'transform', name: 'Cube', location: [1, 2, 3], rotation: [0, 1, 2], scale: [1, 1, 1] },
-    { operation: 'material', name: 'Cube', color: [1, 0, 0, 1], roughness: 0.5, metallic: 0, emission: { color: [1, 0.4, 0.2, 1], strength: 1 } },
-    { operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 0, 0, 1], roughness: 0.5, metallic: 0 },
+    { operation: 'material', name: 'Cube', color: [1, 0, 0, 1], roughness: 0.5, metallic: 0, transmission: 0.4, ior: 1.45, alpha: 0.8, emission: { color: [1, 0.4, 0.2, 1], strength: 1 } },
+    { operation: 'shared_material', name: 'Wood', objects: ['Cube', 'Lamp'], color: [1, 0, 0, 1], roughness: 0.5, metallic: 0, transmission: 0.2 },
     { operation: 'duplicate', name: 'Cube', new_name: 'Copy' },
-    { operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 100, color: [1, 0.7, 0.5], temperature: 3200 },
+    { operation: 'create_light', name: 'Lamp', kind: 'AREA', location: [0, 0, 0], energy: 100, color: [1, 0.7, 0.5], temperature: 3200, rotation: [0, 0, 0], size: 1.2 },
     { operation: 'create_camera', name: 'Camera', location: [0, 0, 0], rotation: [0, 0, 0], lens: 50, dof: { aperture: 2.8, focus_distance: 3, focus_object: 'Cube' } },
     { operation: 'set_camera', name: 'Camera' }, { operation: 'delete_object', name: 'Cube' },
     { operation: 'render_settings', width: 1920, height: 1080, samples: 64 },
@@ -375,7 +387,7 @@ test('every operation and lifecycle script compiles as Python without importing 
     { operation: 'pack_assets' },
     { operation: 'export_scene', format: 'glb', path: 'exports/room.glb' },
   ];
-  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Sign', 'Imported', 'Linked', 'Rain', 'Reference']));
+  const scripts = operations.map((operation) => operationCode(operation, [...allowed, 'Copy', 'Floor "Lamp" \\ 1', 'Sign', 'Imported', 'Linked', 'Rain', 'Reference', 'Triangle']));
   scripts.push(preflightCode('//project.blend'), saveCode('//project.blend'), renderPreflightCode('//project.blend'), renderCode('//project.blend', '//renders/frame.png'), renderPreflightCode('//project.blend', 'SC_001'), renderCode('//project.blend', '//renders/frame.png', 'SC_001'), sceneFactsCode('SC_001'));
   const count = runPython(`import json, sys
 scripts = json.load(sys.stdin)
