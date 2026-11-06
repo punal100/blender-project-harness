@@ -323,7 +323,7 @@ function validateOperation(operation, allowedObjects) {
       requireKeys(operation, ['name', 'modifier'], kind);
       validateAllowedName(operation.name, allowed);
       validateString(operation.modifier, `${kind}.modifier`);
-      if (!MODIFIER_KINDS.has(operation.modifier)) fail(`${kind}.modifier is invalid`);
+      if (!MODIFIER_KINDS.has(operation.modifier)) fail(`${kind}.modifier "${operation.modifier}" is unsupported by the harness reviewed-operation layer; supported: ${[...MODIFIER_KINDS].join(', ')}. Blender/MCP can do more, but raw Python stays blocked; use wall segments, a reviewed operation, or explicit unsafe mode.`);
       if (Object.hasOwn(operation, 'apply')) validateBoolean(operation.apply, `${kind}.apply`);
       if (operation.modifier === 'BEVEL') {
         if (Object.hasOwn(operation, 'width')) validateFiniteNumber(operation.width, `${kind}.width`, 0, 1000);

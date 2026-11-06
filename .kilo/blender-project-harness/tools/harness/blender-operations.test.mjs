@@ -224,7 +224,8 @@ test('camera DOF, light color/temperature, emission, shared materials, and dupli
   const array = operationCode({ operation: 'modifier', name: 'Cube', modifier: 'ARRAY', count: 4, relative_offset: [1, 0, 0], apply: true }, allowed);
   assert.match(array, /modifier\.count = 4/);
   assert.match(array, /modifier_apply/);
-  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'WAVE' }, allowed), /invalid/);
+  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'WAVE' }, allowed), /unsupported by the harness reviewed-operation layer.*supported: BEVEL/);
+  assert.throws(() => operationCode({ operation: 'modifier', name: 'Cube', modifier: 'BOOLEAN' }, allowed), /Blender\/MCP can do more.*raw Python stays blocked/);
   const duplicate = operationCode({ operation: 'duplicate', name: 'Cube', new_name: 'Copy', location: [1, 0, 0] }, [...allowed, 'Copy']);
   assert.match(duplicate, /duplicate\.data = obj\.data\.copy\(\)/);
   assert.match(duplicate, /duplicate\.location/);
