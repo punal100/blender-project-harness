@@ -2147,10 +2147,14 @@ test('a failed worker task commits its task metadata and leaves the project clea
   const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.id === issued.taskId));
   assert.equal(task.state, 'failed');
   assert.match(task.result, /worker crashed/);
+  assert.match(task.result, /ticket released/);
+  assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
+  assert.equal(f.harness.command('orchestrator', 'status').change.pending, null);
   assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
   assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 1);
   assert.notEqual(f.harness.command('orchestrator', 'status').change, null);
+  assert.ok(f.harness.issue('orchestrator', 'apply', { index: 2 }).token);
 });
 
 test('a failed apply commits task metadata without committing the failed scene', (t) => {

@@ -291,7 +291,22 @@ test('worker model chain advances from primary to backup to global fallback', as
   assert.equal(args.model, undefined);
   assert.equal(args.provider, undefined);
 });
+
+test('a worker BLOCKED result releases the unused apply ticket', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  const args = { subagent_type: 'blender-worker', prompt: `Ticket: ${issued.token}\nRead the task document.`, background: false };
+  await before(h, f.session, 'task', args);
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task', args },
+    { output: 'BLOCKED: authoritative scene path missing', metadata: { sessionId: 'ses_worker_blocked' } },
+  );
+  assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
+  assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+});
+
 test('grader delegation requires the exact ticket evidence key and scene hash', async (t) => {
+
   const f = fixture(t, { review: 'Single' }), h = hooks(f); f.begin();
   const token = '11111111-1111-1111-1111-111111111111';
   f.harness.transaction((s) => {

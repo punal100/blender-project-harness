@@ -857,6 +857,12 @@ export function createHooks(harness, client, directory = harness.root) {
         if (successful(output) && child) {
           if (plan) modelAttempts.delete(plan.key);
           harness.bindWorker(input.sessionID, child, plan.prompt ?? input.args?.prompt ?? '');
+          const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
+          const text = typeof output.output === 'string' ? output.output : '';
+          if (token && /\bBLOCKED\b/.test(text)) {
+            const releasable = harness.transaction((s) => ['issued', 'authorized'].includes(s.tickets[token]?.state));
+            if (releasable) harness.failWorkerByToken(input.sessionID, token, 'worker returned BLOCKED before executing the ticket');
+          }
         } else {
           if (!child && plan) {
             const next = recordModelStartFailure(plan);

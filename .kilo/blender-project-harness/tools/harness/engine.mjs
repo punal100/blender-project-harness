@@ -2674,6 +2674,7 @@ export class Harness {
       const task = p.tasks?.find((item) => item.token === token);
       if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
       const ticket = s.tickets[task.token];
+      if (ticket?.state === 'released') deny('worker ticket was released before execution; issue a new apply ticket instead of reusing this token');
       if (task.child && task.child !== child && ticket && ticket.state !== 'issued') deny('worker token is already bound to another child');
       if (task.child === child && task.state === 'running') return;
       task.child = child;
@@ -2689,6 +2690,7 @@ export class Harness {
       const task = p.tasks?.find((item) => tokens.includes(item.token)) ?? p.tasks?.find((item) => item.token === p.change?.pending);
       if (!task || task.operation === 'save' || task.operation === 'seal' || task.operation === 'wip') return;
       const ticket = s.tickets[task.token];
+      if (ticket?.state === 'released') deny('worker ticket was released before execution; issue a new apply ticket instead of reusing this token');
       if (task.child && task.child !== child) {
         if (ticket && ticket.state !== 'issued') deny('worker token is already bound to another child');
         task.child = child;
@@ -2740,6 +2742,14 @@ export class Harness {
       task.state = 'failed';
       task.finished = new Date().toISOString();
       task.result = String(error ?? 'worker task failed').slice(0, 300);
+      const ticket = s.tickets[token];
+      if (ticket && ['issued', 'authorized'].includes(ticket.state)) {
+        ticket.state = 'released';
+        ticket.releasedAt = new Date().toISOString();
+        ticket.releaseReason = task.result;
+        if (p.change?.pending === token) delete p.change.pending;
+        task.result = `${task.result} (ticket released before execution; issue a new apply ticket)`;
+      }
       this.writeTaskDocument(p, task);
       this.writeTaskSummary(p, task);
       this.writeTaskLedger(p);
