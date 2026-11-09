@@ -39,6 +39,26 @@ The harness exists to make these guarantees:
 - Assets, licences, exports, and external files are recorded.
 - Failures are reported as failures, not silently downgraded.
 
+## Canonical state contract
+
+`status.state` is the canonical read model for agents, UI, and tests. It has three layers:
+
+| Layer | What it answers | Stability |
+|---|---|---|
+| `workflow` | One coarse state, current phase, owner, action, reason, blockers, terminality, and allowed next states. | Stable for UI and agents. |
+| `change`, `review`, `execution`, `project` | Compatibility projections for existing consumers. | Preserved; additive changes only. |
+| `entities` | Per-entity state snapshots with `known`, `terminal`, and `allowed` transitions. | Detailed diagnostics and tooling. |
+
+The coarse `workflow.state` is derived from the authoritative `nextStep.phase`; `change.phase` mirrors
+that phase. Detailed entity machines live in `state-machine.mjs`:
+
+- registration, mission, ticket, task, worker, review assignment, review, media, reference intake,
+  intake, wait, shell approval, asset check, export, and change phases.
+
+The engine validates ticket, task, media, and reference-intake transitions at write time. Unknown
+persisted states are reported in `state.invariants.violations` rather than silently treated as valid.
+Legacy status fields and `nextStep` remain available, so existing callers do not need to change.
+
 ## 2. Main components
 
 | Component | Responsibility |

@@ -32,8 +32,21 @@
 
 ### Feature
 
-- Added `state-model.mjs` and tests covering bootstrap, pending, sealed, approval, completion,
-  worker-turn, reference/media/wait blockers, and ticket/task divergence.
+- Added `state-machine.mjs`, a declarative contract for registration, mission, ticket, task, worker,
+  review, media, reference-intake, intake, wait, shell-approval, asset-check, export, and change-phase
+  states.
+- `status.state.workflow` now exposes one coarse workflow state with owner, action, reason, blockers,
+  terminality, and allowed next states; `status.state.entities` exposes per-entity transitions.
+- Ticket, task, media, and reference-intake writes now reject invalid transitions at the engine
+  boundary, while unknown persisted states are reported as invariant violations.
+- The change phase mirrors the authoritative `nextStep.phase`; legacy status fields remain available
+  for compatibility.
+- Workflow projection now keeps paused, reregistering, bootstrap, and save phases in their actual
+  states; asset/export snapshots validate the current scene and receipts; failed grader tasks can
+  recover to done only through the explicit recovery transition.
+- `state-model.mjs` remains the canonical projection used by `status.state`; its tests cover
+  bootstrap, pending, sealed, approval, completion, worker-turn, reference/media/wait blockers, and
+  ticket/task divergence.
 
 ## 1.0.7 - 2026-11-06
 

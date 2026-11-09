@@ -91,6 +91,9 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
 
 ## Working and safety
 
+- Use `status.state.workflow` for the stable state, owner, action, blockers, and allowed next states;
+  use `status.state.entities` for per-entity transitions and `status.nextStep` for the exact action.
+  Never invent a phase or bypass a rejected transition with a raw state edit.
 - Read `blender-mcp` before any scene operation. Follow `status.toolExposure`; use search/inspect before
   declaring a tool missing, and never enable unsafe/raw-Python exposure on your own. Use Context7 and
   official Blender docs for uncertain APIs; verify against the live version through supported
