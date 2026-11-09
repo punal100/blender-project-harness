@@ -14,6 +14,13 @@
   rejected.
 - Worker-facing token failures now tell the worker to return `BLOCKED`, not to call a tool it cannot
   access.
+- `status.state` now exposes a canonical project/change/review/execution projection with blockers and
+  invariant violations; legacy fields and `nextStep` remain compatibility views.
+
+### Feature
+
+- Added `state-model.mjs` and tests covering bootstrap, pending, sealed, approval, completion,
+  worker-turn, reference/media/wait blockers, and ticket/task divergence.
 
 ## 1.0.7 - 2026-11-06
 

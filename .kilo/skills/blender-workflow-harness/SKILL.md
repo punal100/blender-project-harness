@@ -48,6 +48,9 @@ Use `status.nextStep`; do not infer a route. A reviewable change normally runs:
   After bootstrap, the harness records a pending reference gate. Open the non-scene reference-intake
   change and call `intake {scan:false}`; scene `begin` and apply are blocked until every scanned file is
   copied into `Documents/References/`.
+- `status.state` is the canonical projection: project lifecycle, change phase, review state,
+  execution ticket/task/worker, blockers, and invariant violations. Read it for orientation; keep
+  using `status.nextStep` for the exact next action. Legacy flag fields remain compatibility views.
 - Tool exposure lives in `.kilo/blender-project-harness/config.json`, not `kilo.jsonc`. Read
   `status.toolExposure`; `lite`/`smart`/`full`/`readonly`/`unsafe` change what is listed, not the
   underlying safety gates. Role profiles apply when the server is launched with `BLENDER_ROLE`;
