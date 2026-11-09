@@ -152,3 +152,79 @@ test('review reported counts verdicts, not dispatched report paths', () => {
   p.change.graders.visual.verdict = 'PASS';
   assert.equal(deriveState(p).review.reported, 1);
 });
+
+test('workflow state maps the authoritative phase and owner', () => {
+  const p = project(change({ saved: true }));
+  const state = deriveState(p, null, { phase: 'apply', actor: 'blender-worker', action: 'ticket', reason: 'Apply the next batch.' });
+  assert.equal(state.workflow.state, 'applying');
+  assert.equal(state.workflow.phase, 'apply');
+  assert.equal(state.workflow.owner, 'blender-worker');
+  assert.equal(state.workflow.action, 'ticket');
+  assert.equal(state.workflow.reason, 'Apply the next batch.');
+  assert.equal(state.entities.change.phase, 'apply');
+  assert.deepEqual(state.workflow.allowed, ['wip', 'sealing', 'saving', 'recovery', 'paused', 'conflict']);
+});
+
+test('entity snapshots expose machine states and transitions', () => {
+  const p = project(change({ pending: 'token-1', saved: true }), {
+    tasks: [task('issued')],
+    media: { requests: [{ id: 'm1', status: 'generated' }] },
+    referenceIntake: { status: 'pending' },
+    assetUse: true,
+    exports: [{ path: 'exports/scene.glb', sha256: 'abc' }],
+    worker: { child: 'ses_worker', turns: 2, maxTurns: 10 },
+    waits: [{ kind: 'process', dueAt: new Date(Date.now() + 60_000).toISOString() }],
+  });
+  const state = deriveState(p, { tickets: { 'token-1': { state: 'issued', operation: 'apply' } } });
+  assert.equal(state.entities.ticket.state, 'issued');
+  assert.deepEqual(state.entities.ticket.allowed, ['authorized', 'released', 'abandoned']);
+  assert.equal(state.entities.task.state, 'issued');
+  assert.equal(state.entities.worker.state, 'active');
+  assert.equal(state.entities.media.state, 'generated');
+  assert.equal(state.entities.referenceIntake.state, 'pending');
+  assert.equal(state.entities.assetCheck.state, 'required');
+  assert.equal(state.entities.export.state, 'recorded');
+  assert.equal(state.entities.wait.state, 'active');
+});
+
+test('paused and reregistering projects report project state before phase', () => {
+  const paused = project(change({ saved: true }), { goalActive: false, paused: { at: '2026-01-01', reason: 'manual' } });
+  assert.equal(deriveState(paused, null, { phase: 'goal-blender', actor: 'orchestrator' }).workflow.state, 'paused');
+  const reregistering = project(null, { goalActive: false, reregistering: { requested: 1, reason: 'records changed' } });
+  assert.equal(deriveState(reregistering).workflow.state, 'registration');
+});
+
+test('bootstrap save phases stay in the bootstrap workflow', () => {
+  const p = project(change({ bootstrap: true, saved: false }));
+  assert.equal(deriveState(p, null, { phase: 'save', actor: 'orchestrator' }).workflow.state, 'bootstrap');
+  assert.equal(deriveState(p, null, { phase: 'bootstrap-commit', actor: 'orchestrator' }).workflow.state, 'bootstrap');
+});
+
+test('asset and export projections validate the current scene and receipts', () => {
+  const p = project(change({ saved: true, sealed: true, sceneHash: 'current' }), {
+    assetUse: true,
+    assetCheck: { sceneHash: 'current' },
+    history: [{ sceneHash: 'previous' }],
+    exports: [{ path: 'exports/scene.glb', sha256: 'abc' }],
+  });
+  assert.equal(deriveState(p).entities.assetCheck.state, 'checked');
+  assert.equal(deriveState(p, null, null, { exportStatus: () => 'missing' }).entities.export.state, 'missing');
+  assert.equal(deriveState(p, null, null, { exportStatus: () => 'changed' }).entities.export.state, 'changed');
+});
+
+test('a null project is unregistered rather than challenge-pending', () => {
+  assert.equal(deriveState(null).project.registration, 'unregistered');
+  assert.equal(deriveState(null).entities.registration.state, 'unregistered');
+  assert.equal(deriveState(null).workflow.state, 'unregistered');
+});
+
+test('unknown persisted states are reported as invariant violations', () => {
+  const p = project(change({ pending: 't', saved: true }), {
+    tasks: [task('mystery')],
+    media: { requests: [{ id: 'm1', status: 'mystery' }] },
+    referenceIntake: { status: 'mystery' },
+  });
+  const state = deriveState(p, { tickets: { t: { state: 'mystery', operation: 'apply' } } });
+  assert.equal(state.invariants.valid, false);
+  assert.match(state.invariants.violations.join(' '), /unknown state/);
+});
