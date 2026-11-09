@@ -1490,7 +1490,7 @@ export class Harness {
       if (c.pending) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reason: 'Resolve the pending worker ticket before conflict recovery' }), reason };
       if (c.wip) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint'), reason };
       const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
-      if (!c.operations && !dirty && !c.sealed) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
+      if (!c.operations && !c.saved && !dirty && !c.sealed) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
       return { phase: 'goal-conflict', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: 'Preserve the open change after built-in goal conflict' }), reason };
     }
     return { phase: 'goal-conflict', actor: 'orchestrator', action: 'reregister', command: this.wire('reregister', { reason: 'Built-in goal invalidated the registration; clear /goal and re-register.' }), reason };
@@ -2522,7 +2522,7 @@ export class Harness {
         if (c.pending) deny('resolve the pending worker ticket before preserving the change');
         if (c.preserved) deny('change is already preserved');
         const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
-        if (!dirty && !c.operations && !c.sealed) deny('nothing to preserve; abandon the empty change');
+        if (!dirty && !c.operations && !c.saved && !c.sealed) deny('nothing to preserve; abandon the empty change');
         c.preserved = { reason: args.reason.trim(), at: new Date().toISOString() };
         c.wip = true;
         c.verdict = 'WIP';

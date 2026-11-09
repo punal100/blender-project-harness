@@ -1952,6 +1952,18 @@ test('goal conflict abandons an empty change even after a task artifact commit',
   assert.equal(conflict.nextStep.action, 'abandon');
 });
 
+test('goal conflict preserves a saved bootstrap change', (t) => {
+  const f = useFixture(t);
+  fs.rmSync(path.join(f.root, f.scene));
+  commit(f.root, 'test: remove fixture scene', [f.project]);
+  activate(f);
+  begin(f, 'orchestrator', { paths: ['Documents/DECISIONS.md'] });
+  fs.writeFileSync(path.join(f.root, f.scene), 'saved scene bytes\n');
+  finishSave(f);
+  const conflict = f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(conflict.nextStep.action, 'preserve');
+});
+
 test('goal conflict revokes issued tickets', (t) => {
   const f = useFixture(t);
   activate(f);
