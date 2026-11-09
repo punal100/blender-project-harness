@@ -741,6 +741,15 @@ test('goal_blender blocks early completion and internal workflow actions', async
   );
 });
 
+test('status includes the canonical state projection', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const status = JSON.parse(await h.tool.blender_workflow.execute({ action: 'status', payload: '{}' }, { sessionID: f.session }));
+  assert.equal(status.state.version, 1);
+  assert.equal(status.state.project.lifecycle, 'active');
+  assert.ok(status.state.change);
+  assert.equal(status.state.invariants.valid, true);
+});
+
 test('config registers goal-blender and never goal', async (t) => {
   const f = fixture(t), h = hooks(f);
   const config = {};
