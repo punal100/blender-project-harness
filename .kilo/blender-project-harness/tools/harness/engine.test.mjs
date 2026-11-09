@@ -2124,7 +2124,7 @@ test('strict milestone commits each apply, requires finalize/WIP look, and accep
     f.harness.finish(issued.token, { ok: true, completed: 1, operationResults: [{ index: 1, operation: 'create_mesh', ok: true }] });
   }
   let status = f.harness.command('orchestrator', 'status');
-  assert.equal(status.change.commits.length, 2);
+  assert.equal(status.change.commits.length, 4);
   assert.equal(status.nextStep.phase, 'apply');
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
   const tracker = read(f.root, `${f.project}/Documents/TASKSTRACKER.md`);
@@ -2186,7 +2186,7 @@ test('a failed worker task commits its task metadata and leaves the project clea
   assert.equal(f.harness.command('orchestrator', 'status').change.pending, null);
   assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
-  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 1);
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
   assert.notEqual(f.harness.command('orchestrator', 'status').change, null);
   assert.ok(f.harness.issue('orchestrator', 'apply', { index: 2 }).token);
 });
@@ -2202,7 +2202,7 @@ test('a failed apply commits task metadata without committing the failed scene',
   assert.equal(task.state, 'failed');
   assert.ok(task.child);
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
-  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 1);
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
 });
 
 test('checkpoint rejects unrelated files and accepts scoped commit ranges', (t) => {
@@ -2358,7 +2358,7 @@ test('a successful WIP task commits its metadata and leaves the project clean', 
   assert.equal(task.state, 'done');
   assert.ok(fs.existsSync(path.join(f.root, task.summaryDoc)));
   assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
-  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 2);
+  assert.equal(f.harness.command('orchestrator', 'status').change.commits.length, 4);
 });
 
 test('seal and grader task metadata commit at the task boundary', (t) => {

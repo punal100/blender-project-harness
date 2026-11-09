@@ -302,6 +302,10 @@ test('worker model chain advances from primary to backup to global fallback', as
 test('worker dispatch requires the exact scene and task document', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  assert.ok(issued.payloadPath);
+  assert.ok(fs.existsSync(path.join(f.root, issued.payloadPath)));
+  assert.match(issued.workerPrompt, /Payload file:/);
+  assert.doesNotMatch(issued.workerPrompt, /"operations"/);
   await assert.rejects(
     before(h, f.session, 'task', { subagent_type: 'blender-worker', prompt: `Ticket: ${issued.token}`, background: false }),
     /authoritative scene.*task document|worker prompt is missing/i,
@@ -314,6 +318,10 @@ test('worker dispatch requires the exact scene and task document', async (t) => 
 test('worker dispatch pins one child for ten turns and rotates after the limit', async (t) => {
   const f = fixture(t), h = hooks(f); f.begin();
   const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  f.harness.transaction((s) => {
+    s.tickets[issued.token].state = 'done';
+    Object.values(s.projects)[0].change.pending = null;
+  });
   const first = { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false };
   await before(h, f.session, 'task', first);
   await h['tool.execute.after'](
@@ -330,6 +338,10 @@ test('worker dispatch pins one child for ten turns and rotates after the limit',
     project.change.pending = null;
   });
   const secondIssued = f.harness.issue(f.session, 'apply', { index: 2 });
+  f.harness.transaction((s) => {
+    s.tickets[secondIssued.token].state = 'done';
+    Object.values(s.projects)[0].change.pending = null;
+  });
   const second = { subagent_type: 'blender-worker', prompt: secondIssued.workerPrompt, background: false };
   await before(h, f.session, 'task', second);
   assert.equal(second.task_id, 'ses_worker_shared');
@@ -384,6 +396,25 @@ test('a worker PARTIAL result releases the unused apply ticket', async (t) => {
   );
   assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
   assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+});
+
+test('a worker that returns without executing releases the ticket and commits partial state', async (t) => {
+  const f = fixture(t), h = hooks(f); f.begin();
+  const issued = f.harness.issue(f.session, 'apply', { index: 1 });
+  const args = { subagent_type: 'blender-worker', prompt: issued.workerPrompt, background: false };
+  await before(h, f.session, 'task', args);
+  const output = { output: 'Scene matches. Executing the apply payload.', metadata: { sessionId: 'ses_worker_noop' } };
+  await h['tool.execute.after'](
+    { sessionID: f.session, callID: 'call_test', tool: 'task', args },
+    output,
+  );
+  assert.equal(f.harness.transaction((s) => s.tickets[issued.token].state), 'released');
+  assert.equal(f.harness.command(f.session, 'status').change.pending, null);
+  assert.equal(f.harness.command(f.session, 'status').worker, null);
+  assert.match(output.output, /PARTIAL: worker returned without calling/);
+  const task = f.harness.transaction((s) => Object.values(s.projects)[0].tasks.find((item) => item.token === issued.token));
+  assert.equal(task.state, 'failed');
+  assert.equal(git(f.root, ['status', '--porcelain', '--', f.project]).trim(), '');
 });
 
 test('background process starts a wait and stop clears it', async (t) => {
@@ -507,7 +538,7 @@ test('apply execution is delegated to worker children', async (t) => {
       ] }),
     },
   });
-  await before(worker, 'ses_worker', 'blender_harness_execute', ticket);
+  await before(worker, 'ses_worker', 'blender_harness_execute', { token: ticket.token, operation: 'apply', payload_path: ticket.payloadPath, payload_sha256: ticket.payloadHash, user_prompt: 'Apply assignment' });
   assert.equal(f.harness.transaction((s) => s.tickets[ticket.token].state), 'authorized');
 });
 

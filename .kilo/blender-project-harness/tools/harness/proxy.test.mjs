@@ -90,6 +90,11 @@ async function execute(f, proxy, operation, payload = {}) {
   f.harness.authorize(f.session, token, operation, payload);
   return proxy.call('harness_execute', { token, operation, payload, user_prompt: 'Create fixture scene.' });
 }
+async function executePayloadFile(f, proxy, operation, payload = {}) {
+  const issued = f.harness.issue(f.session, operation, payload);
+  f.harness.authorize(f.session, issued.token, operation, payload);
+  return proxy.call('harness_execute', { token: issued.token, operation, payload_path: issued.payloadPath, payload_sha256: issued.payloadHash, user_prompt: 'Create fixture scene.' });
+}
 async function prepareSeal(f, proxy) {
   f.harness.command(f.session, 'finalize');
   const wip = JSON.parse((await execute(f, proxy, 'wip')).content[0].text);
@@ -249,6 +254,19 @@ test('proxy executes one batched apply ticket and saves each operation', async (
   const taskDoc = fs.readFileSync(path.join(f.root, f.project, 'Documents', 'Tasks', 'T001', 'SUMMARY.md'), 'utf8');
   assert.match(taskDoc, /create_mesh/);
   assert.match(taskDoc, /Operation Results/);
+});
+
+test('proxy executes a file-backed payload and rejects a mismatched hash', async (t) => {
+  const f = fixture(t); f.begin();
+  const p = new BlenderProxy(f.harness, upstream(f));
+  const applied = JSON.parse((await executePayloadFile(f, p, 'apply', meshOperation)).content[0].text);
+  assert.equal(applied.change.operations, 1);
+  const issued = f.harness.issue(f.session, 'apply', meshOperation);
+  f.harness.authorize(f.session, issued.token, 'apply', meshOperation);
+  await assert.rejects(
+    p.call('harness_execute', { token: issued.token, operation: 'apply', payload_path: issued.payloadPath, payload_sha256: '0'.repeat(64), user_prompt: 'Create fixture scene.' }),
+    /SHA-256/,
+  );
 });
 
 test('proxy verifies export receipts and records them on the project', async (t) => {
