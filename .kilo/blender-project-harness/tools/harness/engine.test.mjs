@@ -1943,6 +1943,15 @@ test('goal conflict preserves and checkpoints an open change before reregister',
   assert.equal(checkpointed.nextStep.action, 'reregister');
 });
 
+test('goal conflict abandons an empty change even after a task artifact commit', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.issue('orchestrator', 'save', {});
+  const conflict = f.harness.command('orchestrator', 'goal-conflict', { reason: 'Built-in /goal was used.' });
+  assert.equal(conflict.nextStep.action, 'abandon');
+});
+
 test('goal conflict revokes issued tickets', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -2013,6 +2022,20 @@ test('registered changes cannot rewrite registration documents', (t) => {
   }));
 });
 
+test('status state change phase mirrors nextStep', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  let status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.state.change.phase, status.nextStep.phase);
+  const applied = issueAndConsume(f, 'orchestrator', 'apply', { index: 1 });
+  f.harness.finish(applied.token, { ok: true });
+  f.harness.command('orchestrator', 'finalize');
+  seal(f);
+  status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.state.change.phase, status.nextStep.phase);
+});
+
 test('partial review waits for approval before committing the reviewed change', (t) => {
   const f = useFixture(t, { workflow: 'Partially Autonomous', review: 'All' });
   activate(f);
@@ -2037,6 +2060,7 @@ test('review auto-commits reports and the verdict before checkpoint', (t) => {
   reviewAll(f);
   assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
   assert.ok(Number(git(f.root, ['rev-list', '--count', 'HEAD']).trim()) >= 3);
+  assert.match(git(f.root, ['log', '-1', '--format=%s']).trim(), /^task: T\d{3,} review: R01-\d{8}T\d{6}Z PASS$/);
   const review = read(f.root, `${f.project}/Documents/Reviews/R01-20261031T110000Z/REVIEW.md`);
   assert.match(review, /Verdict: PASS/);
   assert.match(review, /## Reason/);
@@ -2067,6 +2091,14 @@ test('commit helper stages the exact scoped change', (t) => {
   const status = f.harness.command('orchestrator', 'checkpoint');
   assert.equal(status.change, null);
   assert.equal(f.harness.transaction((s) => s.projects[f.project].history.at(-1).verdict), 'PASS');
+});
+
+test('commit message helper handles task IDs above T999 and rejects mismatches', (t) => {
+  const f = useFixture(t);
+  const change = { id: 'change-1' };
+  const project = { tasks: [{ id: 'T1000', change: 'change-1', kind: 'operation' }] };
+  assert.equal(f.harness.commitMessage(project, change, 'feat: scene'), 'task: T1000 feat: scene');
+  assert.throws(() => f.harness.commitMessage(project, change, 'task: T999 feat: scene'), /must be T1000/);
 });
 
 test('checkpoint accepts a scoped commit range and completes goal after PASS', (t) => {

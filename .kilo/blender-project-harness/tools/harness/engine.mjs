@@ -27,6 +27,7 @@ export const normalizeGoal = (value) => typeof value === 'string' ? value.normal
 const CHECKPOINT_EVERY = 20;
 export const WAIT_LIMIT = 10;
 export const WORKER_MAX_TURNS = 10;
+export const MAX_TICKET_PAYLOAD_BYTES = 2 * 1024 * 1024;
 export const questionToolPayload = (question, labels) => ({
   tool: 'question',
   questions: [{
@@ -1489,7 +1490,7 @@ export class Harness {
       if (c.pending) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'recover', command: this.wire('recover', { reason: 'Resolve the pending worker ticket before conflict recovery' }), reason };
       if (c.wip) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint'), reason };
       const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
-      if (!c.operations && !c.commits?.length && !dirty) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
+      if (!c.operations && !dirty && !c.sealed) return { phase: 'goal-conflict', actor: 'orchestrator', action: 'abandon', command: this.wire('abandon', { reason: 'Registration invalidated by built-in goal before any apply' }), reason };
       return { phase: 'goal-conflict', actor: 'orchestrator', action: 'preserve', command: this.wire('preserve', { reason: 'Preserve the open change after built-in goal conflict' }), reason };
     }
     return { phase: 'goal-conflict', actor: 'orchestrator', action: 'reregister', command: this.wire('reregister', { reason: 'Built-in goal invalidated the registration; clear /goal and re-register.' }), reason };
@@ -1688,7 +1689,7 @@ export class Harness {
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
        change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), reviewScope: c.final ? 'final' : 'milestone', readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
-       state: deriveState(p, state),
+       state: deriveState(p, state, step),
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p, state = null) {
@@ -1974,6 +1975,13 @@ export class Harness {
       return false;
     }
     return stable(this.snapshot(p.project)) === stable(p.snapshot);
+  }
+  commitMessage(p, c, message) {
+    const latestTask = [...(p.tasks ?? [])].reverse().find((task) => task.change === c.id && task.kind === 'operation');
+    const requestedMessage = String(message).trim();
+    const claimedTask = /^task:\s*(T\d{3,})\b/i.exec(requestedMessage);
+    if (claimedTask && latestTask && claimedTask[1].toUpperCase() !== latestTask.id) deny(`commit task prefix must be ${latestTask.id}`);
+    return latestTask && !claimedTask ? `task: ${latestTask.id} ${requestedMessage}` : requestedMessage;
   }
   autoCommit(p, c, message, { review = true } = {}) {
     this.mediaGate(p, c, { allowIntaken: true });
@@ -2449,18 +2457,14 @@ export class Harness {
         c.reports[name] = digest(text); c.notes = args.notes; c.reason = args.reason; c.dispositions = args.dispositions;
         this.updateReviewIndex(p, c);
         this.updateManifest(p);
-        if (p.records.workflow === 'Fully Autonomous' && c.verdict !== 'BLOCKED') this.autoCommit(p, c, `review: ${c.round} ${c.verdict}`);
+        if (p.records.workflow === 'Fully Autonomous' && c.verdict !== 'BLOCKED') this.autoCommit(p, c, this.commitMessage(p, c, `review: ${c.round} ${c.verdict}`));
       } else if (action === 'commit') {
         if (!c || c.pending) deny('open change with no pending operation required');
         if (typeof args.message !== 'string' || !args.message.trim() || args.message.length > 200 || /[\r\n]/.test(args.message)) deny('one bounded commit message required');
         if (args.mode !== undefined && args.mode !== 'wip') deny('commit mode must be wip when provided');
         const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
         const documentOnly = Boolean(c.nonSceneOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
-        const latestTask = [...(p.tasks ?? [])].reverse().find((task) => task.change === c.id && task.kind === 'operation');
-        const requestedMessage = args.message.trim();
-        const claimedTask = /^task:\s*(T\d{3})\b/i.exec(requestedMessage);
-        if (claimedTask && latestTask && claimedTask[1] !== latestTask.id) deny(`commit task prefix must be ${latestTask.id}`);
-        const message = latestTask && !claimedTask ? `task: ${latestTask.id} ${requestedMessage}` : requestedMessage;
+        const message = this.commitMessage(p, c, args.message);
         if (args.mode === 'wip') {
           if (!c.failure && Date.now() <= c.deadline) deny('WIP commit requires a failed or expired change');
           if (c.verdict) deny('reviewed changes use the normal commit path');
@@ -2518,7 +2522,7 @@ export class Harness {
         if (c.pending) deny('resolve the pending worker ticket before preserving the change');
         if (c.preserved) deny('change is already preserved');
         const dirty = Boolean(gitText(this.root, ['status', '--porcelain', '--untracked-files=all', '--', p.project]).trim());
-        if (!dirty && !c.commits?.length) deny('nothing to preserve; abandon the empty change');
+        if (!dirty && !c.operations && !c.sealed) deny('nothing to preserve; abandon the empty change');
         c.preserved = { reason: args.reason.trim(), at: new Date().toISOString() };
         c.wip = true;
         c.verdict = 'WIP';
@@ -2618,7 +2622,7 @@ export class Harness {
     });
   }
   workerPrompt(p, token, operation, payload, task) {
-    const payloadText = JSON.stringify(payload);
+    const payloadText = task?.payloadPath ? null : JSON.stringify(payload);
     return [
       `Assigned ${operation} for ${p.project}.`,
       `Authoritative scene: ${p.scene}`,
@@ -2847,7 +2851,7 @@ export class Harness {
       this.updateManifest(p);
     });
   }
-  failWorkerByToken(orchestrator, token, error) {
+  failWorkerByToken(orchestrator, token, error, { commit = true } = {}) {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
       const task = p.tasks?.find((item) => item.token === token);
@@ -2866,7 +2870,7 @@ export class Harness {
       this.writeTaskDocument(p, task);
       this.writeTaskSummary(p, task);
       this.writeTaskLedger(p);
-      if (p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`);
+      if (p.change && commit) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`);
     });
   }
   failGraderByToken(orchestrator, token, error) {
