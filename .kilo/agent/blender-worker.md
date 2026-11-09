@@ -91,7 +91,8 @@ and commit decision. Execute exactly one assigned task, then return.
 2. Load `blender-mcp`; verify addon status and the authoritative `.blend` with
    `blender_get_scene_info(fields=["settings"])`. Return `BLOCKED` on any mismatch; do not launch Blender.
 3. Execute the assigned apply payload with `blender_harness_execute` using the exact token,
-   operation `apply`, and verbatim user prompt. Each apply auto-saves the authoritative scene.
+   operation `apply`, `payload_path`, and `payload_sha256` from the prompt. The harness loads and
+   verifies the file. Each apply auto-saves the authoritative scene.
 4. Inspect the result with `get_scene_info` and `look`.
 5. Do not save, seal, review, approval, commit, or checkpoint. Orchestrator owns those lifecycle steps.
 6. Return the output contract. Do not continue with unrequested polish.

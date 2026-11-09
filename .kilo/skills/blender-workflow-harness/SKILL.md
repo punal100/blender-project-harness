@@ -78,7 +78,9 @@ may close with `commit`. Requirements stay frozen.
   it rebinds. A ticket already authorized or running stays bound to that child. The harness pins one
   worker child for up to 10 dispatches; `BLOCKED`, `PARTIAL`, task-start failure, or the turn limit
   retires it, and the next dispatch starts fresh. `status.worker` reports the pinned child and turn
-  count; `status.workerRetired` records the last retirement.
+  count; `status.workerRetired` records the last retirement. Task issue and retirement commit their
+  task documents; the worker prompt uses a committed payload file and hash, and a worker that returns
+  without consuming the ticket is released and recorded as failed.
 - Sealed tooling `BLOCKED` after the grader retry budget: `preserve {reason}`, then `checkpoint`.
 - To stop immediately, use `/goal-blender stop`; it works with an open change and aborts active
   worker/grader children. To stop cleanly, close the change with `commit`/`checkpoint` or WIP, call

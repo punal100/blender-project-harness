@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Worker apply prompts now reference a committed `Documents/Tasks/<TASK>/payload.json` plus its
+  SHA-256 instead of embedding the full operation JSON.
+- `blender_harness_execute` accepts `payload_path`/`payload_sha256`; the hook and proxy verify the
+  file before ticket authorization and consumption.
+- A worker that returns without consuming its ticket is released, recorded as failed, and retired;
+  task issue and retirement transitions commit their task documents.
+- Save/review commits receive the latest operation task prefix; a mismatched claimed task ID is
+  rejected.
+- Worker-facing token failures now tell the worker to return `BLOCKED`, not to call a tool it cannot
+  access.
+
 ## 1.0.7 - 2026-11-06
 
 ### Fixed

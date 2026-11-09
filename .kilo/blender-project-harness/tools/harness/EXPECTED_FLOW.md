@@ -273,7 +273,7 @@ Example apply batch:
 Expected:
 
 - the orchestrator issues one apply ticket;
-- the worker receives the ticket and exact payload;
+- the worker receives the ticket, the committed payload file path, and its SHA-256;
 - the worker executes only that batch;
 - the harness saves the scene;
 - an apply commit records the scene and task records;

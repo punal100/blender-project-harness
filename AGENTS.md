@@ -63,8 +63,9 @@ the named action; never bypass with shell, raw Python, state edits, or a temp co
 - Apply is worker-only. One `apply` ticket contains one operation or an `{operations:[...]}` batch of
   up to 10. Pass its token to one foreground `blender-worker`; omit `task_id` so the harness reuses and
   pins one worker child for up to 10 dispatches, then rotates automatically; never run parallel writers.
-  A blocked, partial, or failed worker is retired and replaced on the next dispatch. The orchestrator
-  executes only `save`, `seal`, and `wip`, never apply. Limits,
+  The harness writes and commits the task payload file, returns its path and SHA-256 in the prompt, and
+  records task issue/retirement commits. A blocked, partial, no-op, or failed worker is retired and
+  replaced on the next dispatch. The orchestrator executes only `save`, `seal`, and `wip`, never apply. Limits,
   recovery, document, commit, scene, and media procedure live in `capabilities` and
   `blender-workflow-harness`; follow `status.nextStep`.
 - The harness owns `Documents/TASKSTRACKER.md`, `Documents/Tasks/`, and `Documents/MEDIA.md`; read

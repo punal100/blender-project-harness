@@ -91,14 +91,16 @@ Example graders config:
 
 The orchestrator must issue an `apply` ticket before dispatch. Give the worker only the exact task
 ID, outcome, allowed objects/collections/paths, authoritative `.blend`, inputs, ticket token and
-payload, acceptance checks, `look` views, budget, deadline, and prior budget used. Do not add design or
-scope decisions. Omit `task_id`; the harness reuses the pinned worker and rotates it automatically.
+payload reference, acceptance checks, `look` views, budget, deadline, and prior budget used. Do not
+add design or scope decisions. Omit `task_id`; the harness reuses the pinned worker and rotates it
+automatically. The harness writes `Documents/Tasks/<TASK>/payload.json`, commits the task issue, and
+returns a compact worker prompt with the payload path and SHA-256.
 
-The worker calls `blender_harness_execute` with the exact token, `operation:"apply"`, matching
-payload, and the user's verbatim prompt. It may inspect the assigned scene with `get_scene_info` and
-`look`. It must return `BLOCKED` for any design, scope, naming, asset, licence, or acceptance
-decision. It must not save, seal, review, approve, commit, launch, stop, spawn subagents, ask the
-user, generate assets, or edit project files.
+The worker calls `blender_harness_execute` with the exact token, `operation:"apply"`, `payload_path`,
+`payload_sha256`, and the user's verbatim prompt. It may inspect the assigned scene with
+`get_scene_info` and `look`. It must return `BLOCKED` for any design, scope, naming, asset, licence,
+or acceptance decision. It must not save, seal, review, approve, commit, launch, stop, spawn
+subagents, ask the user, generate assets, or edit project files.
 
 Stop at the first of: `max_minutes` or `max_steps`; `max_failed_attempts` at the same step (never
 more than two); the same tool/API error twice; a needed design/scope/asset/licence/acceptance
