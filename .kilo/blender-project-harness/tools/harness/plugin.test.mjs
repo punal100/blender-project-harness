@@ -748,6 +748,9 @@ test('status includes the canonical state projection', async (t) => {
   assert.equal(status.state.project.lifecycle, 'active');
   assert.ok(status.state.change);
   assert.equal(status.state.invariants.valid, true);
+  assert.equal(status.state.workflow.phase, status.nextStep.phase);
+  assert.equal(status.state.entities.change.phase, status.nextStep.phase);
+  assert.equal(status.state.entities.worker.state, 'unbound');
 });
 
 test('config registers goal-blender and never goal', async (t) => {

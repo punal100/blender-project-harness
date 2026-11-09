@@ -1505,6 +1505,7 @@ test('a transient report commit failure preserves a valid PASS report for recove
   assert.equal(grader.verdict, 'PASS');
   assert.equal(grader.error, undefined);
   assert.equal(grader.attempt, 1);
+  assert.equal(f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.token === grader.token).state), 'done');
 
   const reviewed = f.harness.command('orchestrator', 'review', {
     notes: 'The recovered PASS report is valid.',
@@ -2040,6 +2041,9 @@ test('status state change phase mirrors nextStep', (t) => {
   begin(f);
   let status = f.harness.command('orchestrator', 'status');
   assert.equal(status.state.change.phase, status.nextStep.phase);
+  assert.equal(status.state.workflow.phase, status.nextStep.phase);
+  assert.equal(status.state.workflow.owner, status.nextStep.actor);
+  assert.equal(status.state.entities.change.phase, status.nextStep.phase);
   const applied = issueAndConsume(f, 'orchestrator', 'apply', { index: 1 });
   f.harness.finish(applied.token, { ok: true });
   f.harness.command('orchestrator', 'finalize');

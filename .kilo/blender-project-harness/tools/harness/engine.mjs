@@ -21,6 +21,7 @@ import { downloadToStaging } from './download.mjs';
 import { configPath } from './workspace.mjs';
 import { toolExposureSummary } from './tool-exposure.mjs';
 import { deriveState } from './state-model.mjs';
+import { canTransition, isTerminalState } from './state-machine.mjs';
 
 export const digest = (data) => crypto.createHash('sha256').update(data).digest('hex');
 export const normalizeGoal = (value) => typeof value === 'string' ? value.normalize('NFC').replace(/\r\n?/g, '\n').trim() : value;
@@ -304,6 +305,11 @@ export class Harness {
     this.lock = path.join(this.home, 'state.lock');
   }
 
+  assertTransition(machine, from, to) {
+    if (!canTransition(machine, from, to)) deny(`invalid ${machine} transition: ${from} -> ${to}`);
+    return to;
+  }
+
   transaction(fn) {
     let fd;
     try { fd = fs.openSync(this.lock, 'wx', 0o600); }
@@ -336,6 +342,15 @@ export class Harness {
     return contained(this.root, project);
   }
   hash(name) { return digest(fs.readFileSync(contained(this.root, name))); }
+  exportStatus(receipt) {
+    if (!receipt?.path) return 'missing';
+    try {
+      if (!fs.existsSync(path.join(this.root, ...String(receipt.path).split('/')))) return 'missing';
+      return this.hash(receipt.path) === receipt.sha256 ? 'recorded' : 'changed';
+    } catch {
+      return 'missing';
+    }
+  }
   taskDocument(p) {
     return `${p.project}/${TASKSTRACKER_DOCUMENT}`;
   }
@@ -461,7 +476,8 @@ export class Harness {
       const at = new Date().toISOString();
       const text = String(reason ?? 'Mission stopped').slice(0, 300);
       for (const task of p.tasks ?? []) {
-        if (!ids.has(task.child) || ['done', 'failed', 'cancelled'].includes(task.state)) continue;
+        if (!ids.has(task.child) || isTerminalState('task', task.state)) continue;
+        this.assertTransition('task', task.state, 'cancelled');
         task.state = 'cancelled';
         task.finished = at;
         task.result = text;
@@ -718,6 +734,14 @@ export class Harness {
   recordTaskFinished(p, token, result) {
     const task = p.tasks?.find((item) => item.token === token);
     if (!task) return;
+    const recovery = task.state === 'failed' && result.ok === true && result.recovered === true;
+    if (isTerminalState('task', task.state) && !recovery) return;
+    if (recovery) {
+      this.assertTransition('taskRecovery', 'failed', 'done');
+      task.recovered = new Date().toISOString();
+    } else {
+      this.assertTransition('task', task.state, result.ok ? 'done' : 'failed');
+    }
     task.state = result.ok ? 'done' : 'failed';
     task.finished = new Date().toISOString();
     task.operationResults = Array.isArray(result.operationResults) ? result.operationResults : [];
@@ -835,10 +859,13 @@ export class Harness {
             deny(`The reference scan has no accepted reference image. Scan the exact supplied image paths with blender_workflow {action:"intake",payload:{project:"${args.project}",files:["<exact supplied reference image path>"],kind:"reference",scan:true}}${rejected ? `; rejected: ${rejected}` : ''}`);
           }
           if (pendingReference) {
+            this.assertTransition('referenceIntake', pendingReference.status, 'pending');
             p.referenceIntake = { ...pendingReference, ...referenceScanRecord(args.project, plan), status: 'pending' };
           } else if (reference?.answer === REFERENCE_USE_MY_REFERENCES) {
-            if (p) p.referenceIntake = { ...referenceScanRecord(args.project, plan), status: 'pending' };
-            else {
+            if (p) {
+              this.assertTransition('referenceIntake', p.referenceIntake?.status ?? 'none', 'pending');
+              p.referenceIntake = { ...referenceScanRecord(args.project, plan), status: 'pending' };
+            } else {
               s.referenceScans ??= {};
               s.referenceScans[session] = referenceScanRecord(args.project, plan);
             }
@@ -890,6 +917,7 @@ export class Harness {
         if (missing.length) {
           deny(`reference intake did not copy every scanned reference: ${missing.map((entry) => entry.sourcePath).join(', ')}. Rescan and retry the intake`);
         }
+        this.assertTransition('referenceIntake', pendingReference.status, 'complete');
         p.referenceIntake = {
           ...pendingReference,
           status: 'complete',
@@ -916,6 +944,7 @@ export class Harness {
         if (!linkedStored) deny('generated media was not copied by intake; inspect rejected files');
         addPath(linkedStored);
         p.intake.paths = [...new Set([...p.intake.paths, linkedStored])];
+        this.assertTransition('media', linked.status, 'intaken');
         linked.status = 'intaken';
         linked.projectPath = `${p.project}/${linkedStored}`;
         linked.intakeSha256 = linked.sha256;
@@ -1198,6 +1227,7 @@ export class Harness {
       const request = this.mediaForChange(p, p.change.id).find((item) => item.id === id);
       if (!request) deny('media request does not belong to the open change');
       if (request.status !== 'requested') deny(`media request is ${request.status}; only a requested media item can start generation`);
+      this.assertTransition('media', request.status, 'generating');
       request.status = 'generating';
       request.startedAt = new Date().toISOString();
       request.updatedAt = request.startedAt;
@@ -1215,6 +1245,7 @@ export class Harness {
     const request = this.mediaForChange(p, p.change.id).find((item) => item.id === args.id);
     if (!request) deny('media request does not belong to the open change');
     if (!['requested', 'generating'].includes(request.status)) deny(`media request is ${request.status}; only a requested or generating media item can receive a file`);
+    this.assertTransition('media', request.status, 'generated');
     const full = path.resolve(this.root, args.path);
     const relative = path.relative(this.root, full).replaceAll('\\', '/');
     if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) deny('generated media must be inside the workspace');
@@ -1260,6 +1291,7 @@ export class Harness {
     request.error = args.error.trim();
     request.updatedAt = now;
     if (args.cancel === true || request.attempts.length >= MAX_MEDIA_ATTEMPTS) {
+      this.assertTransition('media', request.status, 'failed');
       request.status = 'failed';
       request.closedAt = now;
       this.writeMediaLedger(p);
@@ -1268,6 +1300,7 @@ export class Harness {
         next: 'The failure is recorded. Commit the change to preserve the failed media record, then continue with the next bounded change.',
       };
     }
+    this.assertTransition('media', request.status, 'requested');
     request.status = 'requested';
     delete request.stagedPath;
     delete request.sha256;
@@ -1285,6 +1318,7 @@ export class Harness {
     const now = new Date().toISOString();
     for (const request of this.mediaForChange(p, c.id)) {
       if (request.status === 'intaken') {
+        this.assertTransition('media', request.status, 'committed');
         request.status = 'committed';
         request.committedAt = now;
         request.commit = commit;
@@ -1689,12 +1723,12 @@ export class Harness {
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
        },
        change: c ? { id: c.id, created: c.created ?? null, outcome: c.outcome, milestone: c.milestone ?? null, requirements: c.requirements ?? [], scenes: c.scenes ?? [], primaryScene: c.primaryScene ?? null, sceneRequirements: c.sceneRequirements ?? {}, renders: c.renders ?? {}, inspections: c.inspections ?? {}, final: Boolean(c.final), reviewScope: c.final ? 'final' : 'milestone', readyToSeal: Boolean(c.readyToSeal), paths: c.paths, mediaRequired: Boolean(c.mediaRequired), saved: Boolean(c.saved), sealed: c.sealed, inspected: c.inspected, verdict: c.verdict, blockingKind: c.blockingKind ?? null, preserved: c.preserved ?? null, round: c.round, sceneHash: c.sceneHash, evidenceKey: c.evidenceKey, operations: c.operations, documentOnly: Boolean(c.documentOnly), nonSceneOnly: Boolean(c.nonSceneOnly), appliesRemaining: Math.max(0, CHECKPOINT_EVERY - c.operations), deadlineRemainingMs: Math.max(0, c.deadline - Date.now()), failure: Boolean(c.failure), reopen: Boolean(c.reopen), wip: Boolean(c.wip), wipRender: c.wipRender ?? null, wipLook: c.wipLook ?? null, commits: c.commits ?? [], pending: c.pending ? 'operation in progress' : null, pendingTask: c.pending ? (p.tasks?.find((task) => task.token === c.pending)?.id ?? null) : null, approved: Boolean(c.approval), graders: c.graders } : null,
-       state: deriveState(p, state, step),
+       state: deriveState(p, state, step, { exportStatus: (receipt) => this.exportStatus(receipt) }),
        next: step.reason, nextStep: step };
   }
   reregisterStatus(p, state = null) {
     const challenge = state?.challenge?.session === p.orchestrator && Date.now() - state.challenge.created <= 600000 ? state.challenge : null;
-    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null })), wait: waitSummary(p), objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: 0, remaining: MAX_CHANGE_OBJECTS }, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering, state: deriveState(p, state), pendingQuestion: challenge ? { question: challenge.question, labels: ['Confirm registration', 'Cancel'], questionTool: questionToolPayload(challenge.question, ['Confirm registration', 'Cancel']), expiresAt: new Date(challenge.created + 600000).toISOString() } : null };
+    const base = { project: p.project, scene: p.scene, checkpoint: p.checkpoint, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null })), wait: waitSummary(p), objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: 0, remaining: MAX_CHANGE_OBJECTS }, blender: instanceStatus(this.home), change: null, reregistering: p.reregistering, state: deriveState(p, state, null, { exportStatus: (receipt) => this.exportStatus(receipt) }), pendingQuestion: challenge ? { question: challenge.question, labels: ['Confirm registration', 'Cancel'], questionTool: questionToolPayload(challenge.question, ['Confirm registration', 'Cancel']), expiresAt: new Date(challenge.created + 600000).toISOString() } : null };
     try { this.records(p.project, p.goal); }
     catch (error) {
       return { ...base, next: `Fix the registration documents before preparing: ${error.message}`, nextStep: { phase: 'reregister-document', actor: 'orchestrator', action: 'bootstrap-document', command: this.wire('bootstrap-document', { project: p.project, path: '<invalid registration document>', content: '<complete format from capabilities.documentFormats>' }), reason: 'Fix registration documents through bootstrap-document while reregistering.' } };
@@ -2138,8 +2172,7 @@ export class Harness {
         if (p.lastRenders && Object.values(p.lastRenders).some((render) => !fs.existsSync(path.join(this.root, ...render.path.split('/'))) || this.hash(render.path) !== render.hash)) deny('completion requires every sealed scene render to remain unchanged');
         if (p.assetUse && (!p.assetCheck || p.assetCheck.sceneHash !== last.sceneHash)) deny('completion requires check_assets on the final unchanged scene; import or repair the asset receipt first');
         for (const receipt of p.exports ?? []) {
-          const full = path.join(this.root, ...receipt.path.split('/'));
-          if (!fs.existsSync(full) || this.hash(receipt.path) !== receipt.sha256) deny(`completion requires a valid export receipt: ${receipt.path}`);
+          if (this.exportStatus(receipt) !== 'recorded') deny(`completion requires a valid export receipt: ${receipt.path}`);
         }
         if (!p.history.some((item) => item.final && item.verdict === 'PASS')) deny('completion requires a final full-spec PASS after milestone reviews');
         this.assertCommitted(p.project, this.snapshot(p.project));
@@ -2161,6 +2194,7 @@ export class Harness {
         p.paused = { at: new Date().toISOString(), reason: 'registration invalidated by built-in goal' };
         for (const [key, ticket] of Object.entries(s.tickets ?? {})) {
           if (ticket.project !== p.project || ticket.change !== c?.id || !['issued', 'authorized'].includes(ticket.state)) continue;
+          this.assertTransition('ticket', ticket.state, 'abandoned');
           ticket.state = 'abandoned';
           if (c?.pending === key) delete c.pending;
         }
@@ -2313,7 +2347,7 @@ export class Harness {
               c.reports ??= {};
               c.reports[existing.report] = digest(text);
               const task = p.tasks?.find((item) => item.token === existing.token);
-              if (task && task.state === 'failed') this.recordTaskFinished(p, existing.token, { ok: true });
+              if (task && task.state === 'failed') this.recordTaskFinished(p, existing.token, { ok: true, recovered: true });
               this.updateManifest(p);
               return { recovered: true, report: existing.report, verdict: parsed.verdict, taskId: task?.id ?? null, next: 'Existing valid report recovered; aggregate it with review and do not overwrite it.' };
             }
@@ -2501,9 +2535,11 @@ export class Harness {
         if (t) {
           const live = t.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
           if (live) deny('cannot abandon a live operation; wait for it to finish or expire');
+          this.assertTransition('ticket', t.state, 'abandoned');
           t.state = 'abandoned';
           const task = p.tasks?.find((item) => item.token === token);
-          if (task && task.state !== 'done' && task.state !== 'failed') {
+          if (task && !isTerminalState('task', task.state)) {
+            this.assertTransition('task', task.state, 'abandoned');
             task.state = 'abandoned';
             task.finished = new Date().toISOString();
             task.result = 'abandoned';
@@ -2647,6 +2683,7 @@ export class Harness {
       if (!t || t.session !== session || t.state !== 'issued' || t.operation !== operation || stable(t.payload) !== stable(payload) || Date.now() - t.created > TICKET_TTL_MS) deny('missing, stale, forged or replayed operation ticket');
       const p = s.projects[t.project];
       if (!p || !p.goalActive || p.goalConflict) deny('mission is not active or has a goal conflict; ticket authorization is blocked');
+      this.assertTransition('ticket', t.state, 'authorized');
       t.state = 'authorized';
     });
   }
@@ -2660,6 +2697,7 @@ export class Harness {
       if (p.change?.id !== t.change || p.change.pending !== token) deny('ticket change mismatch');
       if (operation === 'apply' && this.referenceIntakePending(p)) deny('reference intake is pending; copy the scanned reference files with intake scan:false before applying scene changes');
       if (operation === 'apply' && (Date.now() > p.change.deadline || p.change.operations >= CHECKPOINT_EVERY)) deny('apply budget exhausted; seal, review, commit and checkpoint before more edits');
+      this.assertTransition('ticket', t.state, 'running');
       t.state = 'running'; t.started = Date.now(); t.pid = process.pid;
       return { project: p.project, scene: p.scene, goal: p.goal, previousRound: p.history.at(-1)?.round ?? null, change: structuredClone(p.change), records: p.records,
         operationTasks: (p.tasks ?? []).filter((task) => task.change === p.change.id).map(({ token: _token, ...task }) => task) };
@@ -2671,6 +2709,7 @@ export class Harness {
       if (!t || t.state !== 'running') deny('operation receipt has no running ticket');
       const p = s.projects[t.project], c = p.change;
       const conflict = Boolean(p.goalConflict);
+      this.assertTransition('ticket', t.state, result.ok ? 'done' : 'failed');
       t.state = result.ok ? 'done' : 'failed'; delete c.pending;
        if (!result.ok) {
          c.failure = result.completed ? `Failed after ${result.completed} completed operation(s): ${result.error}` : result.error;
@@ -2855,12 +2894,14 @@ export class Harness {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
       const task = p.tasks?.find((item) => item.token === token);
-      if (!task || ['done', 'failed', 'cancelled'].includes(task.state)) return;
+      if (!task || isTerminalState('task', task.state)) return;
+      this.assertTransition('task', task.state, 'failed');
       task.state = 'failed';
       task.finished = new Date().toISOString();
       task.result = String(error ?? 'worker task failed').slice(0, 300);
       const ticket = s.tickets[token];
       if (ticket && ['issued', 'authorized'].includes(ticket.state)) {
+        this.assertTransition('ticket', ticket.state, 'released');
         ticket.state = 'released';
         ticket.releasedAt = new Date().toISOString();
         ticket.releaseReason = task.result;
@@ -2981,9 +3022,11 @@ export class Harness {
       const writerStarted = t.state === 'running';
       const safeBeforeExecution = ['issued', 'authorized'].includes(t.state);
       if (!writerStarted && !safeBeforeExecution && Date.now() - t.created <= TICKET_TTL_MS) deny('ticket is not releasable yet; wait for the TTL or inspect the writer');
+      this.assertTransition('ticket', t.state, 'abandoned');
       t.state = 'abandoned'; delete p.change.pending;
       const task = p.tasks?.find((item) => item.token === token);
-      if (task) {
+      if (task && !isTerminalState('task', task.state)) {
+        this.assertTransition('task', task.state, 'abandoned');
         task.state = 'abandoned';
         task.finished = new Date().toISOString();
         task.result = writerStarted ? 'abandoned after writer start' : 'abandoned before execution';
