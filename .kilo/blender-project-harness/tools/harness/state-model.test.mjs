@@ -90,3 +90,65 @@ test('worker turn limit and final scope are projected', () => {
   assert.equal(state.change.outcome, 'final');
   assert.deepEqual(state.execution.worker, { child: 'ses_worker', turns: 3, maxTurns: 10 });
 });
+
+test('saved bootstrap and document-only changes expose their real commit phase', () => {
+  assert.equal(deriveState(project(change({ bootstrap: true, saved: true }))).change.phase, 'bootstrap-commit');
+  assert.equal(deriveState(project(change({ documentOnly: true, nonSceneOnly: true, saved: true }))).change.phase, 'commit');
+});
+
+test('WIP commits and WIP look gates are explicit', () => {
+  assert.equal(deriveState(project(change({ wip: true, operations: 2, saved: true }))).change.phase, 'checkpoint');
+  const ready = change({ operations: 3, readyToSeal: true, saved: true });
+  assert.equal(deriveState(project(ready)).change.phase, 'wip');
+  const rendered = { ...ready, wipRender: { operations: 3 } };
+  assert.equal(deriveState(project(rendered)).change.phase, 'wip-inspect');
+  const looked = { ...rendered, wipLook: { operations: 3 } };
+  assert.equal(deriveState(project(looked)).change.phase, 'ready-to-seal');
+  assert.equal(deriveState(project(change({ operations: 20, failure: true }))).change.phase, 'wip');
+});
+
+test('blocked and unapproved reviews are not projected as commit', () => {
+  const blocked = deriveState(project(change({ sealed: true, saved: true, inspected: true, verdict: 'BLOCKED', blockingKind: 'tooling' })));
+  assert.equal(blocked.change.phase, 'blocked');
+  const p = project(change({ sealed: true, saved: true, inspected: true, verdict: 'CHANGES_REQUIRED' }));
+  p.records.workflow = 'Partially Autonomous';
+  assert.equal(deriveState(p).change.phase, 'approval');
+});
+
+test('intaken media and project-level blockers are handled without a change', () => {
+  const p = project(null, {
+    referenceIntake: { status: 'pending' },
+    media: { requests: [{ id: 'm1', status: 'intaken' }, { id: 'm2', status: 'generated' }] },
+    waits: [{ kind: 'process', dueAt: new Date(Date.now() + 60_000).toISOString() }],
+  });
+  const state = deriveState(p);
+  assert.deepEqual(state.blockers.map((blocker) => blocker.kind), ['reference-intake', 'media', 'wait']);
+  assert.equal(state.blockers.find((blocker) => blocker.kind === 'media').id, 'm2');
+});
+
+test('supported failure, cancellation, and WIP states satisfy invariants', () => {
+  const runningProject = project(change({ pending: 't', saved: true }), {
+    tasks: [{ id: 'T001', kind: 'operation', change: 'change-1', token: 't', state: 'issued' }],
+  });
+  const running = deriveState(runningProject, { tickets: { t: { state: 'running', operation: 'save' } } });
+  assert.equal(running.invariants.valid, true);
+  const p = project(change({ pending: 't', saved: true }), { tasks: [{ id: 'T001', kind: 'operation', change: 'change-1', token: 't', state: 'cancelled' }] });
+  const cancelled = deriveState(p, { tickets: { t: { state: 'running', operation: 'save' } } });
+  assert.equal(cancelled.invariants.valid, true);
+  const wip = deriveState(project(change({ saved: true, verdict: 'WIP', inspected: false })));
+  assert.equal(wip.invariants.valid, true);
+});
+
+test('review reported counts verdicts, not dispatched report paths', () => {
+  const p = project(change({
+    sealed: true,
+    saved: true,
+    inspected: true,
+    graders: { visual: { report: 'Blender/Test/Documents/Reviews/R/visual/REPORT.md' } },
+  }));
+  const dispatched = deriveState(p).review;
+  assert.equal(dispatched.dispatched, 1);
+  assert.equal(dispatched.reported, 0);
+  p.change.graders.visual.verdict = 'PASS';
+  assert.equal(deriveState(p).review.reported, 1);
+});
