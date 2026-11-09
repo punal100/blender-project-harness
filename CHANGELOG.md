@@ -16,6 +16,19 @@
   access.
 - `status.state` now exposes a canonical project/change/review/execution projection with blockers and
   invariant violations; legacy fields and `nextStep` remain compatibility views.
+- `status.state.change.phase` mirrors the authoritative `nextStep` phase, including blocked, WIP,
+  bootstrap, document-only, ready-to-seal, and sealed states.
+- Project-level waits, pending reference intake, and open media remain visible when no change is
+  open; `intaken` media is no longer reported as blocking.
+- Review reporting counts completed grader verdicts; dispatched report paths are reported separately.
+- Ticket/task invariant checks accept supported running, failed, cancelled, and WIP states.
+- Task issue and retirement commits no longer make an empty change look committed for abandon,
+  preserve, or goal-conflict recovery.
+- `blender_harness_execute` restricts `payload_path` to task payload files and rejects oversized
+  payloads before reading them.
+- Review auto-commits receive the latest operation task prefix, and task IDs above `T999` are
+  supported.
+- Worker no-op failure and retirement transitions commit task state once.
 
 ### Feature
 
