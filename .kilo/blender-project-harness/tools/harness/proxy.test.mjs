@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { BlenderProxy, firstJson } from './proxy.mjs';
+import { MAX_TICKET_PAYLOAD_BYTES } from './engine.mjs';
 import { fixture } from './test-fixture.mjs';
 
 const result = (text) => ({ content: [{ type: 'text', text }] });
@@ -266,6 +267,23 @@ test('proxy executes a file-backed payload and rejects a mismatched hash', async
   await assert.rejects(
     p.call('harness_execute', { token: issued.token, operation: 'apply', payload_path: issued.payloadPath, payload_sha256: '0'.repeat(64), user_prompt: 'Create fixture scene.' }),
     /SHA-256/,
+  );
+});
+
+test('proxy rejects arbitrary and oversized payload files before reading', async (t) => {
+  const f = fixture(t); f.begin();
+  const p = new BlenderProxy(f.harness, upstream(f));
+  const issued = f.harness.issue(f.session, 'apply', meshOperation);
+  f.harness.authorize(f.session, issued.token, 'apply', meshOperation);
+  f.write(`${f.project}/payload.json`, '{}');
+  await assert.rejects(
+    p.call('harness_execute', { token: issued.token, operation: 'apply', payload_path: `${f.project}/payload.json`, payload_sha256: '0'.repeat(64), user_prompt: 'Create fixture scene.' }),
+    /task payload file/,
+  );
+  fs.writeFileSync(path.join(f.root, issued.payloadPath), Buffer.alloc(MAX_TICKET_PAYLOAD_BYTES + 1, 0x20));
+  await assert.rejects(
+    p.call('harness_execute', { token: issued.token, operation: 'apply', payload_path: issued.payloadPath, payload_sha256: issued.payloadHash, user_prompt: 'Create fixture scene.' }),
+    /no larger than/,
   );
 });
 

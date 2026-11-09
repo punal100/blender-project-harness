@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Harness, contained, digest, stable, deny, git } from './engine.mjs';
+import { Harness, contained, digest, stable, deny, git, MAX_TICKET_PAYLOAD_BYTES } from './engine.mjs';
 import { operationBatchCode, preflightCode, saveCode, renderCode, renderPreflightCode, sceneFactsCode } from './blender-operations.mjs';
 import { CORE_TOOLS, readToolExposure, toolAllowed, toolTokens } from './tool-exposure.mjs';
 import { pngStats } from './image-stats.mjs';
@@ -181,13 +181,18 @@ export class BlenderProxy {
     }
     if (!this.exposed?.has('harness_execute') || !toolAllowed(exposure, 'harness_execute')) deny(`harness_execute is not exposed in ${exposure.mode} mode`);
     if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'payload_path', 'payload_sha256', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
+    const ticket = args.token ? this.harness.transaction((s) => s.tickets[args.token] ?? null) : null;
+    if (!ticket || !['issued', 'authorized'].includes(ticket.state) || ticket.operation !== args.operation) deny('missing, stale, forged or replayed operation ticket authorization');
     if (args.payload_path !== undefined && args.payload !== undefined) deny('pass either payload or payload_path, not both');
     if (args.payload_path !== undefined) {
       if (typeof args.payload_path !== 'string' || !args.payload_path.trim() || args.payload_path.includes('..')) deny('payload_path must be one project-relative path');
       const normalizedPayload = args.payload_path.replaceAll('\\', '/');
       if (!normalizedPayload.startsWith('Blender/')) deny('payload_path must be inside Blender/<Project>/');
+      if (!/^Blender\/[^/]+\/Documents\/Tasks\/T\d{3,}\/payload\.json$/i.test(normalizedPayload)) deny('payload_path must be a task payload file');
       const payloadFile = contained(this.harness.root, normalizedPayload, true);
       if (!fs.existsSync(payloadFile)) deny(`payload file is missing: ${args.payload_path}`);
+      const stat = fs.lstatSync(payloadFile);
+      if (!stat.isFile() || stat.size > MAX_TICKET_PAYLOAD_BYTES) deny(`payload file must be a regular file no larger than ${MAX_TICKET_PAYLOAD_BYTES} bytes`);
       const payloadText = fs.readFileSync(payloadFile, 'utf8');
       if (args.payload_sha256 !== undefined && (!/^[a-f0-9]{64}$/i.test(args.payload_sha256) || digest(payloadText) !== args.payload_sha256.toLowerCase())) deny('payload SHA-256 does not match');
       try { args.payload = JSON.parse(payloadText); } catch { deny('payload file is not valid JSON'); }
