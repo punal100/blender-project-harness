@@ -13,9 +13,9 @@ export const SCENE_INFO_TOOL = {
 };
 export const EXECUTE_TOOL = {
   name: 'harness_execute',
-  description: 'Execute one ticketed bounded Blender apply batch, save, WIP render, or seal. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
+  description: 'Execute one ticketed bounded Blender apply batch, save, WIP render, or seal. Pass payload or a task payload_path plus SHA-256. Obtain ticket from blender_workflow. Raw Python/imports/generation unavailable.',
   inputSchema: { type: 'object', properties: { token: { type: 'string' }, operation: { type: 'string', enum: ['apply', 'save', 'seal', 'wip'] },
-    payload: { type: 'object' }, user_prompt: { type: 'string' } }, required: ['token', 'operation', 'payload', 'user_prompt'], additionalProperties: false },
+    payload: { type: 'object' }, payload_path: { type: 'string' }, payload_sha256: { type: 'string' }, user_prompt: { type: 'string' } }, required: ['token', 'operation', 'user_prompt'], additionalProperties: false },
 };
 export const TOOL_SEARCH_TOOL = {
   name: 'tool_search',
@@ -180,7 +180,19 @@ export class BlenderProxy {
       deny(`tool ${name} is not exposed in ${exposure.mode} mode`);
     }
     if (!this.exposed?.has('harness_execute') || !toolAllowed(exposure, 'harness_execute')) deny(`harness_execute is not exposed in ${exposure.mode} mode`);
-    if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
+    if (!args || Object.keys(args).some((k) => !['token', 'operation', 'payload', 'payload_path', 'payload_sha256', 'user_prompt'].includes(k)) || typeof args.user_prompt !== 'string' || !args.user_prompt.trim()) deny('strict ticket arguments and verbatim user prompt required');
+    if (args.payload_path !== undefined && args.payload !== undefined) deny('pass either payload or payload_path, not both');
+    if (args.payload_path !== undefined) {
+      if (typeof args.payload_path !== 'string' || !args.payload_path.trim() || args.payload_path.includes('..')) deny('payload_path must be one project-relative path');
+      const normalizedPayload = args.payload_path.replaceAll('\\', '/');
+      if (!normalizedPayload.startsWith('Blender/')) deny('payload_path must be inside Blender/<Project>/');
+      const payloadFile = contained(this.harness.root, normalizedPayload, true);
+      if (!fs.existsSync(payloadFile)) deny(`payload file is missing: ${args.payload_path}`);
+      const payloadText = fs.readFileSync(payloadFile, 'utf8');
+      if (args.payload_sha256 !== undefined && (!/^[a-f0-9]{64}$/i.test(args.payload_sha256) || digest(payloadText) !== args.payload_sha256.toLowerCase())) deny('payload SHA-256 does not match');
+      try { args.payload = JSON.parse(payloadText); } catch { deny('payload file is not valid JSON'); }
+    }
+    if (args.payload === undefined) deny('payload or payload_path is required');
     const context = this.harness.consume(args.token, args.operation, args.payload);
     const scenePath = contained(this.harness.root, context.scene, true);
     let round = null;

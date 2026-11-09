@@ -143,7 +143,7 @@ const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value
   ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value;
 export const stable = (value) => JSON.stringify(canonical(value));
 export const deny = (message) => {
-  throw new Error(`Workflow gate: ${message}. Next: call blender_workflow {action:"status"} and follow nextStep; never bypass the harness.`);
+  throw new Error(`Workflow gate: ${message}. Next: if this is the orchestrator, call blender_workflow {action:"status"} and follow nextStep; if this is a worker, return BLOCKED with the task ID and token. Never bypass the harness.`);
 };
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 const DOCS = ['README.md', 'Documents/REQUIREMENTS.md', 'Documents/WORKFLOW.md', 'Documents/REVIEW.md', 'Documents/ASSETS.md', 'Documents/DECISIONS.md'];
@@ -592,7 +592,7 @@ export class Harness {
   taskDocPath(task) { return `Documents/Tasks/${task.id}/TASK.md`; }
   taskSummaryPath(task) { return `Documents/Tasks/${task.id}/SUMMARY.md`; }
   taskFiles(p, c) {
-    return (p.tasks ?? []).filter((task) => task.change === c.id).flatMap((task) => [task.taskDoc, task.summaryDoc]).filter(Boolean);
+    return (p.tasks ?? []).filter((task) => task.change === c.id).flatMap((task) => [task.taskDoc, task.summaryDoc, task.payloadPath]).filter(Boolean);
   }
   writeTaskDocument(p, task) {
     const base = this.projectPath(p.project);
@@ -616,6 +616,7 @@ export class Harness {
       `- Finished: ${task.finished ?? ''}`,
       `- Deadline: ${task.deadline ? new Date(task.deadline).toISOString() : ''}`,
       `- Token SHA-256: ${task.tokenHash}`,
+      ...(task.payloadPath ? [`- Payload file: ${task.payloadPath}`, `- Payload SHA-256: ${task.payloadHash}`] : []),
       '',
       '## Objects',
       '',
@@ -684,9 +685,19 @@ export class Harness {
       state: 'issued', created: new Date().toISOString(), finished: '', result: '',
       deadline, operationResults: [],
     };
+    if (operation === 'apply') {
+      const relative = `Documents/Tasks/${task.id}/payload.json`;
+      const full = contained(this.projectPath(p.project), relative, true);
+      const text = JSON.stringify(payload, null, 2) + '\n';
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, text);
+      task.payloadPath = `${p.project}/${relative}`;
+      task.payloadHash = digest(text);
+    }
     p.tasks.push(task);
     this.writeTaskDocument(p, task);
     this.writeTaskLedger(p);
+    if (p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} issued`, { manifest: false });
     return task;
   }
   recordGraderTask(p, token, name, report, deadline = p.change.deadline ?? null) {
@@ -1583,7 +1594,7 @@ export class Harness {
       const operation = ticket?.operation ?? '<operation>';
       const payload = ticket?.payload ?? {};
       const task = p.tasks?.find((item) => item.token === c.pending);
-      if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
+      if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: task?.payloadPath ? `blender_harness_execute {token:"${c.pending}",operation:"apply",payload_path:"${task.payloadPath}",payload_sha256:"${task.payloadHash}"}` : `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
       return { phase: operation, actor: 'orchestrator', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"${operation}",payload:"{}"}`, reason: `Execute the pending ${operation} ticket.` };
     }
     if (c.wip) return { phase: 'checkpoint', actor: 'orchestrator', action: 'checkpoint', command: this.wire('checkpoint', {}), reason: 'The WIP commit is preserved; checkpoint it before another begin.' };
@@ -2443,6 +2454,11 @@ export class Harness {
         if (args.mode !== undefined && args.mode !== 'wip') deny('commit mode must be wip when provided');
         const bootstrap = Boolean(c.bootstrap && c.saved && !c.sealed && !c.operations);
         const documentOnly = Boolean(c.nonSceneOnly && c.operations === 0 && this.hash(p.scene) === c.sceneHash);
+        const latestTask = [...(p.tasks ?? [])].reverse().find((task) => task.change === c.id && task.kind === 'operation');
+        const requestedMessage = args.message.trim();
+        const claimedTask = /^task:\s*(T\d{3})\b/i.exec(requestedMessage);
+        if (claimedTask && latestTask && claimedTask[1] !== latestTask.id) deny(`commit task prefix must be ${latestTask.id}`);
+        const message = latestTask && !claimedTask ? `task: ${latestTask.id} ${requestedMessage}` : requestedMessage;
         if (args.mode === 'wip') {
           if (!c.failure && Date.now() <= c.deadline) deny('WIP commit requires a failed or expired change');
           if (c.verdict) deny('reviewed changes use the normal commit path');
@@ -2452,7 +2468,7 @@ export class Harness {
             p.change = null;
             return this.status(p, s);
           }
-          this.autoCommit(p, c, args.message.trim(), { review: false });
+          this.autoCommit(p, c, message, { review: false });
           c.wip = true;
           c.verdict = 'WIP';
         } else {
@@ -2466,7 +2482,7 @@ export class Harness {
               deny(`approval "${c.approval.label}" does not authorize this commit; use ${JSON.stringify(spec.labels)}`);
             }
           }
-          this.autoCommit(p, c, args.message.trim(), { review: !bootstrap && !documentOnly });
+          this.autoCommit(p, c, message, { review: !bootstrap && !documentOnly });
         }
       } else if (action === 'abandon') {
         if (Object.keys(args).some((key) => key !== 'reason') || typeof args.reason !== 'string' || !args.reason.trim() || args.reason.length > 1000) deny('abandon requires one bounded reason');
@@ -2596,7 +2612,7 @@ export class Harness {
       s.tickets[token] = { session, project: p.project, change: c.id, operation, payload, created: Date.now(), state: 'issued' };
       c.pending = token;
       const task = this.recordTaskIssued(p, token, operation, payload, s.tickets[token].created + TICKET_TTL_MS);
-      return { token, operation, payload, taskId: task.id, scene: p.scene, taskDoc: task.taskDoc, workerPrompt: this.workerPrompt(p, token, operation, payload, task) };
+      return { token, operation, ...(task.payloadPath ? { payloadPath: task.payloadPath, payloadHash: task.payloadHash } : { payload }), taskId: task.id, scene: p.scene, taskDoc: task.taskDoc, workerPrompt: this.workerPrompt(p, token, operation, payload, task) };
     });
   }
   workerPrompt(p, token, operation, payload, task) {
@@ -2607,7 +2623,13 @@ export class Harness {
       task?.taskDoc ? `Read this task document first: ${task.taskDoc}` : 'Read the assigned task document first.',
       `One-time token: ${token}`,
       `Operation: ${operation}`,
-      `Payload: ${payloadText}`,
+      ...(task?.payloadPath
+        ? [
+            `Payload file: ${task.payloadPath}`,
+            `Payload SHA-256: ${task.payloadHash}`,
+            'Call blender_harness_execute with payload_path and payload_sha256; the harness loads and verifies the file. Do not paraphrase or reconstruct it.',
+          ]
+        : [`Payload: ${payloadText}`]),
       operation === 'apply'
         ? 'Execute only the assigned apply payload with blender_harness_execute. Do not save, seal, review, approve, commit, or checkpoint.'
         : `Execute the assigned ${operation} ticket exactly with blender_harness_execute.`,
@@ -2763,6 +2785,7 @@ export class Harness {
         this.writeTaskDocument(p, task);
         this.writeTaskSummary(p, task);
         this.writeTaskLedger(p);
+        if (p.change) this.commitTaskArtifacts(p, p.change, `task: ${task.id} ${task.state}`, { manifest: false });
       }
       return retired;
     });

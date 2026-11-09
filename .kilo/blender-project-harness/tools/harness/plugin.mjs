@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
+import { Harness, contained, deny, digest, git, MEDIA_GENERATION_TOOLS, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -621,6 +621,22 @@ export function createHooks(harness, client, directory = harness.root) {
       if (/execute_blender_code|import_asset|generate_3d/.test(tool) && !unsafe) deny('raw Blender mutation disabled; use ticketed harness_execute');
       if (tool === 'blender_harness_execute') {
         const session = await identity(input.sessionID);
+        const resolvePayload = () => {
+          if (args.payload_path !== undefined) {
+            if (args.payload !== undefined) deny('pass either payload or payload_path, not both');
+            if (typeof args.payload_path !== 'string' || !args.payload_path.trim() || args.payload_path.includes('..')) deny('payload_path must be one project-relative path');
+            const normalizedPayload = args.payload_path.replaceAll('\\', '/');
+            if (!normalizedPayload.startsWith('Blender/')) deny('payload_path must be inside Blender/<Project>/');
+            const payloadFile = contained(harness.root, normalizedPayload, true);
+            if (!fs.existsSync(payloadFile)) deny(`payload file is missing: ${args.payload_path}`);
+            const payloadText = fs.readFileSync(payloadFile, 'utf8');
+            if (args.payload_sha256 !== undefined && (!/^[a-f0-9]{64}$/i.test(args.payload_sha256) || digest(payloadText) !== args.payload_sha256.toLowerCase())) deny('payload SHA-256 does not match');
+            try { args.payload = JSON.parse(payloadText); } catch { deny('payload file is not valid JSON'); }
+            delete args.payload_path;
+            delete args.payload_sha256;
+          }
+          if (args.payload === undefined) deny('payload or payload_path is required');
+        };
         if (session.parentID) {
           const child = await childAssignment(input.sessionID);
           if (!child?.worker || args.operation !== 'apply') deny('worker may execute assigned apply operations only');
@@ -628,12 +644,14 @@ export function createHooks(harness, client, directory = harness.root) {
             const detail = modelDiagnostics(child.expected, child.observed, harness.globalFallback());
             deny(`worker runtime model does not match configured worker, backup, or global fallback; observed ${detail.observed}; expected ${detail.expected}. Stop this worker and dispatch a fresh one with the configured tier.`);
           }
+          resolvePayload();
           reconcileGoal(harness, session.parentID, await identity(session.parentID));
           harness.authorize(session.parentID, args.token, args.operation, args.payload);
           harness.bindWorkerByToken(session.parentID, input.sessionID, args.token);
           return;
         }
         if (args.operation === 'apply') deny('orchestrator delegates apply operations to blender-worker; save and seal stay orchestrator-owned');
+        resolvePayload();
         reconcileGoal(harness, input.sessionID, session);
         harness.authorize(input.sessionID, args.token, args.operation, args.payload);
         return;
@@ -942,6 +960,14 @@ export function createHooks(harness, client, directory = harness.root) {
             const releasable = harness.transaction((s) => ['issued', 'authorized'].includes(s.tickets[token]?.state));
             if (releasable) harness.failWorkerByToken(input.sessionID, token, `worker returned ${/\bPARTIAL\b/.test(text) ? 'PARTIAL' : 'BLOCKED'} before executing the ticket`);
             harness.retireWorker(input.sessionID, child, `worker returned ${/\bPARTIAL\b/.test(text) ? 'PARTIAL' : 'BLOCKED'}; starting a fresh worker next turn`, token);
+          } else if (token) {
+            const ticketState = harness.transaction((s) => s.tickets[token]?.state ?? null);
+            if (['issued', 'authorized'].includes(ticketState)) {
+              harness.failWorkerByToken(input.sessionID, token, 'worker returned without consuming the apply ticket');
+              harness.retireWorker(input.sessionID, child, 'worker returned without executing; starting a fresh worker next turn', token);
+              output.isError = true;
+              output.output = `${text || 'Worker returned.'}\n\nPARTIAL: worker returned without calling blender_harness_execute; ticket ${token} was released. The orchestrator must issue a fresh ticket.`;
+            }
           }
         } else {
           const token = (plan.prompt ?? input.args?.prompt ?? '').match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0];
