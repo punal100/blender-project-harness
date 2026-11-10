@@ -37,6 +37,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R02-20261110T052833Z | 20261110T052833Z | 8720b6fdd57a | Single milestone | visual | CHANGES_REQUIRED | [R02-20261110T052833Z/REVIEW.md](R02-20261110T052833Z/REVIEW.md) |
 | R03-20261110T054528Z | 20261110T054528Z | 3ee473e58a10 | Single milestone | visual | PASS | [R03-20261110T054528Z/REVIEW.md](R03-20261110T054528Z/REVIEW.md) |
 | R04-20261110T061240Z | 20261110T061240Z | ca99f0d63ab7 | Single milestone | visual | PASS | [R04-20261110T061240Z/REVIEW.md](R04-20261110T061240Z/REVIEW.md) |
+| R05-20261110T063748Z | 20261110T063748Z | 61ba90eab932 | Single milestone | visual | PASS | [R05-20261110T063748Z/REVIEW.md](R05-20261110T063748Z/REVIEW.md) |
 
 ## Rules
 
@@ -57,3 +58,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R03-20261110T054528Z: Revise the left washer row: add stainless drum rims around every round door, retune the doors to tinted glass, and pull the hero camera back slightly to reduce near-row cropping.; evidence e1384d2e4d402dcf0e0ea4585fb6a048bbc76b6ff68c57f40f1e9748df5cd8f8
 
 - R04-20261110T061240Z: Build the first three right-row machines by duplicating the left row across the aisle, facing the centre.; evidence 041dd8a4ad61b6c228bb563e05a5718bcabbf5b087befe329eb333d89c599b07
+
+- R05-20261110T063748Z: Complete the right dryer row with three more matching machines at x=+2.5, bringing the scene to twelve front-loading units in two facing rows.; evidence f0d17cbaeec691d29ebe44f3cebea7e7184ea27a9ffc4612c1841d6e41e0ce59
