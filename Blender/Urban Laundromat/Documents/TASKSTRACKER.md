@@ -1,7 +1,7 @@
 # Task Tracker — Urban Laundromat
 
 Status: Active
-Last updated: 2026-11-10T19:55:10.331Z
+Last updated: 2026-11-10T20:16:16.917Z
 
 ## Tasks
 
@@ -16,3 +16,5 @@ Last updated: 2026-11-10T19:55:10.331Z
 | [T007](Tasks/T007/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | apply | 0 | blender-worker | ses_e3908b70cffeZEdU11oSGPzIBm | done | 2026-11-10T19:53:23.770Z | 2026-11-10T19:53:47.505Z | ok (1 ops) |
 | [T008](Tasks/T008/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | wip | 0 | orchestrator |  | done | 2026-11-10T19:54:28.905Z | 2026-11-10T19:54:39.157Z | ok |
 | [T009](Tasks/T009/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | seal | 0 | orchestrator |  | done | 2026-11-10T19:54:58.795Z | 2026-11-10T19:55:10.330Z | ok |
+| [G010](Tasks/G010/TASK.md) | grader | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | grader:visual | 0 | visual | ses_e38f83773ffe1T0gGtzPp0t09o | failed | 2026-11-10T19:55:26.184Z | 2026-11-10T20:05:49.034Z | grader hard deadline exceeded: 2026-11-10T20:05:26.183Z |
+| [G011](Tasks/G011/TASK.md) | grader | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | grader:visual | 0 | visual | ses_e38ee819cffeVMOUf4R5a6rxaA | failed | 2026-11-10T20:05:57.772Z | 2026-11-10T20:16:16.916Z | grader hard deadline exceeded: 2026-11-10T20:15:57.772Z |
