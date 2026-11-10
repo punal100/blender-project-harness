@@ -2,13 +2,15 @@
 
 - Change: 6b075789-96b8-4ee3-8672-258c6ea245e1
 - Operation: apply x2
-- State: issued
+- State: done
 - Actor: blender-worker
 - Capability: apply
 - Assigned: blender-worker
-- Child session: 
+- Child session: ses_e3bf0796fffeUFoP18F5dZq1FF
+- Worker turn: 2/10
+- Worker reused: yes
 - Created: 2026-11-10T06:08:18.381Z
-- Finished: 
+- Finished: 2026-11-10T06:09:02.942Z
 - Deadline: 2026-11-10T06:18:18.381Z
 - Token SHA-256: 466bcb91aeac
 - Payload file: Blender/Laundromat/Documents/Tasks/T023/payload.json
@@ -29,4 +31,5 @@
 
 ## Operation Results
 
-- —
+- 1: shared_material ok
+- 2: shared_material ok
