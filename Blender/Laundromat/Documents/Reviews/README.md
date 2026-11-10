@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261110T131240Z | 20261110T131240Z | 752c5b5b23b6 | Single milestone | visual | BLOCKED | [R01-20261110T131240Z/REVIEW.md](R01-20261110T131240Z/REVIEW.md) |
+| R02-20261110T135607Z | 20261110T135607Z | c6c37d5344c0 | Single milestone | visual | PASS | [R02-20261110T135607Z/REVIEW.md](R02-20261110T135607Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261110T131240Z: Build the interior shell, tiled floor, front window, fluorescent lighting, and hero camera; evidence 38a4bf3fedbda259abc498a6acf2977cab070e210941fae47a45c159755963a9
+
+- R02-20261110T135607Z: Move the hero camera near the entrance into a three-quarter view and recess the fluorescent fixtures into the ceiling; evidence 98eddf89ddba5d97b035257f4e28523a4ea9f63c91f293369d98458bb1018608
