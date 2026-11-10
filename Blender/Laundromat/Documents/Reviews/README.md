@@ -33,7 +33,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| R01-20261110T131240Z | 20261110T131240Z | 752c5b5b23b6 | Single milestone | visual | BLOCKED | [R01-20261110T131240Z/REVIEW.md](R01-20261110T131240Z/REVIEW.md) |
 
 ## Rules
 
@@ -46,3 +46,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - The harness commits each completed round's `REVIEW.md`, manifest, reports, and index entry with
   the reviewed change; only `_evidence/` and `tmp/` remain ignored. Manual review-document commits
   are blocked.
+
+- R01-20261110T131240Z: Build the interior shell, tiled floor, front window, fluorescent lighting, and hero camera; evidence 38a4bf3fedbda259abc498a6acf2977cab070e210941fae47a45c159755963a9
