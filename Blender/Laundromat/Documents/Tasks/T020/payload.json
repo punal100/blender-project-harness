@@ -1,0 +1,154 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R1_Body",
+      "primitive": "cube",
+      "location": [
+        2.5,
+        -2.625,
+        0.55
+      ],
+      "scale": [
+        0.475,
+        0.45,
+        0.55
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R1_Panel",
+      "primitive": "cube",
+      "location": [
+        2.015,
+        -2.625,
+        1.03
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R1_Door",
+      "primitive": "cylinder",
+      "location": [
+        2.012,
+        -2.625,
+        0.65
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R1_Rim",
+      "primitive": "cylinder",
+      "location": [
+        2.018,
+        -2.625,
+        0.65
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R2_Body",
+      "primitive": "cube",
+      "location": [
+        2.5,
+        -1.575,
+        0.55
+      ],
+      "scale": [
+        0.475,
+        0.45,
+        0.55
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R2_Panel",
+      "primitive": "cube",
+      "location": [
+        2.015,
+        -1.575,
+        1.03
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R2_Door",
+      "primitive": "cylinder",
+      "location": [
+        2.012,
+        -1.575,
+        0.65
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R2_Rim",
+      "primitive": "cylinder",
+      "location": [
+        2.018,
+        -1.575,
+        0.65
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R3_Body",
+      "primitive": "cube",
+      "location": [
+        2.5,
+        -0.525,
+        0.55
+      ],
+      "scale": [
+        0.475,
+        0.45,
+        0.55
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R3_Panel",
+      "primitive": "cube",
+      "location": [
+        2.015,
+        -0.525,
+        1.03
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    }
+  ]
+}
