@@ -1,0 +1,459 @@
+{
+  "round": "R01-20261110T050448Z",
+  "created": "2026-11-10T05:04:50.029Z",
+  "previous_round": null,
+  "active_goal": "Blender/Laundromat/Documents/Goals/01-project-brief.md",
+  "base_commit": "45067501a693d99ebdc0af4052604850365cb7d3",
+  "dirty": "M Blender/Laundromat/laundromat.blend\n?? Blender/Laundromat/renders/final/R01-20261110T050448Z.png",
+  "scene": {
+    "path": "Blender/Laundromat/laundromat.blend",
+    "sha256": "bca7ae54c4cb3d978dcedf4306bebf57f327e1f5558329dfc67ac941f6939606"
+  },
+  "primary_scene": "Scene",
+  "scenes": [
+    {
+      "name": "Scene",
+      "render": "Blender/Laundromat/renders/final/R01-20261110T050448Z.png",
+      "camera": "Camera_Hero",
+      "use_sequencer": true,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "facts": "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/_evidence/scenes/Scene/scene-facts.json"
+    }
+  ],
+  "scene_requirements": {},
+  "specs": {
+    "Blender/Laundromat/Documents/REQUIREMENTS.md": "5f92fef626623c929cf1bacffde2244b3c3573c57df5b65cdcf90fff5d9fa470",
+    "Blender/Laundromat/Documents/WORKFLOW.md": "4a69e6d22295e131918b8e4c4066e618c14acda8f7cf29ae3ea08fceca4f9372",
+    "Blender/Laundromat/Documents/REVIEW.md": "2b22aa2d8212a96f8024e1a6dccd5fd2b3e001636b0067a0e3538214150910cf",
+    "Blender/Laundromat/Documents/Goals/01-project-brief.md": "e9e011604a99554ea6ea5a07014f11fe49ab6ce7386d6ecddcb19d07f69093ed"
+  },
+  "asset_check": null,
+  "evidence": {
+    "Blender/Laundromat/renders/final/R01-20261110T050448Z.png": "154be46716e7728d6cb23da33c591ca0ee36f104f178b1ac72b2be5e8c92c8eb",
+    "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/_evidence/scenes/Scene/camera.png": "154be46716e7728d6cb23da33c591ca0ee36f104f178b1ac72b2be5e8c92c8eb",
+    "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/_evidence/scenes/Scene/scene-facts.json": "988506b585bb3e84de2ddf93a9530ad47a8244a724dd6de508cf0e2107f7f782",
+    "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/_evidence/scenes/Scene/scene.txt": "988506b585bb3e84de2ddf93a9530ad47a8244a724dd6de508cf0e2107f7f782"
+  },
+  "evidence_key": "99010d8725e0fb5b682678cfd1050184f4fd1ba62183bf23ef7f39d222c6b8e7",
+  "graders": [
+    {
+      "name": "visual",
+      "focus": "composition, camera, lighting, colour, materials, mood",
+      "provider": "punal-9router-compatable",
+      "model": "nvidia/mistralai/mistral-large-4-1t-a52b",
+      "variant": "high",
+      "backup": {
+        "provider": "punal-9router-compatable",
+        "model": "deepseek-v4.1-flash",
+        "variant": "Max"
+      },
+      "max_minutes": 8,
+      "max_steps": 16
+    }
+  ],
+  "tasks": {
+    "visual": {
+      "token": "f451b3c4-b2bd-4626-b0c1-7d097ac4dcc1",
+      "report": "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/visual/REPORT.md",
+      "attempt": 1,
+      "deadline": 1794287590534,
+      "steps": 10,
+      "modelTier": "primary",
+      "child": "ses_e3c274036ffe4ZF39yhz0RESZO",
+      "modelRole": "primary",
+      "verdict": "PASS",
+      "kind": "review"
+    }
+  },
+  "operation_tasks": [
+    {
+      "id": "T002",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "apply x10",
+      "objects": [
+        "Cube",
+        "Camera",
+        "Light",
+        "Floor_Tile",
+        "Floor_Grout",
+        "Wall_Back",
+        "Wall_Left",
+        "Wall_Right",
+        "Ceiling",
+        "Ceiling_Grid"
+      ],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "98c5f6d0783b",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e3c2fed9bffeOfnrTPd16A1bG1",
+      "state": "done",
+      "created": "2026-11-10T04:55:48.209Z",
+      "finished": "2026-11-10T04:56:42.757Z",
+      "result": "ok (10 ops)",
+      "deadline": 1794287148208,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "create_mesh",
+          "ok": true
+        }
+      ],
+      "payloadPath": "Blender/Laundromat/Documents/Tasks/T002/payload.json",
+      "payloadHash": "691ed3012eaa5744cdf08be7acbf245f1a7e9e7980df89027e4de065541544da",
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T002/TASK.md",
+      "modelTier": "primary",
+      "workerTurns": 1,
+      "workerMaxTurns": 10,
+      "workerReused": false,
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T002/SUMMARY.md"
+    },
+    {
+      "id": "T003",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "apply x10",
+      "objects": [
+        "Ceiling_LightPanels",
+        "Baseboard",
+        "Camera_Hero",
+        "Light_Daylight",
+        "Light_Ceiling_01",
+        "Light_Ceiling_02",
+        "Light_Ceiling_03",
+        "Wall_Back",
+        "Wall_Left",
+        "Wall_Right",
+        "Ceiling",
+        "Floor_Tile",
+        "Floor_Grout",
+        "Ceiling_Grid"
+      ],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "553f2933162b",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e3c2fed9bffeOfnrTPd16A1bG1",
+      "state": "done",
+      "created": "2026-11-10T04:57:37.418Z",
+      "finished": "2026-11-10T04:58:13.146Z",
+      "result": "ok (10 ops)",
+      "deadline": 1794287257417,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "create_camera",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 5,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 6,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 7,
+          "operation": "create_light",
+          "ok": true
+        },
+        {
+          "index": 8,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 9,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 10,
+          "operation": "shared_material",
+          "ok": true
+        }
+      ],
+      "payloadPath": "Blender/Laundromat/Documents/Tasks/T003/payload.json",
+      "payloadHash": "23fc6c0b1fa5c1da734ee161e9dfb646a6c27526c59a8724477813a00d1881b2",
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T003/TASK.md",
+      "modelTier": "primary",
+      "workerTurns": 2,
+      "workerMaxTurns": 10,
+      "workerReused": true,
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T003/SUMMARY.md"
+    },
+    {
+      "id": "T004",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "apply x4",
+      "objects": [
+        "Ceiling_LightPanels",
+        "Baseboard",
+        "Camera_Hero"
+      ],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "e8596ef28dac",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e3c2fed9bffeOfnrTPd16A1bG1",
+      "state": "done",
+      "created": "2026-11-10T04:59:22.427Z",
+      "finished": "2026-11-10T05:00:15.783Z",
+      "result": "ok (4 ops)",
+      "deadline": 1794287362427,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "set_camera",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "render_settings",
+          "ok": true
+        }
+      ],
+      "payloadPath": "Blender/Laundromat/Documents/Tasks/T004/payload.json",
+      "payloadHash": "6ae01b90d8e964e5b685d3fa239577ae1d510d66c5cb869c5f3b0099f1d6c130",
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T004/TASK.md",
+      "modelTier": "primary",
+      "workerTurns": 3,
+      "workerMaxTurns": 10,
+      "workerReused": true,
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T004/SUMMARY.md"
+    },
+    {
+      "id": "T005",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "4d180031ef04",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-10T05:01:39.552Z",
+      "finished": "2026-11-10T05:01:48.487Z",
+      "result": "ok",
+      "deadline": 1794287499552,
+      "operationResults": [],
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T005/TASK.md",
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T005/SUMMARY.md"
+    },
+    {
+      "id": "T006",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "apply x4",
+      "objects": [
+        "Ceiling_LightPanels",
+        "Ceiling"
+      ],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "4f3360ab2cc5",
+      "worker": "blender-worker",
+      "actor": "blender-worker",
+      "capability": "apply",
+      "child": "ses_e3c2fed9bffeOfnrTPd16A1bG1",
+      "state": "done",
+      "created": "2026-11-10T05:02:12.706Z",
+      "finished": "2026-11-10T05:02:49.537Z",
+      "result": "ok (4 ops)",
+      "deadline": 1794287532705,
+      "operationResults": [
+        {
+          "index": 1,
+          "operation": "delete_object",
+          "ok": true
+        },
+        {
+          "index": 2,
+          "operation": "create_mesh",
+          "ok": true
+        },
+        {
+          "index": 3,
+          "operation": "shared_material",
+          "ok": true
+        },
+        {
+          "index": 4,
+          "operation": "material",
+          "ok": true
+        }
+      ],
+      "payloadPath": "Blender/Laundromat/Documents/Tasks/T006/payload.json",
+      "payloadHash": "49161d8f84200971e9eee244aa0c426662e842c870d2817ab9b26aba0eee0141",
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T006/TASK.md",
+      "modelTier": "primary",
+      "workerTurns": 4,
+      "workerMaxTurns": 10,
+      "workerReused": true,
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T006/SUMMARY.md"
+    },
+    {
+      "id": "T007",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "wip",
+      "objects": [],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "a74d8fb3c3be",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "wip",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-10T05:04:12.198Z",
+      "finished": "2026-11-10T05:04:23.219Z",
+      "result": "ok",
+      "deadline": 1794287652198,
+      "operationResults": [],
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T007/TASK.md",
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T007/SUMMARY.md"
+    },
+    {
+      "id": "T008",
+      "kind": "operation",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "seal",
+      "objects": [],
+      "paths": [
+        "Blender/Laundromat/laundromat.blend"
+      ],
+      "tokenHash": "25b085b93b0b",
+      "worker": "orchestrator",
+      "actor": "orchestrator",
+      "capability": "seal",
+      "child": "",
+      "state": "done",
+      "created": "2026-11-10T05:04:39.337Z",
+      "finished": "2026-11-10T05:04:50.142Z",
+      "result": "ok",
+      "deadline": 1794287679337,
+      "operationResults": [],
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/T008/TASK.md",
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/T008/SUMMARY.md"
+    },
+    {
+      "id": "G009",
+      "kind": "grader",
+      "change": "bda3cafe-aab6-4d43-84db-c13f0962a756",
+      "operation": "grader:visual",
+      "objects": [],
+      "paths": [
+        "Blender/Laundromat/Documents/Reviews/R01-20261110T050448Z/visual/REPORT.md"
+      ],
+      "tokenHash": "3bc5bccbf5ad",
+      "worker": "visual",
+      "actor": "blender-grader",
+      "capability": "grade",
+      "child": "ses_e3c274036ffe4ZF39yhz0RESZO",
+      "state": "done",
+      "created": "2026-11-10T05:05:10.534Z",
+      "finished": "2026-11-10T05:10:33.866Z",
+      "result": "ok",
+      "deadline": 1794287590534,
+      "operationResults": [],
+      "taskDoc": "Blender/Laundromat/Documents/Tasks/G009/TASK.md",
+      "summaryDoc": "Blender/Laundromat/Documents/Tasks/G009/SUMMARY.md"
+    }
+  ],
+  "verdict": "PASS"
+}
