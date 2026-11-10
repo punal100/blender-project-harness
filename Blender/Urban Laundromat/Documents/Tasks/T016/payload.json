@@ -1,0 +1,158 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "WasherGloss",
+      "objects": [
+        "WasherBodies"
+      ],
+      "color": [
+        0.62,
+        0.62,
+        0.58,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.2
+    },
+    {
+      "operation": "shared_material",
+      "name": "WasherGlass",
+      "objects": [
+        "WasherDoors",
+        "DryerDoors"
+      ],
+      "color": [
+        0.03,
+        0.04,
+        0.05,
+        1
+      ],
+      "roughness": 0.12,
+      "metallic": 0.4
+    },
+    {
+      "operation": "shared_material",
+      "name": "MachineTrim",
+      "objects": [
+        "WasherPanels",
+        "DryerPanels"
+      ],
+      "color": [
+        0.08,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.5
+    },
+    {
+      "operation": "shared_material",
+      "name": "DryerPaint",
+      "objects": [
+        "DryerBodies"
+      ],
+      "color": [
+        0.55,
+        0.53,
+        0.47,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.15
+    },
+    {
+      "operation": "shared_material",
+      "name": "TableTopWorn",
+      "objects": [
+        "TableTopA",
+        "TableTopB"
+      ],
+      "color": [
+        0.38,
+        0.29,
+        0.2,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "TableLegsMetal",
+      "objects": [
+        "TableLegsA",
+        "TableLegsB"
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.8
+    },
+    {
+      "operation": "shared_material",
+      "name": "CartPaint",
+      "objects": [
+        "CartBase"
+      ],
+      "color": [
+        0.1,
+        0.15,
+        0.25,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "operation": "shared_material",
+      "name": "CartCanvas",
+      "objects": [
+        "CartBag"
+      ],
+      "color": [
+        0.32,
+        0.28,
+        0.2,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "BasketRed",
+      "objects": [
+        "BasketA"
+      ],
+      "color": [
+        0.55,
+        0.08,
+        0.06,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "BasketBlue",
+      "objects": [
+        "BasketB"
+      ],
+      "color": [
+        0.06,
+        0.14,
+        0.4,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0
+    }
+  ]
+}
