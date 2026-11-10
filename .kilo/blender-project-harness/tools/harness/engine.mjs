@@ -1629,13 +1629,17 @@ export class Harness {
     if (c.pending) {
       const ticket = state?.tickets?.[c.pending];
       const task = p.tasks?.find((item) => item.token === c.pending);
-      const staleUnconsumed = !ticket
-        || (['issued', 'authorized'].includes(ticket.state) && Date.now() - ticket.created > TICKET_TTL_MS);
-      if (staleUnconsumed && (c.failure || Date.now() > c.deadline)) {
-        return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover'), reason: 'The pending operation ticket expired before execution; release it with recover, then follow the reported next step for the open change.' };
+      const changeExpired = c.failure || Date.now() > c.deadline;
+      const ticketLive = ticket
+        && ['issued', 'authorized'].includes(ticket.state)
+        && Date.now() - ticket.created <= TICKET_TTL_MS;
+      const writerRunning = ticket?.state === 'running'
+        && Date.now() - (ticket.started ?? ticket.created) <= TICKET_TTL_MS;
+      if (!ticket || (!writerRunning && (!ticketLive || changeExpired))) {
+        return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover'), reason: 'The pending operation ticket is no longer dispatchable; release or clear it with recover, then follow the reported next step for the open change.' };
       }
-      const operation = ticket?.operation ?? '<operation>';
-      const payload = ticket?.payload ?? {};
+      const operation = ticket.operation;
+      const payload = ticket.payload ?? {};
       if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: task?.payloadPath ? `blender_harness_execute {token:"${c.pending}",operation:"apply",payload_path:"${task.payloadPath}",payload_sha256:"${task.payloadHash}"}` : `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
       return { phase: operation, actor: 'orchestrator', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"${operation}",payload:"{}"}`, reason: `Execute the pending ${operation} ticket.` };
     }
@@ -1761,13 +1765,17 @@ export class Harness {
             project,
             registered: true,
             staleOwner: true,
-            next: 'The registered owner has no live change window. Inspect the runtime state and reclaim the project only if that owner is no longer working.',
+            owner: existing.orchestrator,
+            changeDeadline: existing.change.deadline,
+            pendingOperation: existing.change.pending ?? null,
+            checkoutMatches: this.stateMatchesCheckout(existing),
+            next: 'The registered owner change window has expired. This is diagnostic only: verify the owner session is gone, then call reclaim explicitly if recovery is appropriate.',
             nextStep: {
               phase: 'stale-owner',
               actor: 'orchestrator',
-              action: 'reclaim',
-              command: this.wire('reclaim', { project, reason: 'Prior orchestrator is no longer active; recover the project after inspecting the stale change.' }),
-              reason: 'The owner change window expired. Reclaim transfers ownership; then follow the reported recovery step for any stale operation.',
+              action: null,
+              command: null,
+              reason: 'Status does not authorize takeover. A reclaim request must be explicit and the owner must be verified as gone; follow the runtime recovery evidence.',
             },
           };
         }
@@ -3077,8 +3085,13 @@ export class Harness {
         return this.status(p, s);
       }
       const token = p.change?.pending, t = s.tickets[token];
-      const liveWriter = t?.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
-      if (!t || liveWriter) deny('no expired/dead operation; never release a live writer');
+      if (!t) {
+        if (!p.change?.pending) deny('no pending operation');
+        delete p.change.pending;
+        return this.status(p, s);
+      }
+      const liveWriter = t.state === 'running' && Date.now() - (t.started ?? t.created) <= TICKET_TTL_MS;
+      if (liveWriter) deny('no expired/dead operation; never release a live writer');
       const writerStarted = t.state === 'running';
       const safeBeforeExecution = ['issued', 'authorized'].includes(t.state);
       if (!writerStarted && !safeBeforeExecution && Date.now() - t.created <= TICKET_TTL_MS) deny('ticket is not releasable yet; wait for the TTL or inspect the writer');

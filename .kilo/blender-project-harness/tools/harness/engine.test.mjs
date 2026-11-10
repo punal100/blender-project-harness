@@ -2362,9 +2362,12 @@ test('status names reclaim for a stale owner and keeps a live owner sealed', (t)
   f.harness.transaction((s) => { s.projects[f.project].change.deadline = Date.now() - 1; });
   const stale = f.harness.command('new-session', 'status', { project: f.project });
   assert.equal(stale.staleOwner, true);
+  assert.equal(stale.owner, 'old-session');
+  assert.equal(stale.pendingOperation, null);
   assert.equal(stale.nextStep.phase, 'stale-owner');
-  assert.equal(stale.nextStep.action, 'reclaim');
-  assert.match(stale.nextStep.command, /action:"reclaim"/);
+  assert.equal(stale.nextStep.action, null);
+  assert.equal(stale.nextStep.command, null);
+  assert.equal(stale.checkoutMatches, true);
   const reclaimed = f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'old session stopped responding' });
   assert.equal(reclaimed.goalActive, true);
   assert.equal(reclaimed.reclaimed.from, 'old-session');
@@ -2387,6 +2390,31 @@ test('status routes an expired unconsumed ticket to recovery instead of dispatch
   assert.equal(released.change.pending, null);
   const next = f.harness.command('orchestrator', 'status');
   assert.notEqual(next.nextStep.phase, 'recover');
+});
+
+test('status routes a TTL-expired ticket with a live change window to recovery', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'apply', { staleLiveWindow: true });
+  f.harness.transaction((s) => { s.tickets[issued.token].created = Date.now() - 600_001; });
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'recover');
+  assert.equal(status.nextStep.action, 'recover');
+});
+
+test('recover clears a pending token whose ticket is missing', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'apply', { orphaned: true });
+  f.harness.transaction((s) => {
+    delete s.tickets[issued.token];
+    s.projects[f.project].change.deadline = Date.now() - 1;
+  });
+  assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'recover');
+  const recovered = f.harness.recover('orchestrator');
+  assert.equal(recovered.change.pending, null);
 });
 
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {
