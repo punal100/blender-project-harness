@@ -21,6 +21,13 @@ const latestOperationTask = (project, change) => {
   return undefined;
 };
 
+function intakeState(project) {
+  if (project?.intake) return 'copied';
+  if (project?.referenceIntake?.status === 'pending') return 'scanned';
+  if (project?.referenceIntake?.status === 'complete') return 'copied';
+  return 'none';
+}
+
 function projectState(project, state, waits = { active: [], expired: [] }) {
   const waiting = waits.active.length > 0;
   return {
@@ -253,7 +260,7 @@ function entitiesState(project, state, change, changeView, pendingTask, review, 
     review: review ? machineEntity('review', review.phase) : null,
     media: mediaRequest ? machineEntity('media', mediaRequest.status, { id: mediaRequest.id, active: MEDIA_OPEN.has(mediaRequest.status) }) : null,
     referenceIntake: machineEntity('referenceIntake', project?.referenceIntake?.status ?? 'none'),
-    intake: machineEntity('intake', project?.intake ? 'copied' : 'none'),
+    intake: machineEntity('intake', intakeState(project)),
     assetCheck: machineEntity('assetCheck', assetState),
     export: machineEntity('export', exportState),
     wait: machineEntity('wait', waitState, { active: waits.active.length, expired: waits.expired.length }),

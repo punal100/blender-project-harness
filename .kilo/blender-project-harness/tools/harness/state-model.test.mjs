@@ -187,6 +187,13 @@ test('entity snapshots expose machine states and transitions', () => {
   assert.equal(state.entities.wait.state, 'active');
 });
 
+test('intake projection exposes scanned, copied, and none states', () => {
+  assert.equal(deriveState(project(null, { referenceIntake: { status: 'pending' } })).entities.intake.state, 'scanned');
+  assert.equal(deriveState(project(null, { intake: { copied: 1 } })).entities.intake.state, 'copied');
+  assert.equal(deriveState(project(null, { referenceIntake: { status: 'complete' } })).entities.intake.state, 'copied');
+  assert.equal(deriveState(project()).entities.intake.state, 'none');
+});
+
 test('paused and reregistering projects report project state before phase', () => {
   const paused = project(change({ saved: true }), { goalActive: false, paused: { at: '2026-01-01', reason: 'manual' } });
   assert.equal(deriveState(paused, null, { phase: 'goal-blender', actor: 'orchestrator' }).workflow.state, 'paused');
