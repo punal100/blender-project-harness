@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/punal100/blender-project-harness/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/punal100/blender-project-harness?display_name=tag&sort=semver"></a>
-  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.8-CB3837?logo=npm&logoColor=white"></a>
+  <a href="https://www.npmjs.com/package/@punal_manalan/blender-project-harness"><img alt="npm" src="https://img.shields.io/badge/npm-1.0.9-CB3837?logo=npm&logoColor=white"></a>
   <a href="https://github.com/punal100/blender-project-harness/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/punal100/blender-project-harness"></a>
   <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D22-brightgreen">
   <img alt="Blender" src="https://img.shields.io/badge/Blender-5.2-orange">
@@ -118,13 +118,13 @@ Enable **Interface: MCP for Blender** under **Edit > Preferences > Add-ons**, th
 npx @punal_manalan/blender-project-harness@latest install
 ```
 
-The 1.0.8 package is the current release. If the registry does not have it yet, use the release
-tarball or a source checkout below.
+The 1.0.9 GitHub release is current. The npm 1.0.9 package is staged for maintainer approval;
+`@latest` remains 1.0.8 until it is approved. Use the release tarball or a source checkout below.
 
 ### From the release tarball
 
 ```powershell
-npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.8/punal_manalan-blender-project-harness-1.0.8.tgz
+npm install --save-dev https://github.com/punal100/blender-project-harness/releases/download/v1.0.9/punal_manalan-blender-project-harness-1.0.9.tgz
 npx blender-project-harness install
 ```
 
