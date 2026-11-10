@@ -22,8 +22,8 @@ const latestOperationTask = (project, change) => {
 };
 
 function intakeState(project) {
-  if (project?.intake) return 'copied';
   if (project?.referenceIntake?.status === 'pending') return 'scanned';
+  if (project?.intake) return 'copied';
   if (project?.referenceIntake?.status === 'complete') return 'copied';
   return 'none';
 }
@@ -113,6 +113,7 @@ function reviewState(project, change) {
       verdict: grader.verdict ?? null,
       attempt: grader.attempt ?? 0,
       error: grader.error ?? null,
+      timedOut: grader.timedOut ?? null,
     }])),
   };
 }

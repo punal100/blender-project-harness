@@ -43,6 +43,8 @@ test('catalog includes the coarse workflow and all declared targets', () => {
   assert.ok(STATE_MACHINE_CATALOG.machines.workflow);
   assert.deepEqual(STATE_MACHINE_CATALOG.machines.workflow.states, Object.keys(WORKFLOW_STATES));
   assert.deepEqual(STATE_MACHINE_CATALOG.machines.workflow.transitions, WORKFLOW_TRANSITIONS);
+  assert.equal(isKnownState('workflow', 'ready'), true);
+  assert.equal(canTransition('workflow', 'ready', 'applying'), true);
   for (const [name, machine] of Object.entries(STATE_MACHINE_CATALOG.machines)) {
     assert.ok(machine.states.includes(machine.initial), `${name} catalog initial is declared`);
     for (const [state, targets] of Object.entries(machine.transitions)) {
@@ -92,6 +94,7 @@ test('review assignment states are derived from assignment evidence', () => {
   assert.equal(reviewAssignmentState({ token: 'token', verdict: 'PASS' }), 'verdict');
   assert.equal(reviewAssignmentState({ token: 'token', cancelled: true }), 'cancelled');
   assert.equal(reviewAssignmentState({ token: 'token', error: 'failed' }), 'failed');
+  assert.equal(reviewAssignmentState({ token: 'token', child: 'ses_child', timedOut: 'now' }), 'failed');
 });
 
 test('task recovery and review retry transitions are explicit', () => {

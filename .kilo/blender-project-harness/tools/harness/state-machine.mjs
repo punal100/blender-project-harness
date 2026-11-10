@@ -294,24 +294,24 @@ export const REVIEW_ASSIGNMENT_STATES = Object.freeze({
 });
 
 export function isKnownState(machine, state) {
-  return Boolean(STATE_MACHINES[machine]?.states.includes(state));
+  return Boolean(STATE_MACHINE_CATALOG.machines[machine]?.states.includes(state));
 }
 
 export function allowedTransitions(machine, state) {
-  const definition = STATE_MACHINES[machine];
+  const definition = STATE_MACHINE_CATALOG.machines[machine];
   if (!definition || !isKnownState(machine, state) || !Object.hasOwn(definition.transitions, state)) return [];
   return [...(definition.transitions[state] ?? [])];
 }
 
 export function isTerminalState(machine, state) {
-  const definition = STATE_MACHINES[machine];
+  const definition = STATE_MACHINE_CATALOG.machines[machine];
   if (!definition || !isKnownState(machine, state)) return false;
   if (definition.kind === 'phase') return false;
   return allowedTransitions(machine, state).length === 0;
 }
 
 export function canTransition(machine, from, to) {
-  const definition = STATE_MACHINES[machine];
+  const definition = STATE_MACHINE_CATALOG.machines[machine];
   if (!definition || !isKnownState(machine, from) || !isKnownState(machine, to) || !Object.hasOwn(definition.transitions, from)) return false;
   return definition.transitions[from].includes(to);
 }
@@ -325,6 +325,7 @@ export function reviewAssignmentState(assignment) {
   if (!assignment) return null;
   if (assignment.cancelled) return 'cancelled';
   if (assignment.verdict) return 'verdict';
+  if (assignment.timedOut) return 'failed';
   if (assignment.error && !assignment.child) return 'failed';
   if (assignment.child) return 'running';
   if (assignment.token || assignment.report) return 'dispatched';

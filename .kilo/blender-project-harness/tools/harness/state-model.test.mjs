@@ -190,6 +190,7 @@ test('entity snapshots expose machine states and transitions', () => {
 test('intake projection exposes scanned, copied, and none states', () => {
   assert.equal(deriveState(project(null, { referenceIntake: { status: 'pending' } })).entities.intake.state, 'scanned');
   assert.equal(deriveState(project(null, { intake: { copied: 1 } })).entities.intake.state, 'copied');
+  assert.equal(deriveState(project(null, { intake: { copied: 1 }, referenceIntake: { status: 'pending' } })).entities.intake.state, 'scanned');
   assert.equal(deriveState(project(null, { referenceIntake: { status: 'complete' } })).entities.intake.state, 'copied');
   assert.equal(deriveState(project()).entities.intake.state, 'none');
 });
