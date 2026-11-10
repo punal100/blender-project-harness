@@ -235,9 +235,91 @@ export const STATE_MACHINES = Object.freeze({
   }),
 });
 
+export const STATE_OBSERVATIONS = Object.freeze({
+  installer: Object.freeze({
+    authority: 'one-shot',
+    source: 'installer/install.mjs',
+    fields: ['status', 'version', 'installDir', 'backup', 'warnings'],
+    note: 'Install/update result; never a project transition.',
+  }),
+  blender: Object.freeze({
+    authority: 'process',
+    source: 'blender.mjs',
+    fields: ['running', 'pid', 'scene', 'addon'],
+    note: 'Sampled process and addon facts; the harness does not own the process lifecycle.',
+  }),
+  mcpProxy: Object.freeze({
+    authority: 'connection',
+    source: 'proxy.mjs',
+    fields: ['connected', 'catalog', 'exposure'],
+    note: 'Upstream connection and catalog cache; read-only operational health.',
+  }),
+  toolExposure: Object.freeze({
+    authority: 'config',
+    source: 'tool-exposure.mjs',
+    fields: ['mode', 'allow', 'deny', 'unsafe'],
+    note: 'Effective policy mode, not an agent transition.',
+  }),
+  agentManager: Object.freeze({
+    authority: 'external',
+    source: 'Kilo Agent Manager',
+    fields: ['session', 'activity', 'attention'],
+    note: 'External child/session state; never infer it from a task result.',
+  }),
+  downloads: Object.freeze({
+    authority: 'outcome',
+    source: 'engine.mjs',
+    fields: ['url', 'path', 'sha256', 'stagedAt'],
+    note: 'HTTPS staging outcome; an intake action is a separate machine.',
+  }),
+  shellCommands: Object.freeze({
+    authority: 'outcome',
+    source: 'plugin.mjs',
+    fields: ['status', 'reason', 'command'],
+    note: 'One-shot command result; approval itself is the shellApproval machine.',
+  }),
+  configRoster: Object.freeze({
+    authority: 'config',
+    source: 'config.json',
+    fields: ['workers', 'graders', 'globalFallback'],
+    note: 'Registered policy inputs; drift is validated, not transitioned.',
+  }),
+  documents: Object.freeze({
+    authority: 'document',
+    source: 'project documents',
+    fields: ['status', 'confirmed', 'selected'],
+    note: 'Validated document metadata; registration freezes the authoritative values.',
+  }),
+  git: Object.freeze({
+    authority: 'fact',
+    source: 'git',
+    fields: ['head', 'dirty', 'staged'],
+    note: 'External repository facts used as gates; never an agent-owned state.',
+  }),
+  modelRouting: Object.freeze({
+    authority: 'ephemeral',
+    source: 'plugin.mjs',
+    fields: ['attempt', 'tier', 'role'],
+    note: 'Process-local fallback attempts; report them on the task, not as a project state.',
+  }),
+  autoContinuation: Object.freeze({
+    authority: 'ephemeral',
+    source: 'plugin.mjs',
+    fields: ['autoTurns', 'lastTurnAt', 'noProgress'],
+    note: 'Session-loop bookkeeping; mission waits and pauses are the durable projection.',
+  }),
+  questions: Object.freeze({
+    authority: 'ephemeral',
+    source: 'plugin.mjs',
+    fields: ['pending', 'question', 'labels'],
+    note: 'Runtime question coordination; durable registration/approval state is projected separately.',
+  }),
+});
+
 export const STATE_MACHINE_CATALOG = Object.freeze({
   version: 1,
   machines: STATE_MACHINES,
+  observations: STATE_OBSERVATIONS,
 });
 
 export const PHASE_TO_WORKFLOW = Object.freeze({

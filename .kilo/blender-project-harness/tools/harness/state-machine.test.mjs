@@ -54,6 +54,21 @@ test('catalog includes the coarse workflow and all declared targets', () => {
   }
 });
 
+test('catalog classifies non-machine observations', () => {
+  const names = Object.keys(STATE_MACHINE_CATALOG.observations);
+  for (const name of names) {
+    const observation = STATE_MACHINE_CATALOG.observations[name];
+    assert.equal(STATE_MACHINE_CATALOG.machines[name], undefined, `${name} is not both a machine and an observation`);
+    assert.ok(['one-shot', 'process', 'connection', 'config', 'external', 'outcome', 'document', 'fact', 'ephemeral'].includes(observation.authority), `${name} has a known authority`);
+    assert.ok(Array.isArray(observation.fields) && observation.fields.length > 0, `${name} declares observed fields`);
+    assert.ok(typeof observation.note === 'string' && observation.note.length > 0, `${name} explains why it is not a machine`);
+  }
+  assert.ok(names.includes('installer'));
+  assert.ok(names.includes('mcpProxy'));
+  assert.ok(names.includes('agentManager'));
+  assert.ok(names.includes('autoContinuation'));
+});
+
 test('ticket and task transitions match the harness lifecycle', () => {
   assert.equal(canTransition('ticket', 'issued', 'authorized'), true);
   assert.equal(canTransition('ticket', 'authorized', 'running'), true);
