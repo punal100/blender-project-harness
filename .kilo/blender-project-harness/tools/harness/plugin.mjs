@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Harness, contained, deny, digest, git, GRADER_ABORT_GRACE_MS, MEDIA_GENERATION_TOOLS, MAX_TICKET_PAYLOAD_BYTES, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
+import { STATE_MACHINE_CATALOG } from './state-machine.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
 import { readToolExposure, toolExposureSummary, unsafeSessionAllowed } from './tool-exposure.mjs';
 
@@ -55,6 +56,17 @@ const capabilities = (root = process.cwd()) => ({
   primitives: [...PRIMITIVES],
   bootstrapDocuments: [...BOOTSTRAP_DOCUMENTS],
   documentFormats: describeDocumentFormats(),
+  stateMachines: {
+    version: STATE_MACHINE_CATALOG.version,
+    names: Object.keys(STATE_MACHINE_CATALOG.machines),
+    machines: Object.fromEntries(Object.entries(STATE_MACHINE_CATALOG.machines).map(([name, machine]) => [name, {
+      kind: machine.kind ?? 'state',
+      initial: machine.initial,
+      states: machine.states,
+      transitions: machine.transitions,
+      ...(machine.owners ? { owners: machine.owners } : {}),
+    }])),
+  },
   toolExposure: toolExposureSummary(root),
   toolCatalog: { modes: ['lite', 'smart', 'full', 'readonly', 'unsafe'], detail: 'Use blender_tool_search, blender_tool_inspect, and blender_tool_invoke in smart mode; never infer availability from tools/list alone.' },
   intakeSource: {

@@ -224,6 +224,20 @@ export const WORKFLOW_TRANSITIONS = Object.freeze({
   owned: [],
 });
 
+export const STATE_MACHINE_CATALOG = Object.freeze({
+  version: 1,
+  machines: Object.freeze({
+    ...STATE_MACHINES,
+    workflow: Object.freeze({
+      kind: 'workflow',
+      initial: 'unregistered',
+      states: Object.freeze(Object.keys(WORKFLOW_STATES)),
+      transitions: WORKFLOW_TRANSITIONS,
+      owners: Object.freeze(Object.fromEntries(Object.entries(WORKFLOW_STATES).map(([name, state]) => [name, state.owner]))),
+    }),
+  }),
+});
+
 export const PHASE_TO_WORKFLOW = Object.freeze({
   unregistered: 'unregistered',
   scaffold: 'scaffold',

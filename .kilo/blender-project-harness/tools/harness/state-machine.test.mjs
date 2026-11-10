@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   PHASE_TO_WORKFLOW,
+  STATE_MACHINE_CATALOG,
   STATE_MACHINES,
   WORKFLOW_STATES,
   WORKFLOW_TRANSITIONS,
@@ -33,6 +34,20 @@ test('every machine declares states, transitions, and terminal reachability', ()
       for (const target of machine.transitions[state]) {
         assert.ok(machine.states.includes(target), `${name}.${state} targets a known state`);
       }
+    }
+  }
+});
+
+test('catalog includes the coarse workflow and all declared targets', () => {
+  assert.equal(STATE_MACHINE_CATALOG.version, 1);
+  assert.ok(STATE_MACHINE_CATALOG.machines.workflow);
+  assert.deepEqual(STATE_MACHINE_CATALOG.machines.workflow.states, Object.keys(WORKFLOW_STATES));
+  assert.deepEqual(STATE_MACHINE_CATALOG.machines.workflow.transitions, WORKFLOW_TRANSITIONS);
+  for (const [name, machine] of Object.entries(STATE_MACHINE_CATALOG.machines)) {
+    assert.ok(machine.states.includes(machine.initial), `${name} catalog initial is declared`);
+    for (const [state, targets] of Object.entries(machine.transitions)) {
+      assert.ok(machine.states.includes(state), `${name} catalog transition source ${state} is declared`);
+      for (const target of targets) assert.ok(machine.states.includes(target), `${name} catalog target ${target} is declared`);
     }
   }
 });

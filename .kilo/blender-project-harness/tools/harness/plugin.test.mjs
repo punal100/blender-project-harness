@@ -135,6 +135,10 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   const result = JSON.parse(await h.tool.blender_workflow.execute({ action: 'capabilities', payload: '{}' }, { sessionID: f.session }));
   assert.ok(result.operations.includes('create_mesh'));
   assert.ok(result.operations.includes('import_asset'));
+  assert.equal(result.stateMachines.version, 1);
+  assert.ok(result.stateMachines.names.includes('workflow'));
+  assert.ok(result.stateMachines.names.includes('ticket'));
+  assert.ok(result.stateMachines.machines.ticket.transitions.issued.includes('authorized'));
   assert.ok(result.operations.includes('export_scene'));
   assert.deepEqual([...result.operations].sort(), [...OPERATION_NAMES].sort());
   assert.ok(result.actions.some((action) => action.name === 'intake'));
