@@ -1,0 +1,8 @@
+{
+  "operations": [
+    {
+      "operation": "delete_object",
+      "name": "Cube"
+    }
+  ]
+}
