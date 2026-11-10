@@ -67,6 +67,7 @@ const capabilities = (root = process.cwd()) => ({
       transitions: machine.transitions,
       ...(machine.owners ? { owners: machine.owners } : {}),
     }])),
+    observations: STATE_MACHINE_CATALOG.observations,
   },
   toolExposure: toolExposureSummary(root),
   toolCatalog: { modes: ['lite', 'smart', 'full', 'readonly', 'unsafe'], detail: 'Use blender_tool_search, blender_tool_inspect, and blender_tool_invoke in smart mode; never infer availability from tools/list alone.' },

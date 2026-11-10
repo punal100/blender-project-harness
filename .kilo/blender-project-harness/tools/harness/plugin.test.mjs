@@ -144,6 +144,9 @@ test('capabilities expose the harness-owned operation and bootstrap lists', asyn
   assert.ok(result.stateMachines.names.includes('workflow'));
   assert.ok(result.stateMachines.names.includes('ticket'));
   assert.ok(result.stateMachines.machines.ticket.transitions.issued.includes('authorized'));
+  assert.ok(result.stateMachines.observations.installer);
+  assert.ok(result.stateMachines.observations.agentManager);
+  assert.ok(result.stateMachines.observations.autoContinuation);
   assert.ok(result.operations.includes('export_scene'));
   assert.deepEqual([...result.operations].sort(), [...OPERATION_NAMES].sort());
   assert.ok(result.actions.some((action) => action.name === 'intake'));
