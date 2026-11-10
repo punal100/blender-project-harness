@@ -1,0 +1,122 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R6_Door",
+      "primitive": "cylinder",
+      "location": [
+        2.012,
+        2.625,
+        0.65
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Dryer_R6_Rim",
+      "primitive": "cylinder",
+      "location": [
+        2.018,
+        2.625,
+        0.65
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R4_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R4_Rim",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R5_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R5_Rim",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R6_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Dryer_R6_Rim",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "Dryer_Sage",
+      "objects": [
+        "Dryer_R4_Body",
+        "Dryer_R5_Body",
+        "Dryer_R6_Body"
+      ],
+      "color": [
+        0.23,
+        0.38,
+        0.33,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.55
+    },
+    {
+      "operation": "shared_material",
+      "name": "Dryer_Panel_Dark",
+      "objects": [
+        "Dryer_R4_Panel",
+        "Dryer_R5_Panel",
+        "Dryer_R6_Panel"
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.035,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.2
+    }
+  ]
+}
