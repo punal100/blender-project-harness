@@ -2,13 +2,13 @@
 
 - Change: 6b075789-96b8-4ee3-8672-258c6ea245e1
 - Operation: apply x10
-- State: issued
+- State: abandoned
 - Actor: blender-worker
 - Capability: apply
 - Assigned: blender-worker
 - Child session: 
 - Created: 2026-11-10T05:58:21.188Z
-- Finished: 
+- Finished: 2026-11-10T06:04:33.922Z
 - Deadline: 2026-11-10T06:08:21.187Z
 - Token SHA-256: 3047435e4d6f
 - Payload file: Blender/Laundromat/Documents/Tasks/T021/payload.json
