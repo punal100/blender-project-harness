@@ -1,0 +1,72 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "SoapBody",
+      "objects": [
+        "SoapMachineBody"
+      ],
+      "color": [
+        0.58,
+        0.58,
+        0.55,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.2
+    },
+    {
+      "operation": "shared_material",
+      "name": "SoapFront",
+      "objects": [
+        "SoapMachineFront"
+      ],
+      "color": [
+        0.05,
+        0.1,
+        0.2,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.4
+    },
+    {
+      "operation": "shared_material",
+      "name": "BenchWood",
+      "objects": [
+        "BenchSeat",
+        "BenchBack"
+      ],
+      "color": [
+        0.3,
+        0.2,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0
+    },
+    {
+      "operation": "transform",
+      "name": "BasketA",
+      "rotation": [
+        0,
+        0,
+        0.3
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "BasketB",
+      "rotation": [
+        0,
+        0,
+        -0.4
+      ]
+    },
+    {
+      "operation": "delete_object",
+      "name": "Camera"
+    }
+  ]
+}
