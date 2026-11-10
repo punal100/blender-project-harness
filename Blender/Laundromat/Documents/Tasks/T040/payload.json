@@ -1,0 +1,13 @@
+{
+  "operations": [
+    {
+      "operation": "transform",
+      "name": "Clock_Hands",
+      "location": [
+        -2.8,
+        0,
+        0
+      ]
+    }
+  ]
+}
