@@ -1,0 +1,36 @@
+{
+  "operations": [
+    {
+      "operation": "transform",
+      "name": "HeroCamera",
+      "location": [
+        2.4,
+        -2.6,
+        1.65
+      ],
+      "rotation": [
+        1.5019,
+        0,
+        0.7419
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "FixtureRowLeft",
+      "location": [
+        -2.5,
+        -2.4,
+        3.18
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "FixtureRowRight",
+      "location": [
+        2.5,
+        -2.4,
+        3.18
+      ]
+    }
+  ]
+}
