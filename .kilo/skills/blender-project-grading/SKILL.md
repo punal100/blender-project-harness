@@ -114,7 +114,8 @@ Read `operation_tasks` in the manifest and the task ledger as process evidence; 
 
 1. After seal and successful `look`, call `grader-ticket {name}` for each selected grader.
 2. Dispatch the normal `blender-grader` tasks up to `max_parallel` in one batch. Keep the literal
-   `HARNESS_GRADER:<token>`, report path, scene hash, evidence key, and deadline unchanged.
+   `HARNESS_GRADER:<token>`, report path, scene hash, evidence key, deadline, and hard-abort instant
+   unchanged. A bound grader is aborted two minutes after the deadline if its report is still absent.
 3. If a task fails before binding a child, call `grader-fail {name,reason}`.
 4. Verify each report exists, cites sealed evidence and the scene hash, and declares one verdict.
 5. Merge duplicate findings; highest substantiated severity wins. Resolve disagreements against the

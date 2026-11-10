@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A bound grader receives a hard abort at `deadline + 2 minutes`; the assignment records
+  `timedOut`, the child is aborted, and collection records a tooling block instead of a generic
+  missing-report failure. Late reports inside the grace window remain valid.
+- Grader prompts list the previous round's report for the same grader, and direct reads of that
+  report are allowed without exposing peer reports.
+- Grader ticket records expose `hardDeadline` so the timeout is visible in the manifest and status.
+
 ## 1.0.8 - 2026-11-09
 
 ### Fixed
