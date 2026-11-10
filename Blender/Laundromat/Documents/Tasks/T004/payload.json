@@ -1,0 +1,53 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "LightPanel_Emissive",
+      "objects": [
+        "Ceiling_LightPanels"
+      ],
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0,
+      "emission": {
+        "color": [
+          1,
+          0.96,
+          0.88,
+          1
+        ],
+        "strength": 8
+      }
+    },
+    {
+      "operation": "shared_material",
+      "name": "Baseboard_Dark",
+      "objects": [
+        "Baseboard"
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0
+    },
+    {
+      "operation": "set_camera",
+      "name": "Camera_Hero"
+    },
+    {
+      "operation": "render_settings",
+      "width": 1920,
+      "height": 1080,
+      "samples": 64
+    }
+  ]
+}
