@@ -1635,10 +1635,11 @@ export class Harness {
         && Date.now() - ticket.created <= TICKET_TTL_MS;
       const writerRunning = ticket?.state === 'running'
         && Date.now() - (ticket.started ?? ticket.created) <= TICKET_TTL_MS;
-      if (!ticket || (!writerRunning && (!ticketLive || changeExpired))) {
+      const operation = ticket?.operation;
+      const dispatchable = ticket && (writerRunning || (ticketLive && (operation !== 'apply' || !changeExpired)));
+      if (!dispatchable) {
         return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover'), reason: 'The pending operation ticket is no longer dispatchable; release or clear it with recover, then follow the reported next step for the open change.' };
       }
-      const operation = ticket.operation;
       const payload = ticket.payload ?? {};
       if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: task?.payloadPath ? `blender_harness_execute {token:"${c.pending}",operation:"apply",payload_path:"${task.payloadPath}",payload_sha256:"${task.payloadHash}"}` : `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
       return { phase: operation, actor: 'orchestrator', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"${operation}",payload:"{}"}`, reason: `Execute the pending ${operation} ticket.` };
@@ -1766,9 +1767,7 @@ export class Harness {
             registered: true,
             staleOwner: true,
             owner: existing.orchestrator,
-            changeDeadline: existing.change.deadline,
-            pendingOperation: existing.change.pending ?? null,
-            checkoutMatches: this.stateMatchesCheckout(existing),
+            hasPendingOperation: Boolean(existing.change.pending),
             next: 'The registered owner change window has expired. This is diagnostic only: verify the owner session is gone, then call reclaim explicitly if recovery is appropriate.',
             nextStep: {
               phase: 'stale-owner',
@@ -3087,6 +3086,22 @@ export class Harness {
       const token = p.change?.pending, t = s.tickets[token];
       if (!t) {
         if (!p.change?.pending) deny('no pending operation');
+        const task = p.tasks?.find((item) => item.token === token);
+        if (task && !isTerminalState('task', task.state)) {
+          const writerStarted = task.state === 'running';
+          this.assertTransition('task', task.state, 'abandoned');
+          task.state = 'abandoned';
+          task.finished = new Date().toISOString();
+          task.result = writerStarted ? 'abandoned after writer start' : 'abandoned before execution';
+          this.writeTaskDocument(p, task);
+          this.writeTaskSummary(p, task);
+          this.writeTaskLedger(p);
+          this.commitTaskArtifacts(p, p.change, `task: ${task.id} abandoned`);
+          if (writerStarted) {
+            p.change.failure = 'Abandoned operation; inspect live scene, save and reseal before proceeding';
+            p.change.deadline = 0;
+          }
+        }
         delete p.change.pending;
         return this.status(p, s);
       }

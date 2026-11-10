@@ -1081,6 +1081,19 @@ test('failed apply closes edit route but preserves recovery save and seal', (t) 
   assert.equal(status.change.reopen, false);
 });
 
+test('status keeps a live recovery save ticket after an apply failure', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const failed = issueAndConsume(f, 'orchestrator', 'apply', { recoverySave: true });
+  f.harness.finish(failed.token, { ok: false, error: 'mock operation failed' });
+  const save = f.harness.issue('orchestrator', 'save', {});
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'save');
+  assert.equal(status.change.pending, 'operation in progress');
+  assert.equal(f.harness.transaction((s) => s.tickets[save.token].state), 'issued');
+});
+
 test('checkpoint without an open change is rejected', (t) => {
   const f = useFixture(t);
   activate(f);
@@ -2363,11 +2376,10 @@ test('status names reclaim for a stale owner and keeps a live owner sealed', (t)
   const stale = f.harness.command('new-session', 'status', { project: f.project });
   assert.equal(stale.staleOwner, true);
   assert.equal(stale.owner, 'old-session');
-  assert.equal(stale.pendingOperation, null);
+  assert.equal(stale.hasPendingOperation, false);
   assert.equal(stale.nextStep.phase, 'stale-owner');
   assert.equal(stale.nextStep.action, null);
   assert.equal(stale.nextStep.command, null);
-  assert.equal(stale.checkoutMatches, true);
   const reclaimed = f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'old session stopped responding' });
   assert.equal(reclaimed.goalActive, true);
   assert.equal(reclaimed.reclaimed.from, 'old-session');
@@ -2415,6 +2427,9 @@ test('recover clears a pending token whose ticket is missing', (t) => {
   assert.equal(f.harness.command('orchestrator', 'status').nextStep.phase, 'recover');
   const recovered = f.harness.recover('orchestrator');
   assert.equal(recovered.change.pending, null);
+  const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.token === issued.token));
+  assert.equal(task.state, 'abandoned');
+  assert.equal(task.finished !== undefined, true);
 });
 
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {
