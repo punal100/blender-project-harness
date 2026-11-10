@@ -38,6 +38,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | R03-20261110T054528Z | 20261110T054528Z | 3ee473e58a10 | Single milestone | visual | PASS | [R03-20261110T054528Z/REVIEW.md](R03-20261110T054528Z/REVIEW.md) |
 | R04-20261110T061240Z | 20261110T061240Z | ca99f0d63ab7 | Single milestone | visual | PASS | [R04-20261110T061240Z/REVIEW.md](R04-20261110T061240Z/REVIEW.md) |
 | R05-20261110T063748Z | 20261110T063748Z | 61ba90eab932 | Single milestone | visual | PASS | [R05-20261110T063748Z/REVIEW.md](R05-20261110T063748Z/REVIEW.md) |
+| R06-20261110T071125Z | 20261110T071125Z | 5e6690193a38 | Single milestone | visual | PASS | [R06-20261110T071125Z/REVIEW.md](R06-20261110T071125Z/REVIEW.md) |
 
 ## Rules
 
@@ -60,3 +61,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R04-20261110T061240Z: Build the first three right-row machines by duplicating the left row across the aisle, facing the centre.; evidence 041dd8a4ad61b6c228bb563e05a5718bcabbf5b087befe329eb333d89c599b07
 
 - R05-20261110T063748Z: Complete the right dryer row with three more matching machines at x=+2.5, bringing the scene to twelve front-loading units in two facing rows.; evidence f0d17cbaeec691d29ebe44f3cebea7e7184ea27a9ffc4612c1841d6e41e0ce59
+
+- R06-20261110T071125Z: Furnish the laundromat: folding tables, bench, vending machine, laundry cart, bins, wall clock, coin changer, posters, entrance mat, and wall signage.; evidence 0d5b2579bdbd824a128c60f73a92cab5d192d05a28eed5433bb8c80b7f2c8957
