@@ -1,0 +1,145 @@
+{
+  "operations": [
+    {
+      "operation": "duplicate",
+      "name": "Washer_L1_Door",
+      "new_name": "Washer_L1_Rim",
+      "location": [
+        -2.018,
+        -2.625,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "duplicate",
+      "name": "Washer_L2_Door",
+      "new_name": "Washer_L2_Rim",
+      "location": [
+        -2.018,
+        -1.575,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "duplicate",
+      "name": "Washer_L3_Door",
+      "new_name": "Washer_L3_Rim",
+      "location": [
+        -2.018,
+        -0.525,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "duplicate",
+      "name": "Washer_L4_Door",
+      "new_name": "Washer_L4_Rim",
+      "location": [
+        -2.018,
+        0.525,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "duplicate",
+      "name": "Washer_L5_Door",
+      "new_name": "Washer_L5_Rim",
+      "location": [
+        -2.018,
+        1.575,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "duplicate",
+      "name": "Washer_L6_Door",
+      "new_name": "Washer_L6_Rim",
+      "location": [
+        -2.018,
+        2.625,
+        0.6
+      ],
+      "scale": [
+        0.31,
+        0.31,
+        0.01
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "Stainless_Rim",
+      "objects": [
+        "Washer_L1_Rim",
+        "Washer_L2_Rim",
+        "Washer_L3_Rim",
+        "Washer_L4_Rim",
+        "Washer_L5_Rim",
+        "Washer_L6_Rim"
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.65,
+        1
+      ],
+      "roughness": 0.18,
+      "metallic": 0.9
+    },
+    {
+      "operation": "shared_material",
+      "name": "Door_Glass_Tint",
+      "objects": [
+        "Washer_L1_Door",
+        "Washer_L2_Door",
+        "Washer_L3_Door",
+        "Washer_L4_Door",
+        "Washer_L5_Door",
+        "Washer_L6_Door"
+      ],
+      "color": [
+        0.04,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.03,
+      "metallic": 0.15,
+      "transmission": 0.55,
+      "ior": 1.45
+    },
+    {
+      "operation": "transform",
+      "name": "Camera_Hero",
+      "location": [
+        0,
+        -5.7,
+        1.6
+      ]
+    }
+  ]
+}
