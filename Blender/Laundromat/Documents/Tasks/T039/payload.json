@@ -1,0 +1,254 @@
+{
+  "operations": [
+    {
+      "operation": "delete_object",
+      "name": "Clock_Hands"
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Clock_Hands",
+      "vertices": [
+        [
+          -0.012,
+          5.925,
+          2.2
+        ],
+        [
+          0.012,
+          5.925,
+          2.2
+        ],
+        [
+          0.012,
+          5.93,
+          2.2
+        ],
+        [
+          -0.012,
+          5.93,
+          2.2
+        ],
+        [
+          -0.012,
+          5.925,
+          2.36
+        ],
+        [
+          0.012,
+          5.925,
+          2.36
+        ],
+        [
+          0.012,
+          5.93,
+          2.36
+        ],
+        [
+          -0.012,
+          5.93,
+          2.36
+        ],
+        [
+          0,
+          5.925,
+          2.194
+        ],
+        [
+          0.13,
+          5.925,
+          2.194
+        ],
+        [
+          0.13,
+          5.93,
+          2.194
+        ],
+        [
+          0,
+          5.93,
+          2.194
+        ],
+        [
+          0,
+          5.925,
+          2.206
+        ],
+        [
+          0.13,
+          5.925,
+          2.206
+        ],
+        [
+          0.13,
+          5.93,
+          2.206
+        ],
+        [
+          0,
+          5.93,
+          2.206
+        ]
+      ],
+      "faces": [
+        [
+          0,
+          3,
+          2,
+          1
+        ],
+        [
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          0,
+          1,
+          5,
+          4
+        ],
+        [
+          1,
+          2,
+          6,
+          5
+        ],
+        [
+          2,
+          3,
+          7,
+          6
+        ],
+        [
+          3,
+          0,
+          4,
+          7
+        ],
+        [
+          8,
+          11,
+          10,
+          9
+        ],
+        [
+          12,
+          13,
+          14,
+          15
+        ],
+        [
+          8,
+          9,
+          13,
+          12
+        ],
+        [
+          9,
+          10,
+          14,
+          13
+        ],
+        [
+          10,
+          11,
+          15,
+          14
+        ],
+        [
+          11,
+          8,
+          12,
+          15
+        ]
+      ],
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "Table_Laminate_Dark",
+      "objects": [
+        "Table_01_Top",
+        "Table_01_Leg",
+        "Table_02_Top",
+        "Table_02_Leg"
+      ],
+      "color": [
+        0.6,
+        0.58,
+        0.52,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "Door_Glass_Light",
+      "objects": [
+        "Washer_L1_Door",
+        "Washer_L2_Door",
+        "Washer_L3_Door",
+        "Washer_L4_Door",
+        "Washer_L5_Door",
+        "Washer_L6_Door",
+        "Dryer_R1_Door",
+        "Dryer_R2_Door",
+        "Dryer_R3_Door",
+        "Dryer_R4_Door",
+        "Dryer_R5_Door",
+        "Dryer_R6_Door"
+      ],
+      "color": [
+        0.12,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.02,
+      "metallic": 0.05,
+      "transmission": 0.75,
+      "ior": 1.45
+    },
+    {
+      "operation": "shared_material",
+      "name": "Clock_Dark",
+      "objects": [
+        "Clock_Body"
+      ],
+      "color": [
+        0.08,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "Clock_Hands_White",
+      "objects": [
+        "Clock_Hands"
+      ],
+      "color": [
+        0.95,
+        0.95,
+        0.92,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0
+    }
+  ]
+}
