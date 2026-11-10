@@ -1,0 +1,123 @@
+{
+  "operations": [
+    {
+      "operation": "set_camera",
+      "name": "HeroCamera"
+    },
+    {
+      "operation": "render_settings",
+      "width": 1920,
+      "height": 1080,
+      "samples": 64
+    },
+    {
+      "operation": "transform",
+      "name": "FrontGlass",
+      "rotation": [
+        -1.5708,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "NightBackdrop",
+      "rotation": [
+        -1.5708,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "WindowMullions",
+      "modifier": "ARRAY",
+      "count": 5,
+      "relative_offset": [
+        51.25,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "ShellPaint",
+      "objects": [
+        "RoomShell"
+      ],
+      "color": [
+        0.72,
+        0.68,
+        0.6,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "FloorTile",
+      "objects": [
+        "Floor"
+      ],
+      "color": [
+        0.62,
+        0.6,
+        0.54,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "Grout",
+      "objects": [
+        "GroutX",
+        "GroutY"
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.12,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "WindowGlass",
+      "objects": [
+        "FrontGlass"
+      ],
+      "color": [
+        0.55,
+        0.68,
+        0.76,
+        1
+      ],
+      "roughness": 0.05,
+      "metallic": 0,
+      "transmission": 0.9,
+      "ior": 1.45,
+      "alpha": 0.18
+    },
+    {
+      "operation": "shared_material",
+      "name": "FrameMetal",
+      "objects": [
+        "WindowMullions",
+        "WindowSill"
+      ],
+      "color": [
+        0.08,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.8
+    }
+  ]
+}
