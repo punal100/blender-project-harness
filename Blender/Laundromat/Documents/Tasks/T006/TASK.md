@@ -2,13 +2,15 @@
 
 - Change: bda3cafe-aab6-4d43-84db-c13f0962a756
 - Operation: apply x4
-- State: issued
+- State: done
 - Actor: blender-worker
 - Capability: apply
 - Assigned: blender-worker
-- Child session: 
+- Child session: ses_e3c2fed9bffeOfnrTPd16A1bG1
+- Worker turn: 4/10
+- Worker reused: yes
 - Created: 2026-11-10T05:02:12.706Z
-- Finished: 
+- Finished: 2026-11-10T05:02:49.537Z
 - Deadline: 2026-11-10T05:12:12.705Z
 - Token SHA-256: 4f3360ab2cc5
 - Payload file: Blender/Laundromat/Documents/Tasks/T006/payload.json
@@ -25,4 +27,7 @@
 
 ## Operation Results
 
-- —
+- 1: delete_object ok
+- 2: create_mesh ok
+- 3: shared_material ok
+- 4: material ok
