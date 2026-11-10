@@ -1,0 +1,80 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "Door_Glass_Dark",
+      "objects": [
+        "Washer_L1_Door",
+        "Washer_L2_Door",
+        "Washer_L3_Door",
+        "Washer_L4_Door",
+        "Washer_L5_Door",
+        "Washer_L6_Door"
+      ],
+      "color": [
+        0.01,
+        0.015,
+        0.02,
+        1
+      ],
+      "roughness": 0.08,
+      "metallic": 0.3,
+      "transmission": 0.2,
+      "ior": 1.45
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L1_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L2_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L3_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L4_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L5_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Washer_L6_Door",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    }
+  ]
+}
