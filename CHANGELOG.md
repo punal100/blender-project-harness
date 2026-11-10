@@ -7,6 +7,8 @@
 - Added `STATE_MACHINE_CATALOG`, a versioned registry that includes the coarse workflow alongside the
   existing domain machines. `capabilities.stateMachines` exposes machine names, states, and transitions
   without changing `status` or `nextStep`.
+- `STATE_MACHINES` is now the single registry containing the workflow machine; state helpers and the
+  catalog resolve the same definitions. `state.entities.change.kind` identifies the change as a phase.
 - State-model intake projection now exposes the existing `scanned` state for a pending reference scan,
   while preserving `copied` and `none`.
 
