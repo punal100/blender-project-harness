@@ -1,7 +1,7 @@
 # Task Tracker — Laundromat
 
 Status: Active
-Last updated: 2026-11-10T05:26:31.007Z
+Last updated: 2026-11-10T05:27:36.248Z
 
 ## Tasks
 
@@ -19,3 +19,4 @@ Last updated: 2026-11-10T05:26:31.007Z
 | [T010](Tasks/T010/TASK.md) | operation | 974e07a0-2ae4-4285-9e9a-7f6e945a59d7 | apply x10 | 10 | blender-worker | ses_e3c2fed9bffeOfnrTPd16A1bG1 | done | 2026-11-10T05:11:39.922Z | 2026-11-10T05:18:00.707Z | ok (10 ops) |
 | [T011](Tasks/T011/TASK.md) | operation | 974e07a0-2ae4-4285-9e9a-7f6e945a59d7 | apply x10 | 15 | blender-worker | ses_e3c2fed9bffeOfnrTPd16A1bG1 | done | 2026-11-10T05:21:46.172Z | 2026-11-10T05:23:07.005Z | ok (10 ops) |
 | [T012](Tasks/T012/TASK.md) | operation | 974e07a0-2ae4-4285-9e9a-7f6e945a59d7 | apply x7 | 6 | blender-worker | ses_e3c2fed9bffeOfnrTPd16A1bG1 | done | 2026-11-10T05:25:55.543Z | 2026-11-10T05:26:31.005Z | ok (7 ops) |
+| [T013](Tasks/T013/TASK.md) | operation | 974e07a0-2ae4-4285-9e9a-7f6e945a59d7 | wip | 0 | orchestrator |  | issued | 2026-11-10T05:27:36.247Z |  |  |
