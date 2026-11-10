@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.10 - 2026-11-10
+
+### Feature
+
+- Added a non-machine observation registry to `capabilities.stateMachines.observations` for installer,
+  Blender process/addon, MCP proxy, tool exposure, Agent Manager, downloads, shell commands,
+  config/roster, documents, git, model routing, auto-continuation, and runtime questions.
+
+### Fixed
+
+- Stale-owner `status` is now diagnostic only: it reports `hasPendingOperation` instead of a live ticket
+  token and emits no executable takeover command. Reclaim remains an explicit recovery action.
+- Pending operation dispatch now respects ticket TTL and the change window. Expired or unconsumed
+  tickets route to `recover`, while live recovery `save`/`seal`/`wip` tickets remain dispatchable
+  after a failed or expired change.
+- Missing-ticket recovery now abandons the associated task, commits its record, and marks a running
+  change as failed instead of leaving an orphaned task or half-executed batch.
+- Goal auto-continuation now pauses after four automatic turns without harness progress and uses the
+  normal `goal-inactive` cleanup path, including child abort, worker retirement, and wait clearing.
+
 ## 1.0.9 - 2026-11-10
 
 ### Feature
