@@ -1,7 +1,7 @@
 # Task Tracker — Urban Laundromat
 
 Status: Active
-Last updated: 2026-11-10T19:50:40.389Z
+Last updated: 2026-11-10T19:50:50.468Z
 
 ## Tasks
 
@@ -11,4 +11,4 @@ Last updated: 2026-11-10T19:50:40.389Z
 | [T002](Tasks/T002/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | apply x10 | 10 | blender-worker | ses_e3908b70cffeZEdU11oSGPzIBm | done | 2026-11-10T19:37:27.947Z | 2026-11-10T19:40:37.540Z | ok (10 ops) |
 | [T003](Tasks/T003/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | apply x9 | 9 | blender-worker | ses_e3908b70cffeZEdU11oSGPzIBm | done | 2026-11-10T19:42:44.347Z | 2026-11-10T19:47:41.012Z | ok (9 ops) |
 | [T004](Tasks/T004/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | apply x10 | 17 | blender-worker | ses_e3908b70cffeZEdU11oSGPzIBm | done | 2026-11-10T19:49:05.797Z | 2026-11-10T19:49:42.358Z | ok (10 ops) |
-| [T005](Tasks/T005/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | wip | 0 | orchestrator |  | issued | 2026-11-10T19:50:40.387Z |  |  |
+| [T005](Tasks/T005/TASK.md) | operation | bb371858-7033-48a0-b3fd-0bc9d99b0b05 | wip | 0 | orchestrator |  | done | 2026-11-10T19:50:40.387Z | 2026-11-10T19:50:50.467Z | ok |
