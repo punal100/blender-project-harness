@@ -381,6 +381,7 @@ Manifest: <manifest path>
 Report path: <assigned report path>
 Live inspection: not allowed
 Budget: <minutes> minutes, <steps> steps
+Hard abort UTC: <deadline + 2 minutes>
 ```
 
 Expected:
@@ -389,6 +390,7 @@ Expected:
 - each reads only assigned specs, evidence, and its own prior report;
 - each writes only its assigned `REPORT.md`;
 - each cites the scene hash and evidence key;
+- a bound grader is aborted two minutes after its deadline if no report exists;
 - a missing report is recorded as BLOCKED;
 - a retry uses a fresh ticket with the current hash and evidence key;
 - no grader reads a peer report.
