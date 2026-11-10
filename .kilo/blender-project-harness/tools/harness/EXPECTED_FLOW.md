@@ -67,6 +67,12 @@ fields, Git/filesystem facts, downloads, and one-shot shell results are not runt
 configuration enums, document content, external facts, or one-shot operations; modeling them as
 agent-owned transitions would create false coupling.
 
+The catalog records that classification under `observations`, with each entry's authority, source,
+observed fields, and a note explaining why it must not be transitioned. `capabilities.stateMachines`
+exposes the same list so an agent can distinguish authoritative machines from external facts before
+inventing a state or action. Observations are read-only health/context signals; only the named
+machines have write-side transitions.
+
 ## 2. Main components
 
 | Component | Responsibility |
