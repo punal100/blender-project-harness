@@ -936,6 +936,22 @@ test('goal-blender auto-continues once per idle up to the cap', async (t) => {
   assert.equal(calls.length, 1);
 });
 
+test('goal auto-continuation pauses after repeated no-progress turns', async (t) => {
+  const f = fixture(t);
+  const calls = [];
+  const h = hooks(f, undefined, { session: { promptAsync: async (args) => calls.push(args) } });
+  await h.tool.goal_blender.execute({ action: 'start' }, { sessionID: f.session });
+  for (let i = 0; i < 4; i += 1) {
+    await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  }
+  assert.equal(calls.length, 4);
+  await h.event({ event: { type: 'session.idle', properties: { sessionID: f.session } } });
+  assert.equal(calls.length, 4);
+  const status = f.harness.command(f.session, 'status');
+  assert.equal(status.goalActive, false);
+  assert.match(status.paused.reason, /no harness progress/i);
+});
+
 test('an aborted turn pauses the mission instead of auto-continuing', async (t) => {
   const f = fixture(t);
   const calls = [];

@@ -20,6 +20,7 @@ const SHELL_APPROVAL_TTL_MS = 10 * 60_000;
 const PROCESS_WAIT_TTL_MS = 30 * 60_000;
 const SHELL_TOKEN = /\[HARNESS_SHELL:([a-f0-9-]{36})\]/i;
 const MAX_AUTO_TURNS = 25;
+const MAX_AUTO_NO_PROGRESS_TURNS = 4;
 const successful = (output) => output && !output.isError && !output.metadata?.error && !/^Error\b/.test(output.output ?? '');
 const BOOTSTRAP_DOCUMENTS = [
   'README.md',
@@ -274,6 +275,7 @@ export function createHooks(harness, client, directory = harness.root) {
   const modelAttempts = new Map();
   const questionPending = new Set();
   const continuations = new Set();
+  const continuationProgress = new Map();
   const waitCalls = new Map();
   const processCalls = new Map();
   const modelChain = (choice, globalFallback) => [
@@ -427,6 +429,39 @@ export function createHooks(harness, client, directory = harness.root) {
   function stateFor(session) {
     return harness.transaction((s) => Object.values(s.projects).find((p) => p.orchestrator === session) ?? null);
   }
+  function autoProgressSignature(project) {
+    const c = project?.change;
+    return JSON.stringify({
+      lastCommit: project?.lastCommit ?? null,
+      complete: Boolean(project?.complete),
+      goalActive: Boolean(project?.goalActive),
+      goalConflict: project?.goalConflict?.at ?? null,
+      paused: project?.paused?.at ?? null,
+      change: c ? {
+        id: c.id,
+        operations: c.operations,
+        sealed: Boolean(c.sealed),
+        inspected: Boolean(c.inspected),
+        verdict: c.verdict ?? null,
+        failure: Boolean(c.failure),
+        pending: c.pending ?? null,
+        round: c.round ?? null,
+        wipRender: c.wipRender?.operations ?? null,
+        wipLook: c.wipLook?.operations ?? null,
+        graders: Object.fromEntries(Object.entries(c.graders ?? {}).map(([name, g]) => [name, [
+          g.verdict ?? null,
+          Boolean(g.timedOut),
+          Boolean(g.cancelled),
+        ]])),
+      } : null,
+      tasks: (project?.tasks ?? []).length,
+      lastTask: project?.tasks?.at(-1) ? {
+        id: project.tasks.at(-1).id,
+        state: project.tasks.at(-1).state,
+        finished: project.tasks.at(-1).finished ?? null,
+      } : null,
+    });
+  }
   const delayMs = (value) => {
     if (typeof value !== 'string') return null;
     const match = /^(\d+(?:\.\d+)?)\s*(s|m|h|d)?$/i.exec(value.trim());
@@ -477,6 +512,7 @@ export function createHooks(harness, client, directory = harness.root) {
     const p = stateFor(sessionID);
     if (!p) deny('register the project with blender_workflow prepare before starting /goal-blender');
     const action = args.action ?? 'status';
+    if (action !== 'status') continuationProgress.delete(sessionID);
     if (action === 'status') return JSON.stringify(harness.command(sessionID, 'status'), null, 2);
     if (action === 'start' || action === 'resume') {
       if (p.goalConflict) deny(`goal conflict: ${p.goalConflict.reason}; run /goal clear, close any open change, and reregister`);
@@ -508,7 +544,10 @@ export function createHooks(harness, client, directory = harness.root) {
   async function continueGoalBlender(sessionID) {
     if (continuations.has(sessionID) || questionPending.has(sessionID)) return;
     const project = stateFor(sessionID);
-    if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) return;
+    if (!project || !project.goalActive || project.goalSource !== 'goal-blender' || project.complete || project.goalConflict) {
+      continuationProgress.delete(sessionID);
+      return;
+    }
     if ((project.goalMeta?.autoTurns ?? 0) >= MAX_AUTO_TURNS) return;
     const waiting = harness.transaction((s) => {
       const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
@@ -530,6 +569,23 @@ export function createHooks(harness, client, directory = harness.root) {
         current.paused = { at: new Date().toISOString(), reason };
         if (current.change) current.change.cancelled = { at: new Date().toISOString(), reason };
       });
+      return;
+    }
+    const signature = autoProgressSignature(project);
+    const previous = continuationProgress.get(sessionID);
+    const noProgress = previous?.signature === signature ? (previous.noProgress ?? 0) + 1 : 0;
+    if (previous && noProgress >= MAX_AUTO_NO_PROGRESS_TURNS) {
+      harness.transaction((s) => {
+        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
+        if (!current || current.complete) return;
+        current.goalActive = false;
+        current.goalSource = null;
+        current.paused = {
+          at: new Date().toISOString(),
+          reason: `Automatic continuation made no harness progress for ${MAX_AUTO_NO_PROGRESS_TURNS} turns; inspect the session and resume with /goal-blender resume.`,
+        };
+      });
+      continuationProgress.delete(sessionID);
       return;
     }
     let info;
@@ -560,6 +616,7 @@ export function createHooks(harness, client, directory = harness.root) {
           }],
         },
       });
+      continuationProgress.set(sessionID, { signature, noProgress });
     } catch {} finally {
       continuations.delete(sessionID);
     }
@@ -673,6 +730,7 @@ export function createHooks(harness, client, directory = harness.root) {
         invalidateBuiltInGoal(harness, input.sessionID, 'Built-in /goal was used; this workspace requires /goal-blender.');
       }
       if (!input.sessionID || parts.some((part) => part.type === 'text' && part.synthetic)) return;
+      continuationProgress.delete(input.sessionID);
       clearWakeups(input.sessionID);
       harness.transaction((s) => {
         const project = Object.values(s.projects).find((item) => item.orchestrator === input.sessionID);
