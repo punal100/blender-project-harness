@@ -1,0 +1,127 @@
+{
+  "operations": [
+    {
+      "operation": "delete_object",
+      "name": "FrontGlass"
+    },
+    {
+      "operation": "delete_object",
+      "name": "LightWarm"
+    },
+    {
+      "operation": "delete_object",
+      "name": "LightCool"
+    },
+    {
+      "operation": "create_light",
+      "name": "LightWarm",
+      "kind": "AREA",
+      "location": [
+        0,
+        0.2,
+        2.95
+      ],
+      "energy": 200,
+      "color": [
+        1,
+        0.86,
+        0.68
+      ],
+      "size": 4
+    },
+    {
+      "operation": "create_light",
+      "name": "LightCool",
+      "kind": "AREA",
+      "location": [
+        0,
+        -3,
+        2.2
+      ],
+      "energy": 80,
+      "color": [
+        0.55,
+        0.7,
+        1
+      ],
+      "rotation": [
+        1.15,
+        0,
+        0
+      ],
+      "size": 2
+    },
+    {
+      "operation": "delete_object",
+      "name": "HeroCamera"
+    },
+    {
+      "operation": "create_camera",
+      "name": "HeroCamera",
+      "location": [
+        0,
+        2.9,
+        1.65
+      ],
+      "rotation": [
+        1.4982,
+        0,
+        3.1053
+      ],
+      "lens": 18
+    },
+    {
+      "operation": "set_camera",
+      "name": "HeroCamera"
+    },
+    {
+      "operation": "shared_material",
+      "name": "NightSky",
+      "objects": [
+        "NightBackdrop"
+      ],
+      "color": [
+        0.02,
+        0.03,
+        0.06,
+        1
+      ],
+      "roughness": 1,
+      "metallic": 0,
+      "emission": {
+        "color": [
+          0.03,
+          0.08,
+          0.18,
+          1
+        ],
+        "strength": 1.2
+      }
+    },
+    {
+      "operation": "shared_material",
+      "name": "Fluoro",
+      "objects": [
+        "FixtureRowLeft",
+        "FixtureRowRight"
+      ],
+      "color": [
+        0.95,
+        0.9,
+        0.78,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0,
+      "emission": {
+        "color": [
+          1,
+          0.88,
+          0.66,
+          1
+        ],
+        "strength": 3
+      }
+    }
+  ]
+}
