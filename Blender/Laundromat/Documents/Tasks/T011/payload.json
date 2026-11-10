@@ -1,0 +1,164 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L4_Panel",
+      "primitive": "cube",
+      "location": [
+        -2.015,
+        0.525,
+        0.98
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L4_Door",
+      "primitive": "cylinder",
+      "location": [
+        -2.012,
+        0.525,
+        0.6
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L5_Body",
+      "primitive": "cube",
+      "location": [
+        -2.5,
+        1.575,
+        0.525
+      ],
+      "scale": [
+        0.475,
+        0.45,
+        0.525
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L5_Panel",
+      "primitive": "cube",
+      "location": [
+        -2.015,
+        1.575,
+        0.98
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L5_Door",
+      "primitive": "cylinder",
+      "location": [
+        -2.012,
+        1.575,
+        0.6
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L6_Body",
+      "primitive": "cube",
+      "location": [
+        -2.5,
+        2.625,
+        0.525
+      ],
+      "scale": [
+        0.475,
+        0.45,
+        0.525
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L6_Panel",
+      "primitive": "cube",
+      "location": [
+        -2.015,
+        2.625,
+        0.98
+      ],
+      "scale": [
+        0.03,
+        0.38,
+        0.075
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Washer_L6_Door",
+      "primitive": "cylinder",
+      "location": [
+        -2.012,
+        2.625,
+        0.6
+      ],
+      "scale": [
+        0.28,
+        0.28,
+        0.01
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "Washer_Sage",
+      "objects": [
+        "Washer_L1_Body",
+        "Washer_L2_Body",
+        "Washer_L3_Body",
+        "Washer_L4_Body",
+        "Washer_L5_Body",
+        "Washer_L6_Body"
+      ],
+      "color": [
+        0.23,
+        0.38,
+        0.33,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.55
+    },
+    {
+      "operation": "shared_material",
+      "name": "ControlPanel_Dark",
+      "objects": [
+        "Washer_L1_Panel",
+        "Washer_L2_Panel",
+        "Washer_L3_Panel",
+        "Washer_L4_Panel",
+        "Washer_L5_Panel",
+        "Washer_L6_Panel"
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.035,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.2
+    }
+  ]
+}
