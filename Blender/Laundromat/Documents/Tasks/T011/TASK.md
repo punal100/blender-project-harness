@@ -2,13 +2,15 @@
 
 - Change: 974e07a0-2ae4-4285-9e9a-7f6e945a59d7
 - Operation: apply x10
-- State: issued
+- State: done
 - Actor: blender-worker
 - Capability: apply
 - Assigned: blender-worker
-- Child session: 
+- Child session: ses_e3c2fed9bffeOfnrTPd16A1bG1
+- Worker turn: 6/10
+- Worker reused: yes
 - Created: 2026-11-10T05:21:46.172Z
-- Finished: 
+- Finished: 2026-11-10T05:23:07.005Z
 - Deadline: 2026-11-10T05:31:46.172Z
 - Token SHA-256: 6a4d2cdc5b6a
 - Payload file: Blender/Laundromat/Documents/Tasks/T011/payload.json
@@ -38,4 +40,13 @@
 
 ## Operation Results
 
-- —
+- 1: create_mesh ok
+- 2: create_mesh ok
+- 3: create_mesh ok
+- 4: create_mesh ok
+- 5: create_mesh ok
+- 6: create_mesh ok
+- 7: create_mesh ok
+- 8: create_mesh ok
+- 9: shared_material ok
+- 10: shared_material ok
