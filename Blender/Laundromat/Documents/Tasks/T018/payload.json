@@ -1,0 +1,154 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "WasherBodies",
+      "primitive": "cube",
+      "location": [
+        -4.4,
+        -2.79,
+        0.575
+      ],
+      "scale": [
+        0.425,
+        0.29,
+        0.575
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "WasherDoors",
+      "primitive": "cylinder",
+      "location": [
+        -3.96,
+        -2.79,
+        0.62
+      ],
+      "scale": [
+        0.23,
+        0.23,
+        0.05
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "WasherPanels",
+      "primitive": "cube",
+      "location": [
+        -3.95,
+        -2.79,
+        1.02
+      ],
+      "scale": [
+        0.03,
+        0.27,
+        0.1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerBodiesLower",
+      "primitive": "cube",
+      "location": [
+        -0.8,
+        2.95,
+        0.45
+      ],
+      "scale": [
+        0.375,
+        0.4,
+        0.375
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerBodiesUpper",
+      "primitive": "cube",
+      "location": [
+        -0.8,
+        2.95,
+        1.25
+      ],
+      "scale": [
+        0.375,
+        0.4,
+        0.375
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerDoorsLower",
+      "primitive": "cylinder",
+      "location": [
+        -0.8,
+        2.54,
+        0.45
+      ],
+      "scale": [
+        0.23,
+        0.23,
+        0.04
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerDoorsUpper",
+      "primitive": "cylinder",
+      "location": [
+        -0.8,
+        2.54,
+        1.25
+      ],
+      "scale": [
+        0.23,
+        0.23,
+        0.04
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerPanelsLower",
+      "primitive": "cube",
+      "location": [
+        -0.8,
+        2.52,
+        0.68
+      ],
+      "scale": [
+        0.3,
+        0.03,
+        0.1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DryerPanelsUpper",
+      "primitive": "cube",
+      "location": [
+        -0.8,
+        2.52,
+        1.48
+      ],
+      "scale": [
+        0.3,
+        0.03,
+        0.1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "FoldingTableTopA",
+      "primitive": "cube",
+      "location": [
+        -1.8,
+        0.6,
+        0.78
+      ],
+      "scale": [
+        0.8,
+        0.35,
+        0.025
+      ]
+    }
+  ]
+}
