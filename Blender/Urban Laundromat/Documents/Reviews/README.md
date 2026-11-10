@@ -34,6 +34,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 | Round | UTC | Target | Mode | Graders | Verdict | Report |
 |---|---|---|---|---|---|---|
 | R01-20261110T195508Z | 20261110T195508Z | c84ac88d74e6 | Single milestone | visual | BLOCKED | [R01-20261110T195508Z/REVIEW.md](R01-20261110T195508Z/REVIEW.md) |
+| R02-20261110T203615Z | 20261110T203615Z | 7f89eab07a6f | Single milestone | visual | BLOCKED | [R02-20261110T203615Z/REVIEW.md](R02-20261110T203615Z/REVIEW.md) |
 
 ## Rules
 
@@ -48,3 +49,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
   are blocked.
 
 - R01-20261110T195508Z: Room shell with storefront glass, dusk backdrop, hero camera, and base lighting; evidence 250852884926badc5c5e616398f4c3c6578f6c9195fb0242a63f7eebd20381ca
+
+- R02-20261110T203615Z: Washer and dryer banks with folding tables, cart, baskets, soap machine, and bench; evidence b69bac03cc92a83c6d3d789dec505110fa2d193f8789d59c503348078263727e

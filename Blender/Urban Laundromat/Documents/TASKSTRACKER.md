@@ -1,7 +1,7 @@
 # Task Tracker — Urban Laundromat
 
 Status: Active
-Last updated: 2026-11-10T20:36:17.028Z
+Last updated: 2026-11-10T20:47:17.017Z
 
 ## Tasks
 
@@ -26,3 +26,4 @@ Last updated: 2026-11-10T20:36:17.028Z
 | [T017](Tasks/T017/TASK.md) | operation | ea511346-b734-426d-8d15-2643c826899b | apply x6 | 7 | blender-worker | ses_e38da931fffeYYoF57vG3sx4ZI | done | 2026-11-10T20:32:27.353Z | 2026-11-10T20:34:01.454Z | ok (6 ops) |
 | [T018](Tasks/T018/TASK.md) | operation | ea511346-b734-426d-8d15-2643c826899b | wip | 0 | orchestrator |  | done | 2026-11-10T20:35:14.242Z | 2026-11-10T20:35:34.227Z | ok |
 | [T019](Tasks/T019/TASK.md) | operation | ea511346-b734-426d-8d15-2643c826899b | seal | 0 | orchestrator |  | done | 2026-11-10T20:36:00.514Z | 2026-11-10T20:36:17.026Z | ok |
+| [G020](Tasks/G020/TASK.md) | grader | ea511346-b734-426d-8d15-2643c826899b | grader:visual | 0 | visual | ses_e38d21755ffeCreGhsuskkIrmB | failed | 2026-11-10T20:36:45.914Z | 2026-11-10T20:47:17.014Z | grader hard deadline exceeded: 2026-11-10T20:46:45.913Z |
