@@ -161,6 +161,7 @@ test('workflow state maps the authoritative phase and owner', () => {
   assert.equal(state.workflow.owner, 'blender-worker');
   assert.equal(state.workflow.action, 'ticket');
   assert.equal(state.workflow.reason, 'Apply the next batch.');
+  assert.equal(state.entities.change.kind, 'phase');
   assert.equal(state.entities.change.phase, 'apply');
   assert.deepEqual(state.workflow.allowed, ['wip', 'sealing', 'saving', 'recovery', 'paused', 'conflict']);
 });

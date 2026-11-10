@@ -1,4 +1,4 @@
-export const STATE_MACHINES = Object.freeze({
+const STATE_MACHINE_DOMAIN = {
   registration: {
     initial: 'unregistered',
     states: ['unregistered', 'scaffold', 'registration-pending', 'registration', 'registered', 'reregistering', 'owned'],
@@ -166,7 +166,7 @@ export const STATE_MACHINES = Object.freeze({
     states: ['none', 'bootstrap', 'bootstrap-save', 'bootstrap-commit', 'bootstrap-checkpoint', 'open', 'apply', 'save', 'pending', 'wip', 'wip-inspect', 'ready-to-seal', 'seal', 'sealed', 'inspect', 'reviewing', 'blocked', 'approval', 'commit', 'checkpoint', 'recovery', 'abandon', 'preserve', 'complete', 'unregistered', 'scaffold', 'registration', 'registration-pending', 'prepare', 'reregister', 'reregister-document', 'reregister-commit', 'reregister-prepare', 'goal-document', 'bootstrap-document', 'escalate', 'goal-blender', 'wait', 'begin', 'revision-begin', 'reference-scan', 'reference-intake', 'media-request', 'media-generate', 'media-record', 'media-intake', 'grader-ticket', 'self-review', 'retry-grader', 'goal-conflict', 'owned'],
     transitions: {},
   },
-});
+};
 
 export const WORKFLOW_STATES = Object.freeze({
   unregistered: { owner: 'orchestrator', terminal: false },
@@ -224,18 +224,20 @@ export const WORKFLOW_TRANSITIONS = Object.freeze({
   owned: [],
 });
 
+export const STATE_MACHINES = Object.freeze({
+  ...STATE_MACHINE_DOMAIN,
+  workflow: Object.freeze({
+    kind: 'workflow',
+    initial: 'unregistered',
+    states: Object.freeze(Object.keys(WORKFLOW_STATES)),
+    transitions: WORKFLOW_TRANSITIONS,
+    owners: Object.freeze(Object.fromEntries(Object.entries(WORKFLOW_STATES).map(([name, state]) => [name, state.owner]))),
+  }),
+});
+
 export const STATE_MACHINE_CATALOG = Object.freeze({
   version: 1,
-  machines: Object.freeze({
-    ...STATE_MACHINES,
-    workflow: Object.freeze({
-      kind: 'workflow',
-      initial: 'unregistered',
-      states: Object.freeze(Object.keys(WORKFLOW_STATES)),
-      transitions: WORKFLOW_TRANSITIONS,
-      owners: Object.freeze(Object.fromEntries(Object.entries(WORKFLOW_STATES).map(([name, state]) => [name, state.owner]))),
-    }),
-  }),
+  machines: STATE_MACHINES,
 });
 
 export const PHASE_TO_WORKFLOW = Object.freeze({

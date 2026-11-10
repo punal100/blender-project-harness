@@ -251,7 +251,7 @@ function entitiesState(project, state, change, changeView, pendingTask, review, 
   return {
     registration: machineEntity('registration', projectView.registration === 'challenge-pending' ? 'registration-pending' : projectView.registration),
     mission: machineEntity('mission', projectView.mission),
-    change: changeView ? { phase: changeView.phase, terminal: false, allowed: [] } : null,
+    change: changeView ? { kind: 'phase', phase: changeView.phase, terminal: false, allowed: [] } : null,
     ticket: ticket ? machineEntity('ticket', ticket.state, { operation: ticket.operation }) : null,
     task: pendingTask ? machineEntity('task', pendingTask.state, { id: pendingTask.id, commitPending: Boolean(pendingTask.commitPending) }) : null,
     worker: machineEntity('worker', project?.worker ? 'active' : project?.workerRetired ? 'retired' : 'unbound', {
