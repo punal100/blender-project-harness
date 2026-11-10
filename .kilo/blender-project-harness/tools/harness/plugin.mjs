@@ -338,22 +338,57 @@ export function createHooks(harness, client, directory = harness.root) {
     if (children.length) harness.cancelChildren(project.orchestrator, children, reason);
     return children;
   }
-  function armGraderWatchdog(assignment) {
+  function graderWatchdogAssignment(orchestrator, token) {
+    return harness.transaction((s) => {
+      const assignment = harness.graderAssignmentByToken(s, token);
+      return assignment && assignment.p.orchestrator === orchestrator ? assignment : null;
+    });
+  }
+  async function findGraderChild(orchestrator, token) {
+    if (typeof client.experimental?.session?.list !== 'function') return null;
+    try {
+      const listed = await client.experimental.session.list({
+        directory: harness.root,
+        roots: false,
+        archived: false,
+        limit: 1000,
+      }, { throwOnError: true });
+      const candidates = (Array.isArray(listed.data) ? listed.data : []).filter((session) => session.parentID === orchestrator);
+      for (const session of candidates) {
+        if (session.agent && session.agent !== 'blender-grader') continue;
+        try {
+          const messages = await client.session.messages({ path: { id: session.id }, query: { limit: 100 }, throwOnError: true });
+          const first = messages.data?.find?.((message) => message.info?.role === 'user' && message.parts?.some((part) => part.type === 'text' && part.text?.trim()));
+          const prompt = first?.parts?.filter((part) => part.type === 'text' && !part.synthetic && !part.ignored).map((part) => part.text).join('\n');
+          if (prompt?.includes(`HARNESS_GRADER:${token}`)) return session.id;
+        } catch {}
+      }
+    } catch {}
+    return null;
+  }
+  async function expireGrader(orchestrator, token, hardDeadline) {
+    try {
+      const assignment = graderWatchdogAssignment(orchestrator, token);
+      if (!assignment || assignment.g.verdict || assignment.g.cancelled || assignment.g.timedOut) return;
+      const child = assignment.g.child || await findGraderChild(orchestrator, token);
+      if (!child) return;
+      if (fs.existsSync(contained(harness.root, assignment.g.report, true))) return;
+      harness.markGraderTimedOut(orchestrator, token, `grader hard deadline exceeded: ${new Date(hardDeadline).toISOString()}`, child);
+      if (typeof client.session.abort === 'function') {
+        try {
+          await client.session.abort({ path: { id: child }, query: { directory: harness.root } });
+        } catch {}
+      }
+    } catch {}
+  }
+  function armGraderWatchdog(assignment, { allowUnbound = false } = {}) {
     const g = assignment?.g;
-    if (!assignment || !g?.child || !g.token || g.verdict || g.cancelled || g.timedOut || graderWatchdogs.has(g.token)) return;
+    if (!assignment || (!allowUnbound && !g?.child) || !g.token || g.verdict || g.cancelled || g.timedOut || graderWatchdogs.has(g.token)) return;
     const hardDeadline = Number.isFinite(g.hardDeadline) ? g.hardDeadline : g.deadline + GRADER_ABORT_GRACE_MS;
     if (!Number.isFinite(hardDeadline)) return;
     const timer = setTimeout(() => {
       graderWatchdogs.delete(g.token);
-      try {
-        const current = harness.transaction((s) => harness.graderAssignment(s, g.child));
-        if (!current || current.g.verdict || current.g.cancelled || current.g.timedOut) return;
-        if (fs.existsSync(contained(harness.root, current.g.report, true))) return;
-        harness.markGraderTimedOut(current.p.orchestrator, current.g.token, `grader hard deadline exceeded: ${new Date(hardDeadline).toISOString()}`);
-        if (typeof client.session.abort === 'function') {
-          Promise.resolve(client.session.abort({ path: { id: current.g.child }, query: { directory: harness.root } })).catch(() => {});
-        }
-      } catch {}
+      void expireGrader(assignment.p.orchestrator, g.token, hardDeadline);
     }, Math.max(0, hardDeadline - Date.now()));
     if (typeof timer.unref === 'function') timer.unref();
     graderWatchdogs.set(g.token, timer);
@@ -380,12 +415,12 @@ export function createHooks(harness, client, directory = harness.root) {
       return { worker: true, info, role, observed, expected: cfg, tier: taskTier };
     }
     if (user?.agent !== 'blender-grader' || !prompt?.includes('HARNESS_GRADER:')) deny('only assigned worker or grader children allowed during production');
-    const existing = harness.transaction((s) => harness.graderAssignment(s, session));
-    if (!existing) {
+    let assignment = harness.transaction((s) => harness.graderAssignment(s, session));
+    if (!assignment) {
       if (!assistant) deny('grader runtime model metadata unavailable; cannot bind grader');
       harness.bindGrader(info.parentID, session, prompt, { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant });
+      assignment = harness.transaction((s) => harness.graderAssignment(s, session));
     }
-    const assignment = harness.transaction((s) => harness.graderAssignment(s, session));
     if (assignment) armGraderWatchdog(assignment);
     return info;
   }
@@ -893,6 +928,7 @@ export function createHooks(harness, client, directory = harness.root) {
         applyModel(args, plan);
         harness.setModelTier(input.sessionID, token, plan.tier, 'grader');
         taskPlans.set(input.callID, { ...plan, kind: 'grader' });
+        armGraderWatchdog({ p, g: p.change.graders[graderName] }, { allowUnbound: true });
         taskArgs.set(input.callID, args); return;
       }
       if (['write', 'edit', 'apply_patch'].includes(tool)) {

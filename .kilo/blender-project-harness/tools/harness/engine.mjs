@@ -2791,6 +2791,12 @@ export class Harness {
     }
     return null;
   }
+  graderAssignmentByToken(state, token) {
+    for (const p of Object.values(state.projects)) {
+      for (const [name, g] of Object.entries(p.change?.graders ?? {})) if (g.token === token) return { p, name, g };
+    }
+    return null;
+  }
   bindWorkerByToken(orchestrator, child, token) {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
@@ -2949,13 +2955,14 @@ export class Harness {
       return { project: p.project, report: g.report, sceneHash: p.change.sceneHash, evidenceKey: p.change.evidenceKey };
     });
   }
-  markGraderTimedOut(orchestrator, token, reason) {
+  markGraderTimedOut(orchestrator, token, reason, child = null) {
     return this.transaction((s) => {
       const p = this.owner(s, orchestrator);
       const entry = Object.entries(p.change?.graders ?? {}).find(([, g]) => g.token === token);
       if (!entry) return false;
       const g = entry[1];
       if (g.verdict || g.cancelled || g.timedOut) return false;
+      if (child && !g.child) g.child = child;
       g.timedOut = new Date().toISOString();
       g.error = String(reason ?? 'grader deadline exceeded').slice(0, 300);
       this.updateManifest(p);

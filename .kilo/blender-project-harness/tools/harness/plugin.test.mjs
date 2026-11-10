@@ -19,7 +19,7 @@ function hooks(f, metadata, overrides = {}) {
 }
 const before = (h, session, tool, args) => h['tool.execute.before']({ sessionID: session, callID: 'call_test', tool }, { args });
 const GRADER_TOKEN = '33333333-3333-3333-3333-333333333333';
-function graderState(f, { hardDeadline = Date.now() + 30_000 } = {}) {
+function graderState(f, { hardDeadline = Date.now() + 30_000, child = 'ses_grader' } = {}) {
   f.begin();
   const round = 'R00-20261031T100000Z';
   const report = `${f.project}/Documents/Reviews/${round}/visual/REPORT.md`;
@@ -34,7 +34,7 @@ function graderState(f, { hardDeadline = Date.now() + 30_000 } = {}) {
     p.change.graders.visual = {
       token: GRADER_TOKEN,
       report,
-      child: 'ses_grader',
+      child,
       deadline: Date.now() + 30_000,
       hardDeadline,
       attempt: 1,
@@ -46,12 +46,17 @@ function graderState(f, { hardDeadline = Date.now() + 30_000 } = {}) {
 function graderHooks(f, aborted = []) {
   return createHooks(f.harness, {
     session: {
-      get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-grader' } }),
+      get: async ({ path: p }) => ({ data: { id: p.id, ...(p.id === 'ses_grader' ? { parentID: f.session } : {}), agent: 'blender-grader' } }),
       messages: async () => ({ data: [
         { info: { role: 'user', agent: 'blender-grader' }, parts: [{ type: 'text', text: `HARNESS_GRADER:${GRADER_TOKEN}` }] },
         { info: { role: 'assistant', providerID: 'test', modelID: 'test-model', variant: 'test-variant' }, parts: [] },
       ] }),
       abort: async ({ path: p }) => aborted.push(p.id),
+    },
+    experimental: {
+      session: {
+        list: async () => ({ data: [{ id: 'ses_grader', parentID: f.session, agent: 'blender-grader' }] }),
+      },
     },
   });
 }
@@ -537,6 +542,21 @@ test('a bound grader is aborted at its hard deadline', async (t) => {
   assert.deepEqual(aborted, ['ses_grader']);
   const grader = f.harness.transaction((s) => s.projects[f.project].change.graders.visual);
   assert.ok(grader.timedOut);
+  assert.match(grader.error, /hard deadline/);
+});
+
+test('a grader with no child tool is still aborted at its hard deadline', async (t) => {
+  const f = fixture(t, { review: 'Single' });
+  const aborted = [];
+  graderState(f, { hardDeadline: Date.now() + 5, child: '' });
+  const h = graderHooks(f, aborted);
+  const prompt = `HARNESS_GRADER:${GRADER_TOKEN}\nsaved scene SHA-256 ${f.harness.hash(f.scene)}\nEvidence key: ${'e'.repeat(64)}`;
+  await assert.doesNotReject(before(h, f.session, 'task', { subagent_type: 'blender-grader', prompt, background: false }));
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepEqual(aborted, ['ses_grader']);
+  const grader = f.harness.transaction((s) => s.projects[f.project].change.graders.visual);
+  assert.ok(grader.timedOut);
+  assert.equal(grader.child, 'ses_grader');
   assert.match(grader.error, /hard deadline/);
 });
 
