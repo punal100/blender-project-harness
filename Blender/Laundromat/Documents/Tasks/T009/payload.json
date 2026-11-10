@@ -1,0 +1,97 @@
+{
+  "operations": [
+    {
+      "operation": "modifier",
+      "name": "GroutX",
+      "modifier": "ARRAY",
+      "count": 20,
+      "relative_offset": [
+        41.6667,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "GroutY",
+      "modifier": "ARRAY",
+      "count": 14,
+      "relative_offset": [
+        0,
+        41.6667,
+        0
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "NightSky",
+      "objects": [
+        "NightBackdrop"
+      ],
+      "color": [
+        0.01,
+        0.015,
+        0.03,
+        1
+      ],
+      "roughness": 1,
+      "metallic": 0,
+      "emission": {
+        "color": [
+          0.01,
+          0.03,
+          0.07,
+          1
+        ],
+        "strength": 0.3
+      }
+    },
+    {
+      "operation": "delete_object",
+      "name": "LightWarm"
+    },
+    {
+      "operation": "create_light",
+      "name": "LightWarm",
+      "kind": "AREA",
+      "location": [
+        0,
+        0.2,
+        2.95
+      ],
+      "energy": 150,
+      "color": [
+        1,
+        0.86,
+        0.68
+      ],
+      "size": 4
+    },
+    {
+      "operation": "delete_object",
+      "name": "LightCool"
+    },
+    {
+      "operation": "create_light",
+      "name": "LightCool",
+      "kind": "AREA",
+      "location": [
+        0,
+        -3,
+        2.2
+      ],
+      "energy": 50,
+      "color": [
+        0.55,
+        0.7,
+        1
+      ],
+      "rotation": [
+        1.15,
+        0,
+        0
+      ],
+      "size": 2
+    }
+  ]
+}
