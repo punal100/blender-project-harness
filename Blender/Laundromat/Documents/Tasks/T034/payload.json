@@ -1,0 +1,290 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "Clock_Body",
+      "primitive": "cylinder",
+      "location": [
+        -2.8,
+        5.96,
+        2.2
+      ],
+      "scale": [
+        0.22,
+        0.22,
+        0.02
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Clock_Hands",
+      "vertices": [
+        [
+          -0.01,
+          5.93,
+          2.2
+        ],
+        [
+          0.01,
+          5.93,
+          2.2
+        ],
+        [
+          0.01,
+          5.935,
+          2.2
+        ],
+        [
+          -0.01,
+          5.935,
+          2.2
+        ],
+        [
+          -0.01,
+          5.93,
+          2.32
+        ],
+        [
+          0.01,
+          5.93,
+          2.32
+        ],
+        [
+          0.01,
+          5.935,
+          2.32
+        ],
+        [
+          -0.01,
+          5.935,
+          2.32
+        ],
+        [
+          0,
+          5.93,
+          2.19
+        ],
+        [
+          0.12,
+          5.93,
+          2.19
+        ],
+        [
+          0.12,
+          5.935,
+          2.19
+        ],
+        [
+          0,
+          5.935,
+          2.19
+        ],
+        [
+          0,
+          5.93,
+          2.21
+        ],
+        [
+          0.12,
+          5.93,
+          2.21
+        ],
+        [
+          0.12,
+          5.935,
+          2.21
+        ],
+        [
+          0,
+          5.935,
+          2.21
+        ]
+      ],
+      "faces": [
+        [
+          0,
+          3,
+          2,
+          1
+        ],
+        [
+          4,
+          5,
+          6,
+          7
+        ],
+        [
+          0,
+          1,
+          5,
+          4
+        ],
+        [
+          1,
+          2,
+          6,
+          5
+        ],
+        [
+          2,
+          3,
+          7,
+          6
+        ],
+        [
+          3,
+          0,
+          4,
+          7
+        ],
+        [
+          8,
+          11,
+          10,
+          9
+        ],
+        [
+          12,
+          13,
+          14,
+          15
+        ],
+        [
+          8,
+          9,
+          13,
+          12
+        ],
+        [
+          9,
+          10,
+          14,
+          13
+        ],
+        [
+          10,
+          11,
+          15,
+          14
+        ],
+        [
+          11,
+          8,
+          12,
+          15
+        ]
+      ],
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Clock_Body",
+      "rotation": [
+        1.5707963,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Coin_Changer",
+      "primitive": "cube",
+      "location": [
+        1.6,
+        5.96,
+        1.4
+      ],
+      "scale": [
+        0.18,
+        0.06,
+        0.35
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Poster_01",
+      "primitive": "plane",
+      "location": [
+        -3.98,
+        3.6,
+        1.8
+      ],
+      "scale": [
+        0.35,
+        0.5,
+        1
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "Poster_01",
+      "rotation": [
+        0,
+        1.5707963,
+        0
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Door_Mat",
+      "primitive": "plane",
+      "location": [
+        0,
+        -5.1,
+        0.006
+      ],
+      "scale": [
+        1.1,
+        0.55,
+        1
+      ]
+    },
+    {
+      "operation": "text",
+      "name": "Sign_Laundromat",
+      "body": "LAUNDROMAT",
+      "size": 0.38,
+      "extrude": 0.01,
+      "align_x": "CENTER",
+      "align_y": "CENTER",
+      "location": [
+        0,
+        5.97,
+        2.45
+      ],
+      "rotation": [
+        1.5707963,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "text",
+      "name": "Sign_WashDry",
+      "body": "WASH - DRY - FOLD",
+      "size": 0.16,
+      "extrude": 0.01,
+      "align_x": "CENTER",
+      "align_y": "CENTER",
+      "location": [
+        0,
+        5.97,
+        2.1
+      ],
+      "rotation": [
+        1.5707963,
+        0,
+        0
+      ]
+    }
+  ]
+}
