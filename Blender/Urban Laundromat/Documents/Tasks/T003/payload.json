@@ -1,0 +1,148 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "DoorFrameLeft",
+      "primitive": "cube",
+      "location": [
+        2.4,
+        -6,
+        1.5
+      ],
+      "scale": [
+        0.04,
+        0.08,
+        1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DoorFrameRight",
+      "primitive": "cube",
+      "location": [
+        3.4,
+        -6,
+        1.5
+      ],
+      "scale": [
+        0.04,
+        0.08,
+        1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DoorHeader",
+      "primitive": "cube",
+      "location": [
+        2.9,
+        -6,
+        2.55
+      ],
+      "scale": [
+        0.5,
+        0.08,
+        0.05
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DoorHandle",
+      "primitive": "cylinder",
+      "location": [
+        2.9,
+        -5.95,
+        1.15
+      ],
+      "scale": [
+        0.02,
+        0.02,
+        0.4
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "DuskBackdrop",
+      "primitive": "plane",
+      "location": [
+        0,
+        -9,
+        1.75
+      ],
+      "scale": [
+        10,
+        3,
+        1
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "Sidewalk",
+      "primitive": "cube",
+      "location": [
+        0,
+        -6.8,
+        0.02
+      ],
+      "scale": [
+        4,
+        0.8,
+        0.03
+      ]
+    },
+    {
+      "operation": "create_camera",
+      "name": "HeroCamera",
+      "location": [
+        2.7,
+        4.4,
+        1.65
+      ],
+      "rotation": [
+        1.5368,
+        0,
+        2.831
+      ],
+      "lens": 24
+    },
+    {
+      "operation": "create_light",
+      "name": "LightWarm",
+      "kind": "AREA",
+      "location": [
+        0,
+        2.4,
+        2.9
+      ],
+      "energy": 500,
+      "color": [
+        1,
+        0.86,
+        0.68
+      ],
+      "size": 5
+    },
+    {
+      "operation": "create_light",
+      "name": "LightCool",
+      "kind": "AREA",
+      "location": [
+        0,
+        -8,
+        2.4
+      ],
+      "rotation": [
+        1.15,
+        0,
+        0
+      ],
+      "energy": 250,
+      "color": [
+        0.55,
+        0.7,
+        1
+      ],
+      "size": 2.5
+    }
+  ]
+}
