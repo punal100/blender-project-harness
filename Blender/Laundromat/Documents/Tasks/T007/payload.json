@@ -1,0 +1,58 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "TrimPaint",
+      "objects": [
+        "BaseboardBack",
+        "BaseboardLeft",
+        "BaseboardRight"
+      ],
+      "color": [
+        0.78,
+        0.74,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "MatRubber",
+      "objects": [
+        "EntranceMat"
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    {
+      "operation": "modifier",
+      "name": "FixtureRowLeft",
+      "modifier": "ARRAY",
+      "count": 4,
+      "relative_offset": [
+        0,
+        1.333,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "FixtureRowRight",
+      "modifier": "ARRAY",
+      "count": 4,
+      "relative_offset": [
+        0,
+        1.333,
+        0
+      ]
+    }
+  ]
+}
