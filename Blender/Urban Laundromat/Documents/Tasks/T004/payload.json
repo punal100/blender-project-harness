@@ -1,0 +1,151 @@
+{
+  "operations": [
+    {
+      "operation": "transform",
+      "name": "DoorHandle",
+      "rotation": [
+        0,
+        1.5708,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "DuskBackdrop",
+      "rotation": [
+        -1.5708,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "shared_material",
+      "name": "FloorWorn",
+      "objects": [
+        "RoomFloor"
+      ],
+      "color": [
+        0.34,
+        0.31,
+        0.25,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "WallPaint",
+      "objects": [
+        "RoomBackWall",
+        "RoomLeftWall",
+        "RoomRightWall"
+      ],
+      "color": [
+        0.55,
+        0.52,
+        0.44,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "CeilingPaint",
+      "objects": [
+        "RoomCeiling"
+      ],
+      "color": [
+        0.62,
+        0.6,
+        0.55,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    {
+      "operation": "shared_material",
+      "name": "FrameMetal",
+      "objects": [
+        "StorefrontFrameTop",
+        "StorefrontFrameBottom",
+        "StorefrontMullions",
+        "DoorFrameLeft",
+        "DoorFrameRight",
+        "DoorHeader"
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.055,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.7
+    },
+    {
+      "operation": "shared_material",
+      "name": "GlassStorefront",
+      "objects": [
+        "StorefrontGlass",
+        "DoorGlass"
+      ],
+      "color": [
+        0.6,
+        0.7,
+        0.75,
+        1
+      ],
+      "roughness": 0.06,
+      "metallic": 0,
+      "transmission": 0.92,
+      "ior": 1.45,
+      "alpha": 0.22
+    },
+    {
+      "operation": "shared_material",
+      "name": "DuskSky",
+      "objects": [
+        "DuskBackdrop"
+      ],
+      "color": [
+        0.015,
+        0.02,
+        0.04,
+        1
+      ],
+      "roughness": 1,
+      "metallic": 0,
+      "emission": {
+        "color": [
+          0.05,
+          0.12,
+          0.28,
+          1
+        ],
+        "strength": 1.5
+      }
+    },
+    {
+      "operation": "shared_material",
+      "name": "Concrete",
+      "objects": [
+        "Sidewalk"
+      ],
+      "color": [
+        0.18,
+        0.18,
+        0.19,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0
+    },
+    {
+      "operation": "set_camera",
+      "name": "HeroCamera"
+    }
+  ]
+}
