@@ -35,6 +35,7 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 |---|---|---|---|---|---|---|
 | R01-20261110T050448Z | 20261110T050448Z | bca7ae54c4cb | Single milestone | visual | PASS | [R01-20261110T050448Z/REVIEW.md](R01-20261110T050448Z/REVIEW.md) |
 | R02-20261110T052833Z | 20261110T052833Z | 8720b6fdd57a | Single milestone | visual | CHANGES_REQUIRED | [R02-20261110T052833Z/REVIEW.md](R02-20261110T052833Z/REVIEW.md) |
+| R03-20261110T054528Z | 20261110T054528Z | 3ee473e58a10 | Single milestone | visual | PASS | [R03-20261110T054528Z/REVIEW.md](R03-20261110T054528Z/REVIEW.md) |
 
 ## Rules
 
@@ -51,3 +52,5 @@ R<NN>-<yyyyMMddTHHmmssZ>/
 - R01-20261110T050448Z: Build the interior shell: tile floor, three walls, drop ceiling with fluorescent panels, hero camera, and mixed fluorescent/daylight lighting.; evidence 99010d8725e0fb5b682678cfd1050184f4fd1ba62183bf23ef7f39d222c6b8e7
 
 - R02-20261110T052833Z: Build the left row of six front-loading washers with sage painted bodies, dark control panels, and tinted glass doors facing the aisle.; evidence 977a5d3e70b965ced4dbac6366e49f7f919e8ebc673f070ed66b318526b8dbcf
+
+- R03-20261110T054528Z: Revise the left washer row: add stainless drum rims around every round door, retune the doors to tinted glass, and pull the hero camera back slightly to reduce near-row cropping.; evidence e1384d2e4d402dcf0e0ea4585fb6a048bbc76b6ff68c57f40f1e9748df5cd8f8
