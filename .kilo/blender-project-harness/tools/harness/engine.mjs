@@ -29,6 +29,7 @@ const CHECKPOINT_EVERY = 20;
 export const WAIT_LIMIT = 10;
 export const WORKER_MAX_TURNS = 10;
 export const MAX_TICKET_PAYLOAD_BYTES = 2 * 1024 * 1024;
+export const GRADER_ABORT_GRACE_MS = 2 * 60 * 1000;
 export const questionToolPayload = (question, labels) => ({
   tool: 'question',
   questions: [{
@@ -2377,7 +2378,7 @@ export class Harness {
         const full = contained(this.root, report, true);
         if (fs.existsSync(full)) fs.rmSync(full);
         const deadline = Date.now() + g.max_minutes * 60000;
-        c.graders[g.name] = { token, report, attempt: attempt + 1, deadline, steps: 0 };
+        c.graders[g.name] = { token, report, attempt: attempt + 1, deadline, hardDeadline: deadline + GRADER_ABORT_GRACE_MS, steps: 0 };
         const task = this.recordGraderTask(p, token, g.name, report, deadline);
         this.updateManifest(p);
         const absolute = (name) => path.join(this.root, ...name.split('/'));
@@ -2394,6 +2395,9 @@ export class Harness {
         const manifestPath = absolute(c.manifestPath);
         if (!fs.existsSync(manifestPath)) deny('frozen review manifest missing');
         const reportPath = absolute(report);
+        const priorRound = p.history.at(-1)?.round ?? null;
+        const priorReport = priorRound ? `${p.project}/Documents/Reviews/${priorRound}/${g.name}/REPORT.md` : null;
+        const priorReportExists = Boolean(priorReport && fs.existsSync(absolute(priorReport)));
         const dirty = gitText(this.root, ['status', '--porcelain', '--', p.project]) ? 'dirty' : 'clean';
         const prompt = [
           `HARNESS_GRADER:${token}`,
@@ -2419,13 +2423,15 @@ export class Harness {
           ...referenceLines,
           `Manifest: ${manifestPath}`,
           `Report path: ${reportPath}`,
-          `Prior round: ${p.history.at(-1)?.round ?? 'none'}`,
+          `Prior round: ${priorRound ?? 'none'}`,
+          `Prior report (same grader only): ${priorReportExists ? absolute(priorReport) : 'none supplied'}`,
           'Live inspection: not allowed; the only Blender tool a grader may call is blender_look {image:"<absolute assigned evidence image>"}',
           'User prompt: <verbatim user words for permitted live Blender calls>',
           'Prior findings / dispositions: <orchestrator-supplied re-review context or none>',
           `Budget: ${g.max_minutes} minutes, ${g.max_steps} steps; reserve at least one step for the report write`,
-          'Report timing: read REQUIREMENTS.md, the goal brief, the named prior report, and the assigned evidence only; skip optional docs. Write the assigned REPORT.md before your final step. A denied optional look or a nearly exhausted budget is not a reason to stop without a report: write the verdict from the evidence you have.',
+          'Report timing: read REQUIREMENTS.md, the goal brief, your prior report if listed, and the assigned evidence only; skip optional docs. Write the assigned REPORT.md before your final step. A denied optional look or a nearly exhausted budget is not a reason to stop without a report: write the verdict from the evidence you have.',
           `Deadline UTC / rounds already used: ${new Date(deadline).toISOString()}`,
+          `Hard abort UTC: ${new Date(deadline + GRADER_ABORT_GRACE_MS).toISOString()}; the session is aborted at this instant if no report exists.`,
           'Stop: missing evidence/spec, out-of-folder path, scene edit request, budget reached',
           'Output: verdict, findings, <= 20 lines',
         ].join('\n');
@@ -2937,9 +2943,23 @@ export class Harness {
       this.fresh(p);
       const cfg = p.records.roster.find((v) => v.name === name);
       const reportWrite = tool === 'blender_document' && args?.action === 'write';
+      if (g.timedOut) deny('grader hard deadline exceeded; the session is being aborted and cannot continue');
       if (g.verdict || (!reportWrite && (Date.now() > g.deadline || ++g.steps > cfg.max_steps))) deny('grader pass budget exhausted');
       this.updateManifest(p);
       return { project: p.project, report: g.report, sceneHash: p.change.sceneHash, evidenceKey: p.change.evidenceKey };
+    });
+  }
+  markGraderTimedOut(orchestrator, token, reason) {
+    return this.transaction((s) => {
+      const p = this.owner(s, orchestrator);
+      const entry = Object.entries(p.change?.graders ?? {}).find(([, g]) => g.token === token);
+      if (!entry) return false;
+      const g = entry[1];
+      if (g.verdict || g.cancelled || g.timedOut) return false;
+      g.timedOut = new Date().toISOString();
+      g.error = String(reason ?? 'grader deadline exceeded').slice(0, 300);
+      this.updateManifest(p);
+      return true;
     });
   }
   collectGrader(orchestrator, child) {
@@ -2950,6 +2970,16 @@ export class Harness {
       if (!p.goalActive || p.paused) deny('mission is stopped; resume before collecting grader results');
       if (g.cancelled) deny('grader child was cancelled by a mission stop; resume and retry the grader');
       this.fresh(p);
+      if (g.timedOut) {
+        g.verdict = 'BLOCKED';
+        g.kind = 'tooling';
+        g.error = g.error ?? 'grader deadline exceeded before report write';
+        const task = p.tasks?.find((item) => item.token === g.token);
+        if (task) this.recordTaskFinished(p, g.token, { ok: false, error: g.error });
+        if (task) this.tryCommitTaskArtifacts(p, p.change, task, `task: ${task.id} ${task.state}`, { manifest: false });
+        this.updateManifest(p);
+        return this.status(p, s);
+      }
       const fail = (error) => {
         g.verdict = 'BLOCKED'; g.error = error; g.kind = 'tooling';
         const task = p.tasks?.find((item) => item.token === g.token);

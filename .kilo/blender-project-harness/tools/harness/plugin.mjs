@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { Harness, contained, deny, digest, git, MEDIA_GENERATION_TOOLS, MAX_TICKET_PAYLOAD_BYTES, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
+import { Harness, contained, deny, digest, git, GRADER_ABORT_GRACE_MS, MEDIA_GENERATION_TOOLS, MAX_TICKET_PAYLOAD_BYTES, modelDiagnostics, modelRole, stable, WAIT_LIMIT, WORKER_MAX_TURNS, activeWaits, expiredWaits } from './engine.mjs';
 import { describeDocumentFormats } from './documents.mjs';
 import { MAX_BATCH, OPERATION_NAMES, OPERATION_LIMITS, PRIMITIVES, operationBatchCode } from './blender-operations.mjs';
 import { projectPathInCommand, shellPolicy, unsafeBlenderShell } from './shell-policy.mjs';
@@ -258,6 +258,7 @@ export function createHooks(harness, client, directory = harness.root) {
   const questions = new Map();
   const taskArgs = new Map();
   const taskPlans = new Map();
+  const graderWatchdogs = new Map();
   const modelAttempts = new Map();
   const questionPending = new Set();
   const continuations = new Set();
@@ -325,6 +326,26 @@ export function createHooks(harness, client, directory = harness.root) {
     if (children.length) harness.cancelChildren(project.orchestrator, children, reason);
     return children;
   }
+  function armGraderWatchdog(assignment) {
+    const g = assignment?.g;
+    if (!assignment || !g?.child || !g.token || g.verdict || g.cancelled || g.timedOut || graderWatchdogs.has(g.token)) return;
+    const hardDeadline = Number.isFinite(g.hardDeadline) ? g.hardDeadline : g.deadline + GRADER_ABORT_GRACE_MS;
+    if (!Number.isFinite(hardDeadline)) return;
+    const timer = setTimeout(() => {
+      graderWatchdogs.delete(g.token);
+      try {
+        const current = harness.transaction((s) => harness.graderAssignment(s, g.child));
+        if (!current || current.g.verdict || current.g.cancelled || current.g.timedOut) return;
+        if (fs.existsSync(contained(harness.root, current.g.report, true))) return;
+        harness.markGraderTimedOut(current.p.orchestrator, current.g.token, `grader hard deadline exceeded: ${new Date(hardDeadline).toISOString()}`);
+        if (typeof client.session.abort === 'function') {
+          Promise.resolve(client.session.abort({ path: { id: current.g.child }, query: { directory: harness.root } })).catch(() => {});
+        }
+      } catch {}
+    }, Math.max(0, hardDeadline - Date.now()));
+    if (typeof timer.unref === 'function') timer.unref();
+    graderWatchdogs.set(g.token, timer);
+  }
   async function childAssignment(session) {
     const info = await identity(session);
     if (!info.parentID) return null;
@@ -352,6 +373,8 @@ export function createHooks(harness, client, directory = harness.root) {
       if (!assistant) deny('grader runtime model metadata unavailable; cannot bind grader');
       harness.bindGrader(info.parentID, session, prompt, { providerID: assistant.providerID, modelID: assistant.modelID, variant: assistant.variant });
     }
+    const assignment = harness.transaction((s) => harness.graderAssignment(s, session));
+    if (assignment) armGraderWatchdog(assignment);
     return info;
   }
   function stateFor(session) {
@@ -710,13 +733,20 @@ export function createHooks(harness, client, directory = harness.root) {
           if (candidate) {
             const name = relative(candidate);
             if (tool !== 'read') deny('grader searches unavailable; read exact assigned spec/evidence files');
-            const allowed = harness.transaction((s) => {
-              const { p } = harness.graderAssignment(s, input.sessionID);
-              return new Set([...Object.keys(p.records.specs), ...Object.keys(p.change.evidence), assignment.report,
-                `${p.project}/Documents/Reviews/${p.change.round}/manifest.json`, 'AGENTS.md',
-                '.kilo/agent/blender-grader.md', '.kilo/skills/blender-project-grading/SKILL.md']);
+            const { allowed, ownPrior } = harness.transaction((s) => {
+              const { p, name: graderName } = harness.graderAssignment(s, input.sessionID);
+              const prefix = `${p.project}/Documents/Reviews/`;
+              const suffix = `/${graderName}/REPORT.md`;
+              const prior = name.startsWith(prefix) && name.endsWith(suffix)
+                && !name.slice(prefix.length, name.length - suffix.length).includes('/');
+              return {
+                allowed: new Set([...Object.keys(p.records.specs), ...Object.keys(p.change.evidence), assignment.report,
+                  `${p.project}/Documents/Reviews/${p.change.round}/manifest.json`, 'AGENTS.md',
+                  '.kilo/agent/blender-grader.md', '.kilo/skills/blender-project-grading/SKILL.md']),
+                ownPrior: prior,
+              };
             });
-            if (!allowed.has(name)) deny('grader read outside frozen assignment or peer report access');
+            if (!allowed.has(name) && !ownPrior) deny('grader read outside frozen assignment or peer report access');
           } else deny('grader read requires exact path');
         } else if (GRADER_BLENDER_READ.has(tool)) {
           const assignmentState = harness.transaction((s) => harness.graderAssignment(s, input.sessionID));

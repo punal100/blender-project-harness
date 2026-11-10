@@ -18,6 +18,43 @@ function hooks(f, metadata, overrides = {}) {
   return createHooks(f.harness, client);
 }
 const before = (h, session, tool, args) => h['tool.execute.before']({ sessionID: session, callID: 'call_test', tool }, { args });
+const GRADER_TOKEN = '33333333-3333-3333-3333-333333333333';
+function graderState(f, { hardDeadline = Date.now() + 30_000 } = {}) {
+  f.begin();
+  const round = 'R00-20261031T100000Z';
+  const report = `${f.project}/Documents/Reviews/${round}/visual/REPORT.md`;
+  f.harness.transaction((s) => {
+    const p = s.projects[f.project];
+    p.change.inspected = true;
+    p.change.sealed = true;
+    p.change.sceneHash = f.harness.hash(f.scene);
+    p.change.evidence = {};
+    p.change.evidenceKey = 'e'.repeat(64);
+    p.change.round = round;
+    p.change.graders.visual = {
+      token: GRADER_TOKEN,
+      report,
+      child: 'ses_grader',
+      deadline: Date.now() + 30_000,
+      hardDeadline,
+      attempt: 1,
+      steps: 0,
+    };
+  });
+  return { round, report };
+}
+function graderHooks(f, aborted = []) {
+  return createHooks(f.harness, {
+    session: {
+      get: async ({ path: p }) => ({ data: { id: p.id, parentID: f.session, agent: 'blender-grader' } }),
+      messages: async () => ({ data: [
+        { info: { role: 'user', agent: 'blender-grader' }, parts: [{ type: 'text', text: `HARNESS_GRADER:${GRADER_TOKEN}` }] },
+        { info: { role: 'assistant', providerID: 'test', modelID: 'test-model', variant: 'test-variant' }, parts: [] },
+      ] }),
+      abort: async ({ path: p }) => aborted.push(p.id),
+    },
+  });
+}
 async function approveShell(h, session, command, reason = 'Inspect the workspace for a bounded diagnosis.') {
   let warning;
   try { await before(h, session, 'bash', { command }); } catch (error) { warning = error; }
@@ -472,6 +509,31 @@ test('grader delegation requires the exact ticket evidence key and scene hash', 
     }),
     /fresh task.*omit task_id/i,
   );
+});
+
+test('graders may read their own prior report but not a peer report', async (t) => {
+  const f = fixture(t, { review: 'Single' });
+  const { round } = graderState(f);
+  const h = graderHooks(f);
+  const prior = `${f.project}/Documents/Reviews/${round}/visual/REPORT.md`;
+  f.write(prior, '# Prior visual report\n');
+  const peer = `${f.project}/Documents/Reviews/${round}/technical/REPORT.md`;
+  f.write(peer, '# Peer report\n');
+  await assert.doesNotReject(before(h, 'ses_grader', 'read', { filePath: path.join(f.root, prior) }));
+  await assert.rejects(before(h, 'ses_grader', 'read', { filePath: path.join(f.root, peer) }), /outside frozen assignment|peer report/);
+});
+
+test('a bound grader is aborted at its hard deadline', async (t) => {
+  const f = fixture(t, { review: 'Single' });
+  const aborted = [];
+  graderState(f, { hardDeadline: Date.now() + 5 });
+  const h = graderHooks(f, aborted);
+  await assert.doesNotReject(before(h, 'ses_grader', 'read', { filePath: 'AGENTS.md' }));
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.deepEqual(aborted, ['ses_grader']);
+  const grader = f.harness.transaction((s) => s.projects[f.project].change.graders.visual);
+  assert.ok(grader.timedOut);
+  assert.match(grader.error, /hard deadline/);
 });
 
 test('manual creation of new project documents is blocked', async (t) => {

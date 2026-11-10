@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { Harness, contained, externalBinaryPolicy, modelRole, transientGitFailure } from './engine.mjs';
+import { GRADER_ABORT_GRACE_MS, Harness, contained, externalBinaryPolicy, modelRole, transientGitFailure } from './engine.mjs';
 
 const tempRoot = path.join(os.tmpdir(), 'kilo');
 fs.mkdirSync(tempRoot, { recursive: true });
@@ -1365,6 +1365,10 @@ test('grader prompts distinguish partial milestone and final full-spec scope', (
   assert.match(partialTicket.prompt, /deferred, not a finding/);
   assert.match(partialTicket.prompt, /Report timing: .*write the assigned REPORT\.md before your final step/i);
   assert.match(partialTicket.prompt, /reserve at least one step for the report write/i);
+  assert.match(partialTicket.prompt, /Hard abort UTC: .*session is aborted/);
+  assert.match(partialTicket.prompt, /Prior report \(same grader only\): none supplied/);
+  const assignment = partial.harness.transaction((s) => s.projects[partial.project].change.graders.visual);
+  assert.equal(assignment.hardDeadline - assignment.deadline, GRADER_ABORT_GRACE_MS);
 
   const final = useFixture(t, { review: 'All' });
   activate(final);
@@ -1711,6 +1715,31 @@ test('a grader may write its report after the deadline but not after a verdict',
   assert.ok(fs.existsSync(path.join(f.root, ticket.report)));
   f.harness.transaction((state) => { state.projects[f.project].change.graders.visual.verdict = 'PASS'; });
   gate(() => f.harness.documentWrite('child-late-report', { path: report, content }), /already finalized/);
+});
+
+test('a hard-timeout grader is collected as a tooling block', (t) => {
+  const f = useFixture(t, { review: 'Single' });
+  activate(f);
+  begin(f);
+  seal(f);
+  const ticket = f.harness.command('orchestrator', 'grader-ticket', { name: 'visual' });
+  f.harness.bindGrader(
+    'orchestrator',
+    'child-timeout',
+    `Review assignment ${ticket.marker}`,
+    { providerID: 'fixture-provider', modelID: 'fixture-model', variant: 'fixture-variant' },
+  );
+  f.harness.transaction((s) => {
+    const grader = s.projects[f.project].change.graders.visual;
+    grader.hardDeadline = Date.now() - 1;
+  });
+  assert.equal(f.harness.markGraderTimedOut('orchestrator', ticket.token, 'grader hard deadline exceeded'), true);
+  const status = f.harness.collectGrader('orchestrator', 'child-timeout');
+  assert.equal(status.change.graders.visual.verdict, 'BLOCKED');
+  assert.equal(status.change.graders.visual.kind, 'tooling');
+  assert.match(status.change.graders.visual.error, /hard deadline/);
+  const task = f.harness.transaction((s) => s.projects[f.project].tasks.find((item) => item.token === ticket.token));
+  assert.equal(task.state, 'failed');
 });
 
 test('graders may read their own prior report but not peer reports', (t) => {
