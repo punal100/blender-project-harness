@@ -1,0 +1,40 @@
+{
+  "operations": [
+    {
+      "operation": "shared_material",
+      "name": "Dryer_Door_Glass_Tint",
+      "objects": [
+        "Dryer_R1_Door",
+        "Dryer_R2_Door",
+        "Dryer_R3_Door"
+      ],
+      "color": [
+        0.04,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.03,
+      "metallic": 0.15,
+      "transmission": 0.55,
+      "ior": 1.45
+    },
+    {
+      "operation": "shared_material",
+      "name": "Dryer_Stainless_Rim",
+      "objects": [
+        "Dryer_R1_Rim",
+        "Dryer_R2_Rim",
+        "Dryer_R3_Rim"
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.65,
+        1
+      ],
+      "roughness": 0.18,
+      "metallic": 0.9
+    }
+  ]
+}
