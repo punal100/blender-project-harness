@@ -55,9 +55,17 @@ that phase. Detailed entity machines live in `state-machine.mjs`:
 - registration, mission, ticket, task, worker, review assignment, review, media, reference intake,
   intake, wait, shell approval, asset check, export, and change phases.
 
+The coarse workflow is declared as a machine as well, in `STATE_MACHINE_CATALOG`; `capabilities.stateMachines`
+exposes the versioned names, states, and transitions for agents. The state model is deliberately
+federated: independent lifecycles stay independent, while `status.state` gives one read-only projection.
 The engine validates ticket, task, media, and reference-intake transitions at write time. Unknown
 persisted states are reported in `state.invariants.violations` rather than silently treated as valid.
 Legacy status fields and `nextStep` remain available, so existing callers do not need to change.
+
+Installer outcomes, Blender process status, tool exposure, autonomy/review modes, document status
+fields, Git/filesystem facts, downloads, and one-shot shell results are not runtime machines. They are
+configuration enums, document content, external facts, or one-shot operations; modeling them as
+agent-owned transitions would create false coupling.
 
 ## 2. Main components
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Feature
+
+- Added `STATE_MACHINE_CATALOG`, a versioned registry that includes the coarse workflow alongside the
+  existing domain machines. `capabilities.stateMachines` exposes machine names, states, and transitions
+  without changing `status` or `nextStep`.
+- State-model intake projection now exposes the existing `scanned` state for a pending reference scan,
+  while preserving `copied` and `none`.
+
 ### Fixed
 
 - A bound grader receives a hard abort at `deadline + 2 minutes`; the assignment records
