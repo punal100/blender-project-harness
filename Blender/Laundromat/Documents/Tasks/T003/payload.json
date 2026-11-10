@@ -1,0 +1,163 @@
+{
+  "operations": [
+    {
+      "operation": "create_mesh",
+      "name": "FixtureRowLeft",
+      "primitive": "cube",
+      "location": [
+        -2.5,
+        -2.4,
+        3.13
+      ],
+      "scale": [
+        0.12,
+        0.6,
+        0.03
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "FixtureRowRight",
+      "primitive": "cube",
+      "location": [
+        2.5,
+        -2.4,
+        3.13
+      ],
+      "scale": [
+        0.12,
+        0.6,
+        0.03
+      ]
+    },
+    {
+      "operation": "create_light",
+      "name": "LightWarm",
+      "kind": "AREA",
+      "location": [
+        0,
+        0.2,
+        2.95
+      ],
+      "energy": 500,
+      "color": [
+        1,
+        0.86,
+        0.68
+      ],
+      "size": 4
+    },
+    {
+      "operation": "create_light",
+      "name": "LightCool",
+      "kind": "AREA",
+      "location": [
+        0,
+        -3,
+        2.2
+      ],
+      "energy": 350,
+      "color": [
+        0.55,
+        0.7,
+        1
+      ],
+      "rotation": [
+        1.15,
+        0,
+        0
+      ],
+      "size": 2
+    },
+    {
+      "operation": "create_camera",
+      "name": "HeroCamera",
+      "location": [
+        0,
+        2.9,
+        1.65
+      ],
+      "rotation": [
+        1.4982,
+        0,
+        3.1053
+      ],
+      "lens": 24
+    },
+    {
+      "operation": "create_mesh",
+      "name": "BaseboardBack",
+      "primitive": "cube",
+      "location": [
+        0,
+        3.375,
+        0.06
+      ],
+      "scale": [
+        4.9,
+        0.025,
+        0.06
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "BaseboardLeft",
+      "primitive": "cube",
+      "location": [
+        -4.875,
+        0,
+        0.06
+      ],
+      "scale": [
+        0.025,
+        3.4,
+        0.06
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "BaseboardRight",
+      "primitive": "cube",
+      "location": [
+        4.875,
+        0,
+        0.06
+      ],
+      "scale": [
+        0.025,
+        3.4,
+        0.06
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "EntranceMat",
+      "primitive": "cube",
+      "location": [
+        0,
+        -2.7,
+        0.006
+      ],
+      "scale": [
+        0.9,
+        0.5,
+        0.006
+      ]
+    },
+    {
+      "operation": "create_mesh",
+      "name": "WindowSill",
+      "primitive": "cube",
+      "location": [
+        0,
+        -3.39,
+        0.47
+      ],
+      "scale": [
+        4.1,
+        0.05,
+        0.02
+      ]
+    }
+  ]
+}
