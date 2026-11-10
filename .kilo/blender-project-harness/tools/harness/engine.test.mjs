@@ -2351,6 +2351,44 @@ test('reclaim requires a stale window and transfers ownership explicitly', (t) =
   assert.equal(f.harness.command('new-session', 'status').project, f.project);
 });
 
+test('status names reclaim for a stale owner and keeps a live owner sealed', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  f.harness.transaction((s) => { s.projects[f.project].orchestrator = 'old-session'; });
+  const live = f.harness.command('new-session', 'status', { project: f.project });
+  assert.equal(live.nextStep.phase, 'owned');
+  assert.equal(live.nextStep.action, null);
+  f.harness.transaction((s) => { s.projects[f.project].change.deadline = Date.now() - 1; });
+  const stale = f.harness.command('new-session', 'status', { project: f.project });
+  assert.equal(stale.staleOwner, true);
+  assert.equal(stale.nextStep.phase, 'stale-owner');
+  assert.equal(stale.nextStep.action, 'reclaim');
+  assert.match(stale.nextStep.command, /action:"reclaim"/);
+  const reclaimed = f.harness.command('new-session', 'reclaim', { project: f.project, reason: 'old session stopped responding' });
+  assert.equal(reclaimed.goalActive, true);
+  assert.equal(reclaimed.reclaimed.from, 'old-session');
+  assert.equal(f.harness.command('new-session', 'status').project, f.project);
+});
+
+test('status routes an expired unconsumed ticket to recovery instead of dispatch', (t) => {
+  const f = useFixture(t);
+  activate(f);
+  begin(f);
+  const issued = f.harness.issue('orchestrator', 'apply', { stale: true });
+  f.harness.transaction((s) => {
+    s.tickets[issued.token].created = Date.now() - 600_001;
+    s.projects[f.project].change.deadline = Date.now() - 1;
+  });
+  const status = f.harness.command('orchestrator', 'status');
+  assert.equal(status.nextStep.phase, 'recover');
+  assert.equal(status.nextStep.action, 'recover');
+  const released = f.harness.recover('orchestrator');
+  assert.equal(released.change.pending, null);
+  const next = f.harness.command('orchestrator', 'status');
+  assert.notEqual(next.nextStep.phase, 'recover');
+});
+
 test('registration rejects takeover of project owned by another active orchestrator', (t) => {
   const f = useFixture(t);
   activate(f);

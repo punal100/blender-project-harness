@@ -1628,9 +1628,14 @@ export class Harness {
     }
     if (c.pending) {
       const ticket = state?.tickets?.[c.pending];
+      const task = p.tasks?.find((item) => item.token === c.pending);
+      const staleUnconsumed = !ticket
+        || (['issued', 'authorized'].includes(ticket.state) && Date.now() - ticket.created > TICKET_TTL_MS);
+      if (staleUnconsumed && (c.failure || Date.now() > c.deadline)) {
+        return { phase: 'recover', actor: 'orchestrator', action: 'recover', command: this.wire('recover'), reason: 'The pending operation ticket expired before execution; release it with recover, then follow the reported next step for the open change.' };
+      }
       const operation = ticket?.operation ?? '<operation>';
       const payload = ticket?.payload ?? {};
-      const task = p.tasks?.find((item) => item.token === c.pending);
       if (operation === 'apply') return { phase: 'apply', actor: 'blender-worker', action: 'blender_harness_execute', command: task?.payloadPath ? `blender_harness_execute {token:"${c.pending}",operation:"apply",payload_path:"${task.payloadPath}",payload_sha256:"${task.payloadHash}"}` : `blender_harness_execute {token:"${c.pending}",operation:"apply",payload:${JSON.stringify(JSON.stringify(payload))}}`, workerPrompt: this.workerPrompt(p, c.pending, operation, payload, task), reason: 'Pass workerPrompt verbatim to blender-worker; it contains the exact scene, task document and one-shot token. The orchestrator must not execute it.' };
       return { phase: operation, actor: 'orchestrator', action: 'blender_harness_execute', command: `blender_harness_execute {token:"${c.pending}",operation:"${operation}",payload:"{}"}`, reason: `Execute the pending ${operation} ticket.` };
     }
@@ -1718,7 +1723,7 @@ export class Harness {
       questionTool: questionToolPayload(pendingChallenge.question, ['Confirm registration', 'Cancel']),
       expiresAt: new Date(pendingChallenge.created + 600000).toISOString(),
     } : null;
-    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, complete: p.complete, pendingQuestion, objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: p.change?.objects?.length ?? 0, remaining: Math.max(0, MAX_CHANGE_OBJECTS - (p.change?.objects?.length ?? 0)) }, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), worker: p.worker ?? null, workerRetired: p.workerRetired ?? null, intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home), toolExposure: toolExposureSummary(this.root),
+    return { project: p.project, scene: p.scene, checkpoint: p.checkpoint, lastCommit: p.lastCommit ?? null, goalActive: p.goalActive, goalSource: p.goalSource ?? null, goalMeta: p.goalMeta ?? null, goalConflict: p.goalConflict ?? null, goalReport: p.goalReport ?? null, paused: p.paused ?? null, reclaimed: p.reclaimed ?? null, complete: p.complete, pendingQuestion, objectBudget: { cap: MAX_CHANGE_OBJECTS, existing: p.change?.objects?.length ?? 0, remaining: Math.max(0, MAX_CHANGE_OBJECTS - (p.change?.objects?.length ?? 0)) }, waits: (p.waits ?? []).map((wait) => ({ ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null, expired: validDate(wait.dueAt) && Date.parse(wait.dueAt) <= Date.now() })), wait: (() => { const wait = waitSummary(p); return wait ? { ...wait, dueInMs: validDate(wait.dueAt) ? Math.max(0, Date.parse(wait.dueAt) - Date.now()) : null } : null; })(), worker: p.worker ?? null, workerRetired: p.workerRetired ?? null, intake: p.intake ?? null, referenceIntake: p.referenceIntake ? { status: p.referenceIntake.status, files: (p.referenceIntake.entries ?? []).map((entry) => entry.sourcePath), copied: p.referenceIntake.copied ?? [], completedAt: p.referenceIntake.completedAt ?? null } : null, downloads: p.downloads ?? [], media: { open: openMedia ? this.mediaView(openMedia) : null, requests: media.map((request) => this.mediaView(request)) }, assetUse: Boolean(p.assetUse), assetCheck: p.assetCheck ?? null, exports: p.exports ?? [], blender: instanceStatus(this.home), toolExposure: toolExposureSummary(this.root),
        models: {
          worker: (() => { try { return modelSummary(this.workerConfig()); } catch (error) { return { error: String(error.message).slice(0, 300) }; } })(),
          graders: (p.records.roster ?? []).map(({ name, ...choice }) => ({ name, ...modelSummary(choice) })),
@@ -1749,7 +1754,25 @@ export class Harness {
     this.projectPath(project);
     const existing = Object.values(state.projects).find((p) => p.project === project);
     if (existing) {
-      if (existing.orchestrator !== session) return { project, registered: true, next: 'Project is registered to another orchestrator session.', nextStep: { phase: 'owned', actor: 'other-session', action: null, command: null, reason: 'Do not take over a registered project.' } };
+      if (existing.orchestrator !== session) {
+        const stale = Boolean(existing.change && existing.change.deadline < Date.now());
+        if (stale && !existing.goalConflict) {
+          return {
+            project,
+            registered: true,
+            staleOwner: true,
+            next: 'The registered owner has no live change window. Inspect the runtime state and reclaim the project only if that owner is no longer working.',
+            nextStep: {
+              phase: 'stale-owner',
+              actor: 'orchestrator',
+              action: 'reclaim',
+              command: this.wire('reclaim', { project, reason: 'Prior orchestrator is no longer active; recover the project after inspecting the stale change.' }),
+              reason: 'The owner change window expired. Reclaim transfers ownership; then follow the reported recovery step for any stale operation.',
+            },
+          };
+        }
+        return { project, registered: true, next: 'Project is registered to another orchestrator session.', nextStep: { phase: 'owned', actor: 'other-session', action: null, command: null, reason: 'Do not take over a registered project.' } };
+      }
       return this.status(existing, state);
     }
     const challenge = state.challenge;
