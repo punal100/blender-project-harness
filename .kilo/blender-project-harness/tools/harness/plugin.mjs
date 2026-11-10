@@ -446,6 +446,8 @@ export function createHooks(harness, client, directory = harness.root) {
         failure: Boolean(c.failure),
         pending: c.pending ?? null,
         round: c.round ?? null,
+        paths: c.paths ?? null,
+        readyToSeal: Boolean(c.readyToSeal),
         wipRender: c.wipRender?.operations ?? null,
         wipLook: c.wipLook?.operations ?? null,
         graders: Object.fromEntries(Object.entries(c.graders ?? {}).map(([name, g]) => [name, [
@@ -460,6 +462,14 @@ export function createHooks(harness, client, directory = harness.root) {
         state: project.tasks.at(-1).state,
         finished: project.tasks.at(-1).finished ?? null,
       } : null,
+      media: (project?.media?.requests ?? []).map((request) => [request.id, request.status, request.updatedAt ?? null]),
+      intake: project?.intake?.status ?? null,
+      referenceIntake: project?.referenceIntake?.status ?? null,
+      downloads: (project?.downloads ?? []).length,
+      waits: (project?.waits ?? []).length,
+      worker: project?.worker?.child ?? null,
+      assetCheck: project?.assetCheck?.sceneHash ?? null,
+      exports: (project?.exports ?? []).length,
     });
   }
   const delayMs = (value) => {
@@ -575,16 +585,10 @@ export function createHooks(harness, client, directory = harness.root) {
     const previous = continuationProgress.get(sessionID);
     const noProgress = previous?.signature === signature ? (previous.noProgress ?? 0) + 1 : 0;
     if (previous && noProgress >= MAX_AUTO_NO_PROGRESS_TURNS) {
-      harness.transaction((s) => {
-        const current = Object.values(s.projects).find((item) => item.orchestrator === sessionID);
-        if (!current || current.complete) return;
-        current.goalActive = false;
-        current.goalSource = null;
-        current.paused = {
-          at: new Date().toISOString(),
-          reason: `Automatic continuation made no harness progress for ${MAX_AUTO_NO_PROGRESS_TURNS} turns; inspect the session and resume with /goal-blender resume.`,
-        };
-      });
+      const reason = `Automatic continuation made no harness progress for ${MAX_AUTO_NO_PROGRESS_TURNS} turns; inspect the session and resume with /goal-blender resume.`;
+      await abortChildren(project, reason);
+      harness.retireWorker(sessionID, null, reason);
+      harness.command(sessionID, 'goal-inactive', { reason });
       continuationProgress.delete(sessionID);
       return;
     }
