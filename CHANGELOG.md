@@ -18,6 +18,12 @@
 - Grader prompts list the previous round's report for the same grader, and direct reads of that
   report are allowed without exposing peer reports.
 - Grader ticket records expose `hardDeadline` so the timeout is visible in the manifest and status.
+- The hard-abort watchdog now arms at grader dispatch and discovers an unbound grader child, so a grader
+  that stalls before its first tool is still aborted.
+- Timed-out review assignments project as failed, and a pending reference scan takes precedence over an
+  earlier `intake` receipt in the intake entity projection.
+- State-machine helpers now resolve the catalog, so the `workflow` entry exposed to agents is accepted by
+  the same validators as every other machine.
 
 ## 1.0.8 - 2026-11-09
 
