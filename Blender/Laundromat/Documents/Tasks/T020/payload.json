@@ -1,0 +1,108 @@
+{
+  "operations": [
+    {
+      "operation": "transform",
+      "name": "WasherDoors",
+      "rotation": [
+        0,
+        1.5708,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "DryerDoorsLower",
+      "rotation": [
+        1.5708,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "transform",
+      "name": "DryerDoorsUpper",
+      "rotation": [
+        1.5708,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "WasherBodies",
+      "modifier": "ARRAY",
+      "count": 10,
+      "relative_offset": [
+        0,
+        1.06897,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "WasherDoors",
+      "modifier": "ARRAY",
+      "count": 10,
+      "relative_offset": [
+        0,
+        1.3478,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "WasherPanels",
+      "modifier": "ARRAY",
+      "count": 10,
+      "relative_offset": [
+        0,
+        1.1481,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "DryerBodiesLower",
+      "modifier": "ARRAY",
+      "count": 3,
+      "relative_offset": [
+        1.3333,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "DryerBodiesUpper",
+      "modifier": "ARRAY",
+      "count": 3,
+      "relative_offset": [
+        1.3333,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "DryerDoorsLower",
+      "modifier": "ARRAY",
+      "count": 3,
+      "relative_offset": [
+        2.1739,
+        0,
+        0
+      ]
+    },
+    {
+      "operation": "modifier",
+      "name": "DryerDoorsUpper",
+      "modifier": "ARRAY",
+      "count": 3,
+      "relative_offset": [
+        2.1739,
+        0,
+        0
+      ]
+    }
+  ]
+}
