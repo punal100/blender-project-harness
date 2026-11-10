@@ -1,6 +1,6 @@
 # External Assets — Laundromat
 
-No external assets are planned. Every prop, surface, and light is authored in the scene through reviewed harness operations; no third-party files or generated media enter the project.
+No external assets are used. Every prop, surface, and light is authored in the scene through reviewed harness operations; no third-party files or generated media enter the project.
 
 | Asset ID | Asset | Type | Source URL | Author / vendor | Licence | Local path | Packaging | Redistributable | SHA-256 | Preview | Used in | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
